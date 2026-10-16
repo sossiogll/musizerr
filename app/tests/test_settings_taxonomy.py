@@ -228,7 +228,7 @@ def test_system_area_mapping_exact():
 
     all_expected = set().union(*expected_by_group.values())
     assert _keys_for_area(sc.AREA_SYSTEM) == all_expected
-    assert len(all_expected) == 39
+    assert len(all_expected) == 41
 
 
 def test_routine_settings_are_hidden_from_the_generic_settings_page():
@@ -238,15 +238,15 @@ def test_routine_settings_are_hidden_from_the_generic_settings_page():
         assert sc.get_def(key).hidden is True
 
 
-def test_catalog_area_counts_are_exactly_5_3_44_39():
+def test_catalog_area_counts_are_exactly_5_3_44_41():
     counts = {area: len(_keys_for_area(area)) for area in sc.AREA_ORDER}
     assert counts == {
         sc.AREA_ACCOUNT: 5,
         sc.AREA_PROVIDERS: 3,
         sc.AREA_LIBRARY: 44,
-        sc.AREA_SYSTEM: 39,
+        sc.AREA_SYSTEM: 41,
     }
-    assert sum(counts.values()) == len(sc.CATALOG) == 91
+    assert sum(counts.values()) == len(sc.CATALOG) == 93
 
 
 # ---------------------------------------------------------------------------

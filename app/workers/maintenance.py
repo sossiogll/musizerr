@@ -40,7 +40,7 @@ from services.delegation import poll_for_requested_track
 from services.enrichment import check_sync_availability
 from services.progress import publish_download_progress
 from services.stream import resolve_sync_id
-from services import held_uploads, library_reconcile, playlist_downloads
+from services import held_uploads, library_reconcile, playlist_downloads, update_check
 from services.workspace import open_workspace, remove_stale_workspaces
 
 from .celery_app import celery, get_config, get_registry
@@ -838,6 +838,13 @@ def sweep_workspaces() -> dict:
     removed = remove_stale_workspaces(config.workspace_dir, max_age)
     held = held_uploads.remove_stale(config.workspace_dir, config.held_upload_max_age_hours * 3600)
     return {"status": "ok", "removed": removed, "held_removed": held}
+
+
+@celery.task(name="workers.maintenance.check_for_updates")
+def check_for_updates() -> dict:
+    """Reads the releases of Musizerr and keeps the newer ones with their metadata (services/update_check.py):
+    Administration judges them against what runs. A failure to reach GitHub fails the run."""
+    return update_check.check()
 
 
 @celery.task(name="workers.maintenance.reconcile_library_files")

@@ -200,6 +200,7 @@ EXPECTED: dict[tuple[str, str], str] = {
 
     # --- system (routes/system/*)
     ("GET", "/health"): "public",
+    ("GET", "/admin/updates"): "admin",
     ("GET", "/system/routines"): "admin",
     ("PATCH", "/system/routines/{key}"): "admin",
     ("POST", "/system/routines/{key}/run"): "admin",
