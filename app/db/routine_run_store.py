@@ -127,11 +127,14 @@ def latest_run(session: Session, routine_key: str) -> Optional[RoutineRun]:
     ).first()
 
 
-def last_finished_run(session: Session, routine_key: str) -> Optional[RoutineRun]:
-    """L'ultima run conclusa ``ok`` o ``error`` (mai una saltata)."""
+def last_finished_run(
+    session: Session, routine_key: str, statuses: tuple[str, ...] = (STATUS_OK, STATUS_ERROR),
+) -> Optional[RoutineRun]:
+    """L'ultima run conclusa ``ok`` o ``error`` (mai una saltata); ``statuses`` ne sceglie uno solo
+    (l'ultima riuscita: ``(STATUS_OK,)``)."""
     return session.exec(
         select(RoutineRun)
-        .where(RoutineRun.routine_key == routine_key, RoutineRun.status.in_((STATUS_OK, STATUS_ERROR)),
+        .where(RoutineRun.routine_key == routine_key, RoutineRun.status.in_(statuses),
                RoutineRun.finished_at.is_not(None))
         .order_by(RoutineRun.finished_at.desc())
     ).first()

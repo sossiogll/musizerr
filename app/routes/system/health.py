@@ -9,6 +9,7 @@ from sqlmodel import text
 
 from core import user_auth
 from db.engine import engine
+from services import app_version
 from routes.deps import ConfigDep, get_registry
 
 router = APIRouter()
@@ -48,6 +49,9 @@ def health(
             status["db_detail"] = str(exc)
 
     if is_admin:
+        # The version that runs (ADR-0007 §2): admins only, like the providers. Telling everyone would
+        # tell who looks for a vulnerable version which instances run it.
+        status["version"], status["commit"] = app_version.VERSION, app_version.COMMIT
         try:
             registry = get_registry()
             status["providers"] = {

@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Info } from "lucide-react";
+import { useUpdates } from "@/hooks/useUpdates";
 import { useI18n } from "@/i18n";
 import { ATTRIBUTION, COPYRIGHT, LICENSE_URL, NOTICE_URL, SOURCE_URL, UPSTREAM_URL } from "@/lib/project";
+import { WEB_VERSION } from "@/lib/version";
 
 /**
  * The Appropriate Legal Notices (AGPL section 5(d)) and the attribution of NOTICE.md:
@@ -22,6 +24,8 @@ export function AboutPage() {
         <ExternalLink href={UPSTREAM_URL}>{UPSTREAM_URL}</ExternalLink>
       </blockquote>
 
+      <VersionSection />
+
       <Section title={t("about.sourceTitle")}>
         <p>
           {t("about.source")} <ExternalLink href={SOURCE_URL}>{SOURCE_URL}</ExternalLink>
@@ -40,6 +44,35 @@ export function AboutPage() {
         </p>
       </Section>
     </article>
+  );
+}
+
+/**
+ * The version of the web app for everyone; the server's for admins only (GET /admin/updates), like /health:
+ * telling everyone which version runs would tell who looks for a vulnerable one where to find it.
+ */
+function VersionSection() {
+  const { t } = useI18n();
+  const { data } = useUpdates();
+  // The same build gives both the same version: anything else is a cached page or a server not restarted.
+  const differs = !!data && !data.development && WEB_VERSION !== "dev" && WEB_VERSION !== data.current;
+  return (
+    <Section title={t("about.versionTitle")}>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        <dt className="text-muted-foreground">{t("about.webVersion")}</dt>
+        <dd className="font-mono">{WEB_VERSION}</dd>
+        {data && (
+          <>
+            <dt className="text-muted-foreground">{t("about.serverVersion")}</dt>
+            <dd className="font-mono">
+              {data.current}
+              {data.commit && <span className="text-muted-foreground"> ({data.commit.slice(0, 7)})</span>}
+            </dd>
+          </>
+        )}
+      </dl>
+      {differs && <p role="status" className="text-sm text-warning">{t("about.versionMismatch")}</p>}
+    </Section>
   );
 }
 

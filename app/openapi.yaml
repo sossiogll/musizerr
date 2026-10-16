@@ -5212,6 +5212,12 @@ paths:
                   status:
                     type: string
                     enum: [ok, degraded]
+                  version:
+                    type: string
+                    description: Admins only. The version that runs (ADR-0007), from the release tag ("1.4.0"), a build of master ("1.3.2+7.abc1234") or "dev".
+                  commit:
+                    type: string
+                    description: Admins only. The commit the images were built from; empty for the development stack.
                   db:
                     type: string
                     enum: [ok, error]
@@ -7233,6 +7239,61 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+
+  /admin/updates:
+    get:
+      operationId: getUpdates
+      tags: [system]
+      summary: The version that runs and the newer releases of Musizerr (admin)
+      description: >
+        What the check_for_updates routine found (ADR-0007 §5.1), judged against what runs now: each newer
+        release with its kind (major, minor, patch) and, when pulling its images is not all it takes, the
+        reasons (major, upgrade_path, contract_unsupported, contract_migrations, manual_steps, no_metadata).
+        Musizerr is updated by hand; this reads only.
+      responses:
+        "200":
+          description: Updates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [current, commit, development, check_enabled, checked_at, last_check_failed, updates, latest]
+                properties:
+                  current: {type: string}
+                  commit: {type: string}
+                  development:
+                    type: boolean
+                    description: A development build, with no version to compare.
+                  check_enabled: {type: boolean}
+                  checked_at: {type: [string, "null"], format: date-time}
+                  last_check_failed: {type: boolean}
+                  latest: {type: [string, "null"]}
+                  updates:
+                    type: array
+                    items:
+                      type: object
+                      required: [version, kind, plain, reasons]
+                      properties:
+                        version: {type: string}
+                        url: {type: [string, "null"]}
+                        published_at: {type: [string, "null"]}
+                        kind: {type: string, enum: [major, minor, patch]}
+                        plain:
+                          type: boolean
+                          description: Pulling the new images is all the update takes.
+                        reasons:
+                          type: array
+                          items:
+                            type: object
+                            required: [code]
+                            properties:
+                              code: {type: string}
+                              through: {type: string}
+                              providers: {type: array, items: {type: string}}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /system/routines:
     get:

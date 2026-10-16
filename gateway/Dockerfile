@@ -28,6 +28,10 @@ CMD ["python", "-m", "musizerr_gateway"]
 
 
 FROM base AS production
+# The version this image is (ADR-0007 §2), shown in the gateway's health.
+ARG MUSIZERR_VERSION=dev
+ARG MUSIZERR_COMMIT=
+ENV MUSIZERR_VERSION=$MUSIZERR_VERSION MUSIZERR_COMMIT=$MUSIZERR_COMMIT
 COPY sdk /tmp/sdk
 COPY gateway /tmp/gateway
 RUN pip install --no-cache-dir /tmp/sdk /tmp/gateway && rm -rf /tmp/sdk /tmp/gateway
