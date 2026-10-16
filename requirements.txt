@@ -16,8 +16,8 @@ httpx==0.28.1
 
 # Auth
 bcrypt==4.2.1
-PyJWT==2.10.1
-cryptography==46.0.5   # Fernet: encryption of the stored credentials (docs/credentials.md)
+PyJWT==2.15.0
+cryptography==50.0.0   # Fernet: encryption of the stored credentials (docs/credentials.md)
 
 # Utilities
 mutagen==1.47.0        # lettura/scrittura tag audio (library scan, tag-repair)
