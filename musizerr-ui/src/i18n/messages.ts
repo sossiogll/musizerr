@@ -414,6 +414,7 @@ export const en = {
       match_likes: "Match likes with the library",
       library_duplicates_scan: "Library duplicates scan",
       sweep_workspaces: "Clean up workspaces",
+      check_for_updates: "Check for updates",
       reconcile_library_files: "Reconcile library files",
       retry_transient_failures: "Retry temporary failures",
     },
@@ -432,6 +433,8 @@ export const en = {
       library_duplicates_scan:
         "Finds the same recording stored more than once via audio fingerprint and proposes which copy to keep.",
       sweep_workspaces: "Removes temporary file workspaces left behind by an interrupted download or stream.",
+      check_for_updates:
+        "Reads the releases of Musizerr on GitHub once a day and tells Administration when a newer version exists and what updating to it implies. It never updates anything: Musizerr is updated by hand.",
       reconcile_library_files:
         "Checks the library against the files the storage really holds: a moved file is found again, a vanished one no longer counts as in the library. Deletes nothing.",
       retry_transient_failures:
@@ -503,6 +506,7 @@ export const en = {
         "{{listed}} files listed: {{created}} new, {{attached}} attached, {{aliased}} linked by id, {{stale_dropped}} old ids removed, {{gone}} no longer on the server",
       library_duplicates_scan: "{{groups_created}} new and {{groups_updated}} updated duplicate groups among {{candidates}} tracks",
       sweep_workspaces: "Removed {{removed}} leftover workspaces",
+      check_for_updates: "Read the releases of {{repository}}",
       reconcile_library_files: "{{relocated}} files found again and {{missing_new}} newly missing among {{entries}} library files",
       retry_transient_failures: "Queued again {{queued}} of {{candidates}} failed downloads",
     },
@@ -890,6 +894,27 @@ export const en = {
       "Musizerr is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.",
     licenseText: "The license (LICENSE)",
     noticeText: "The additional terms (NOTICE.md)",
+    versionTitle: "Version",
+    webVersion: "Web app",
+    serverVersion: "Server",
+    versionMismatch: "The web app and the server are different versions: reload the page; if it stays, restart Musizerr.",
+  },
+  updates: {
+    title: "Musizerr {{version}} is available",
+    running: "you run {{version}}",
+    others: { one: "1 more release", other: "{{count}} more releases" },
+    kind: { major: "Major version", minor: "Minor version", patch: "Patch" },
+    plain: "Pulling its images is all it takes: the database is migrated when it starts.",
+    howTo: "To update: set MUSIZERR_VERSION={{version}} in .env, then run docker compose pull && docker compose up -d.",
+    notes: "Release notes",
+    reasons: {
+      major: "A major version: read the release notes before updating.",
+      upgrade_path: "Update to {{through}} first, then to this version.",
+      contract_unsupported: "These providers would stop until they are updated: {{providers}}.",
+      contract_migrations: "It changes the database in a way the previous version cannot read: back it up first.",
+      manual_steps: "The release notes ask for a step by hand.",
+      no_metadata: "This release does not describe its requirements: read its notes before updating.",
+    },
   },
   notFound: {
     goHome: "Go to Home",
@@ -1801,6 +1826,7 @@ export const it: Translations<typeof en> = {
       match_likes: "Abbina i mi piace alla libreria",
       library_duplicates_scan: "Scansione duplicati libreria",
       sweep_workspaces: "Pulizia cartelle di lavoro",
+      check_for_updates: "Controllo aggiornamenti",
       reconcile_library_files: "Riconcilia i file della libreria",
       retry_transient_failures: "Riprova i fallimenti temporanei",
     },
@@ -1818,6 +1844,8 @@ export const it: Translations<typeof en> = {
       library_duplicates_scan:
         "Trova la stessa registrazione salvata più di una volta tramite impronta audio e propone quale copia tenere.",
       sweep_workspaces: "Rimuove le cartelle temporanee rimaste da un download o uno streaming interrotto.",
+      check_for_updates:
+        "Legge una volta al giorno le release di Musizerr su GitHub e avvisa in Amministrazione quando esiste una versione più nuova e cosa comporta aggiornare. Non aggiorna mai nulla: Musizerr si aggiorna a mano.",
       reconcile_library_files:
         "Confronta la libreria con i file che lo storage contiene davvero: un file spostato si ritrova, uno sparito non conta più come in libreria. Non cancella nulla.",
       retry_transient_failures:
@@ -1889,6 +1917,7 @@ export const it: Translations<typeof en> = {
         "{{listed}} file elencati: {{created}} nuovi, {{attached}} collegati, {{aliased}} collegati per id, {{stale_dropped}} id vecchi rimossi, {{gone}} non più sul server",
       library_duplicates_scan: "{{groups_created}} gruppi di duplicati nuovi e {{groups_updated}} aggiornati su {{candidates}} brani",
       sweep_workspaces: "Rimosse {{removed}} cartelle di lavoro rimaste",
+      check_for_updates: "Lette le release di {{repository}}",
       reconcile_library_files: "{{relocated}} file ritrovati e {{missing_new}} nuovi mancanti su {{entries}} file della libreria",
       retry_transient_failures: "Rimessi in coda {{queued}} download falliti su {{candidates}}",
     },
@@ -2274,6 +2303,27 @@ export const it: Translations<typeof en> = {
       "Musizerr è distribuito nella speranza che sia utile, ma SENZA ALCUNA GARANZIA; senza neppure la garanzia implicita di COMMERCIABILITÀ o di IDONEITÀ A UN PARTICOLARE SCOPO. Vedi la GNU Affero General Public License per i dettagli.",
     licenseText: "La licenza (LICENSE)",
     noticeText: "I termini aggiuntivi (NOTICE.md)",
+    versionTitle: "Versione",
+    webVersion: "App web",
+    serverVersion: "Server",
+    versionMismatch: "L'app web e il server hanno versioni diverse: ricarica la pagina; se resta così, riavvia Musizerr.",
+  },
+  updates: {
+    title: "È disponibile Musizerr {{version}}",
+    running: "stai usando la {{version}}",
+    others: { one: "1 altra release", other: "altre {{count}} release" },
+    kind: { major: "Versione major", minor: "Versione minor", patch: "Patch" },
+    plain: "Basta scaricare le nuove immagini: il database viene migrato all'avvio.",
+    howTo: "Per aggiornare: imposta MUSIZERR_VERSION={{version}} nel .env, poi esegui docker compose pull && docker compose up -d.",
+    notes: "Note di rilascio",
+    reasons: {
+      major: "È una versione major: leggi le note di rilascio prima di aggiornare.",
+      upgrade_path: "Aggiorna prima alla {{through}}, poi a questa versione.",
+      contract_unsupported: "Questi provider si fermerebbero finché non vengono aggiornati: {{providers}}.",
+      contract_migrations: "Modifica il database in un modo che la versione precedente non sa leggere: fai prima un backup.",
+      manual_steps: "Le note di rilascio chiedono un passaggio a mano.",
+      no_metadata: "Questa release non descrive i suoi requisiti: leggi le note prima di aggiornare.",
+    },
   },
   notFound: {
     goHome: "Vai alla Home",
