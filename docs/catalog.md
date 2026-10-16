@@ -164,7 +164,7 @@ their `catalog.json` at the root of the repository: that file, committed, is wha
 Both build with a buildx builder of their own (`musizerr-publish`, the `docker-container` driver: the default driver cannot
 push an image for several platforms), created when it is missing. `GHCR_NAMESPACE` changes where they publish (default
 `ghcr.io/sossiogll`). A package GHCR creates is **private**; the scripts never change a visibility. Each Dockerfile sets
-`org.opencontainers.image.source` to its repository, which links the package to it. `scripts/build-provider-image.sh` and
+`org.opencontainers.image.source` to its repository; the scripts copy it, with the description and the license, into the annotations of the image's index, where GHCR reads them for a multi-platform image and links the package to the repository. `scripts/build-provider-image.sh` and
 `scripts/dev-catalog.sh`, for images under test, still refuse to push to ghcr.io.
 
 ## Development

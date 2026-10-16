@@ -64,6 +64,13 @@ for key in org.opencontainers.image.description org.opencontainers.image.url; do
   value=$(docker inspect -f "{{index .Config.Labels \"$key\"}}" "$LOCAL")
   [ -z "$value" ] || printf '%s=%s\n' "$key" "$value" >>"$TMP/labels"
 done
+# GHCR reads the repository, the description and the license of a multi-platform image from the
+# annotations of its index, not from the labels of each platform's image: without them the package is
+# linked to no repository.
+for key in org.opencontainers.image.source org.opencontainers.image.description org.opencontainers.image.licenses; do
+  value=$(docker inspect -f "{{index .Config.Labels \"$key\"}}" "$LOCAL")
+  [ -z "$value" ] || set -- "$@" --annotation "index:$key=$value"
+done
 
 docker buildx inspect "$BUILDER" >/dev/null 2>&1 || docker buildx create --name "$BUILDER" --driver docker-container >/dev/null
 echo "== $IMAGE:$VERSION ($PLATFORMS)" >&2
