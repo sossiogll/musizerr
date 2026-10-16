@@ -1,0 +1,31 @@
+# Build the images of Musizerr from this checkout instead of pulling the published ones
+# (docker-compose.yaml): for a fork, or to run unreleased changes.
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.build.yml up -d --build
+#
+# The local images are named musizerr:local, musizerr-gateway:local and musizerr-frontend:local, so they
+# never stand in for a pulled release.
+x-app-build: &app-build
+  image: musizerr:local
+  build:
+    context: .
+    target: production
+
+services:
+  init: *app-build
+  app: *app-build
+  worker: *app-build
+  worker-jobs: *app-build
+  worker-maintenance: *app-build
+  beat: *app-build
+  provider-gateway:
+    image: musizerr-gateway:local
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+      target: production
+  frontend:
+    image: musizerr-frontend:local
+    build:
+      context: musizerr-ui
+      target: production

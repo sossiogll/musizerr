@@ -15,6 +15,15 @@ x-credentials: &credentials
   CREDENTIALS_KEY: ${CREDENTIALS_KEY:?set CREDENTIALS_KEY in .env (docs/credentials.md)}
   CREDENTIALS_KEY_PREVIOUS: ${CREDENTIALS_KEY_PREVIOUS:-}
 
+# The images of Musizerr, published on GHCR for linux/amd64 and linux/arm64: every merge into master
+# updates :latest, every release publishes :X.Y.Z. MUSIZERR_VERSION (in .env) pins a release and
+# `docker compose pull` fetches it; MUSIZERR_IMAGES names another registry or owner (a fork). To build
+# them from this checkout instead: docker-compose.build.yml.
+x-images:
+  app: &app-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizerr:${MUSIZERR_VERSION:-latest}
+  gateway: &gateway-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizerr-gateway:${MUSIZERR_VERSION:-latest}
+  frontend: &frontend-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizerr-frontend:${MUSIZERR_VERSION:-latest}
+
 services:
 
   # ------------------------------------------------------------------
@@ -22,9 +31,7 @@ services:
   # libreria che lo storage provider configurato contiene già
   # ------------------------------------------------------------------
   init:
-    build:
-      context: .
-      target: production
+    image: *app-image
     command: python -m scripts.library_scan
     restart: "no"
     environment:
@@ -44,9 +51,7 @@ services:
   # API FastAPI
   # ------------------------------------------------------------------
   app:
-    build:
-      context: .
-      target: production
+    image: *app-image
     restart: unless-stopped
     environment:
       <<: [*database, *credentials]
@@ -86,10 +91,7 @@ services:
   # it runs nothing until it is told.
   # ------------------------------------------------------------------
   provider-gateway:
-    build:
-      context: .
-      dockerfile: gateway/Dockerfile
-      target: production
+    image: *gateway-image
     user: "1000:1000"
     restart: unless-stopped
     cap_drop: [ALL]
@@ -125,9 +127,7 @@ services:
   # "in corso" dal processo precedente) contano su un solo processo per coda.
   # ------------------------------------------------------------------
   worker:
-    build:
-      context: .
-      target: production
+    image: *app-image
     command: >
       celery -A workers.celery_app.celery worker
       --hostname=downloads@%h
@@ -149,9 +149,7 @@ services:
         condition: service_healthy
 
   worker-jobs:
-    build:
-      context: .
-      target: production
+    image: *app-image
     command: >
       celery -A workers.celery_app.celery worker
       --hostname=jobs@%h
@@ -164,9 +162,7 @@ services:
     depends_on: *worker-depends-on
 
   worker-maintenance:
-    build:
-      context: .
-      target: production
+    image: *app-image
     command: >
       celery -A workers.celery_app.celery worker
       --hostname=maintenance@%h
@@ -192,9 +188,7 @@ services:
   # QUESTO servizio, non a runtime).
   # ------------------------------------------------------------------
   beat:
-    build:
-      context: .
-      target: production
+    image: *app-image
     command: celery -A workers.celery_app.celery beat --schedule=/tmp/celerybeat-schedule --loglevel=info
     restart: unless-stopped
     environment:
@@ -214,9 +208,7 @@ services:
   # Frontend — nginx che serve la build statica e proxia /api/ → app
   # ------------------------------------------------------------------
   frontend:
-    build:
-      context: musizerr-ui
-      target: production
+    image: *frontend-image
     restart: unless-stopped
     ports:
       - "${APP_PORT:-80}:80"
