@@ -1,7 +1,7 @@
 # ADR-0007: Versions, compatibility and upgrades
 
-**Status:** Proposed. Reviewed in part by the maintainer on 2026-10-17 (update check, automatic updates,
-support of a contract until the next MAJOR, the last 5 backups kept); the rest awaits review.
+**Status:** Accepted by the maintainer on 2026-10-17 (with the update check on, automatic updates for
+providers only, a contract supported until the next MAJOR, the last 5 backups kept).
 **Date:** 2026-10-17
 **Deciders:** @sossiogll (maintainer)
 
@@ -124,43 +124,31 @@ Every versioned thing follows semantic versioning, with these meanings:
 - **Go back one minor:** set the previous version and `up -d`: the schema is compatible (expand only).
 - **Go back across a contract migration:** `scripts/restore_backup.py <backup>` and the previous version.
 
-### 5.1 Checking for updates, and updating automatically when it is safe
+### 5.1 Checking for updates; providers update automatically when it is safe
 
-Decided by the maintainer on 2026-10-17: the check is on, automatic updates can be turned on and off,
-and an automatic update happens only when the new version is compatible with what runs; otherwise it is
-not possible, and only a manual update remains.
+Decided by the maintainer on 2026-10-17: the check for updates is on; **only providers** update
+automatically, and only when the new version is compatible with what runs; Musizerr itself (the app, the
+workers, the gateway, the web app) is always updated by hand.
 
 - **Every release describes itself.** The release workflow attaches `release.json` to each GitHub release:
   the version, the image digests, the provider contracts it runs, the oldest version it upgrades from,
-  whether it has contract migrations, and whether its notes ask for a manual step. The checks below read
-  that, never the prose of the notes.
+  whether it has contract migrations, and whether its notes ask for a manual step. The check reads that,
+  never the prose of the notes.
 - **The check** (admin setting `check_for_updates`, **on** by default) is a routine that reads the
   releases of the repository once a day (the request carries nothing about the instance). Administration
-  shows the newer versions, their notes and, for each, whether it can be applied automatically and if not
-  why.
-- **Compatible**, for Musizerr, means all of these hold:
-  - the same MAJOR as the running version (a MINOR or a PATCH);
-  - every installed provider's contract is among the target's contracts (`release.json`);
-  - the database's upgrade path allows it (§4) and the release has no contract migrations;
-  - the release asks for no manual step.
-- **Compatible**, for a provider whose catalog offers a new digest, means: a contract this Musizerr runs,
-  its `min_musizerr` met, and **no difference in permissions** (a new destination, folder or limit always
-  waits for the admin's approval, as today).
-- **Automatic updates** (admin settings `auto_update_musizerr` and `auto_update_providers`, each on or off)
-  apply a compatible update by themselves; an update that is not compatible is only announced, and the
-  admin applies it by hand, from the release notes, as in §5. Every automatic update is recorded (what,
-  from, to, when) and notified to the admins.
-- **Providers** update inside Musizerr, through the same path as an approved update (the gateway pulls the
-  pinned digest and restarts that provider), recorded as approved by the automatic update.
-- **Musizerr** cannot replace its own containers from inside them. An optional `updater` service (a
-  compose profile, off unless enabled) does it: a small container with access to the Docker socket and to
-  the compose directory, no published port, separate from the app. The app asks it for a version; the
-  updater checks `release.json` again by itself (a compromised app can at most ask for a published,
-  compatible release), writes `MUSIZERR_VERSION` in `.env`, pulls the images by digest and runs
-  `docker compose up -d`: `init` backs up and migrates as for any upgrade. If the API is not healthy within
-  a few minutes, the updater sets the previous version back and starts it again: within a MAJOR the schema
-  allows it (expand only). Without the `updater` service the automatic update of Musizerr is not available,
-  and the setting says so.
+  shows the newer versions of Musizerr with their notes and what applying each one implies, computed from
+  `release.json`: a MINOR or a PATCH of the same MAJOR, whose contracts cover every installed provider and
+  which has no contract migration and no manual step, is a plain update (§5); anything else is listed with
+  the reason it needs care (which provider would stop, which migration removes data, which step to take).
+  The admin updates by hand (§5); Musizerr never replaces its own containers, and nothing gets access to
+  the Docker socket.
+- **Providers update automatically** (admin setting `auto_update_providers`, **on** by default, can be turned
+  off) when their catalog offers a new digest that is **compatible**: a contract this Musizerr runs, its
+  `min_musizerr` met, and **no difference in permissions** (a new destination, folder or limit always
+  waits for the admin's approval, as today). The routine applies it through the same path as an approved
+  update (the gateway pulls the pinned digest and restarts that provider) and records it as approved by
+  the automatic update (what, from, to, when); the admins are notified. An update that is not compatible
+  is only announced and waits for the admin, as today. With the setting off, every update waits.
 
 ### 6. Releases
 
@@ -185,8 +173,7 @@ not possible, and only a manual update remains.
 3. **Database guard** (§4): backup in `init`, `schema_info` and the start check, the `phase` of every
    migration and its test (the existing ones are classified once).
 4. **Releases** (§6): labels and their check, the release workflow with `release.json`, SDK tags.
-5. **Updates** (§5.1): the check and its page in Administration; automatic updates of providers; then the
-   `updater` service and automatic updates of Musizerr.
+5. **Updates** (§5.1): the check and its page in Administration, and the automatic updates of providers.
 6. **Overlapping majors** (§3.2): the contract window, the adapter, catalog format 3. Needed when contract 6
    is planned, not before.
 
@@ -202,7 +189,8 @@ not possible, and only a manual update remains.
   backups gives a way back that does not depend on them.
 - **Watchtower (or any tool that follows an image tag).** It updates whatever a tag points at, with no idea
   of contracts, migrations or the providers that run: exactly the updates §5.1 must refuse. Rejected; the
-  `updater` service applies only what `release.json` says is compatible.
+  automatic updates apply only what `release.json` and the catalog say is compatible, and only to
+  providers.
 - **release-please or semantic-release.** Viable; a small workflow of our own over the PR labels keeps the
   rules (labels, upgrade notes, contract support) in one place we control. Can be revisited.
 
