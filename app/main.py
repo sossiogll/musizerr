@@ -16,6 +16,7 @@ from db import credential_cipher
 from db.engine import init_db
 from routes.deps import get_config, init_singletons
 from routes.errors import install_error_handlers
+from services import app_version
 from services.log_redaction import install_log_redaction
 from routes.auth import router as auth_router
 from routes.users_auth import router as users_auth_router
@@ -36,6 +37,7 @@ from routes.stream import router as stream_router
 from routes.system.progress import router as progress_router
 from routes.system.health import router as health_router
 from routes.system.routines import router as routines_router
+from routes.system.updates import router as updates_router
 from routes.library import router as library_router
 from routes.library_duplicates import router as library_duplicates_router
 from routes.discover import router as discover_router
@@ -116,7 +118,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Musizerr",
-    version="1.0.0",
+    version=app_version.VERSION,
     lifespan=lifespan,
 )
 
@@ -149,6 +151,7 @@ app.include_router(stream_router,   prefix="",          tags=["stream"])
 app.include_router(progress_router, prefix="",          tags=["system"])
 app.include_router(health_router,    prefix="",          tags=["system"])
 app.include_router(routines_router,  prefix="",          tags=["system"])
+app.include_router(updates_router,   prefix="",          tags=["system"])
 app.include_router(library_router,   prefix="",          tags=["library"])
 app.include_router(library_duplicates_router, prefix="", tags=["library"])
 app.include_router(discover_router,  prefix="",          tags=["discover"])

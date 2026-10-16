@@ -37,6 +37,10 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
+# The version of the web app (ADR-0007 §2), a constant of the build (lib/version.ts).
+ARG MUSIZERR_VERSION=dev
+ENV VITE_MUSIZERR_VERSION=$MUSIZERR_VERSION
+
 RUN pnpm build
 
 

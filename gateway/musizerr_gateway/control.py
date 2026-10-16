@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import socketserver
 from pathlib import Path
 
@@ -46,6 +47,9 @@ from musizerr_sdk.permissions import to_json
 from .config import GatewayConfig
 from .desired import DesiredError, parse_set
 from .supervisor import RUNNING, ManagedProvider, Supervisor
+
+# The version of the gateway (ADR-0007 §2), written by the build from the release tag; "dev" otherwise.
+VERSION = os.environ.get("MUSIZERR_VERSION") or "dev"
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +125,7 @@ class Control:
                 status = "degraded"
             else:
                 status = "ok"
-            reply = {"ok": True, "status": status, "sandbox": self.sandbox(), "providers": providers}
+            reply = {"ok": True, "status": status, "version": VERSION, "sandbox": self.sandbox(), "providers": providers}
             if status == "unavailable":
                 reply["detail"] = f"sandbox unavailable: {supervisor.health.reason}"
             return reply

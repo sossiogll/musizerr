@@ -44,6 +44,8 @@ jobs:
             description: "Musizerr: the provider gateway, which runs every provider in a sandbox."
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tags: the version of a build of master counts from the last one
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -55,13 +57,25 @@ jobs:
         shell: bash
         run: |
           echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}" >> "$GITHUB_ENV"
-          if [ "$GITHUB_REF_TYPE" = tag ]; then echo "CHANNEL=${GITHUB_REF_NAME#v}"; else echo "CHANNEL=latest"; fi >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "CHANNEL=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+            echo "MUSIZERR_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            # A build of master: the last release plus how far after it (ADR-0007 §2), "1.3.2+7.abc1234".
+            last=$(git describe --tags --abbrev=0 --match "v[0-9]*" 2>/dev/null || true)
+            if [ -n "$last" ]; then ahead=$(git rev-list --count "$last..HEAD"); else last=v0.0.0; ahead=$(git rev-list --count HEAD); fi
+            echo "CHANNEL=latest" >> "$GITHUB_ENV"
+            echo "MUSIZERR_VERSION=${last#v}+${ahead}.${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          fi
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            MUSIZERR_VERSION=${{ env.MUSIZERR_VERSION }}
+            MUSIZERR_COMMIT=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -107,19 +121,30 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: the release of the tag, with its images
+      - uses: docker/setup-buildx-action@v3
+      - name: the release of the tag, with its images and release.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           version=${GITHUB_REF_NAME#v}
           owner=${GITHUB_REPOSITORY_OWNER,,}
+          # What an instance's update check reads (ADR-0007 §5.1, services/update_check.py): the provider
+          # contracts this version runs and the digests of its images. The contract migrations and the
+          # manual steps join it with phases 3 and 4 of the ADR; until then the notes say them.
+          contract=$(sed -n 's/^PROVIDER_API_VERSION = \([0-9][0-9]*\)$/\1/p' sdk/src/musizerr_sdk/interfaces.py)
+          images='{}'
           {
             echo "## Images"
             echo
             for image in musizerr musizerr-frontend musizerr-gateway; do
-              echo "- \`ghcr.io/$owner/$image:$version\`"
+              digest=$(docker buildx imagetools inspect "ghcr.io/$owner/$image:$version" --format '{{json .Manifest}}' | jq -r .digest)
+              images=$(jq -c --arg name "$image" --arg ref "ghcr.io/$owner/$image@$digest" '. + {($name): $ref}' <<<"$images")
+              echo "- \`ghcr.io/$owner/$image:$version\` (\`$digest\`)"
             done
           } > "$RUNNER_TEMP/notes.md"
+          jq -n --arg version "$version" --argjson contract "$contract" --argjson images "$images" \
+            '{version: $version, provider_contracts: [$contract], images: $images}' > "$RUNNER_TEMP/release.json"
+          cat "$RUNNER_TEMP/release.json"
           gh release create "$GITHUB_REF_NAME" --verify-tag --title "Musizerr $version" \
-            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes "$RUNNER_TEMP/release.json"
