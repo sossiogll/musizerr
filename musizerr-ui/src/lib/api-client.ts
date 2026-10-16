@@ -768,6 +768,41 @@ export const patchRoutine = (key: string, updates: { enabled?: boolean; interval
 export const runRoutineNow = (key: string) =>
   http.post<{ run_id: string }>(path`/system/routines/${key}/run`).then((r) => r.data);
 
+/** Why an update needs more than pulling its images (core/versions.py). */
+export interface UpdateReason {
+  code: "major" | "upgrade_path" | "contract_unsupported" | "contract_migrations" | "manual_steps" | "no_metadata";
+  /** upgrade_path: the version to go through first. */
+  through?: string;
+  /** contract_unsupported: the installed providers the new version would not run. */
+  providers?: string[];
+}
+
+export interface AvailableUpdate {
+  version: string;
+  url: string | null;
+  published_at: string | null;
+  kind: "major" | "minor" | "patch";
+  /** Pulling the new images is all it takes. */
+  plain: boolean;
+  reasons: UpdateReason[];
+}
+
+export interface UpdatesInfo {
+  current: string;
+  commit: string;
+  /** A development build: nothing to compare. */
+  development: boolean;
+  check_enabled: boolean;
+  checked_at: string | null;
+  last_check_failed: boolean;
+  /** Newest first. */
+  updates: AvailableUpdate[];
+  latest: string | null;
+}
+
+/** GET /admin/updates: the version that runs and the newer releases of Musizerr (admin, ADR-0007). */
+export const getUpdates = () => http.get<UpdatesInfo>("/admin/updates").then((r) => r.data);
+
 export interface DelegationWebhookRegistrationResult {
   provider: string;
   label: string;

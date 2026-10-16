@@ -162,6 +162,14 @@ ROUTINES: tuple[RoutineDef, ...] = (
         default_interval_minutes=60,
         min_interval_minutes=15,
     ),
+    RoutineDef(
+        # Reads the releases of Musizerr on GitHub (ADR-0007 §5.1): Administration says when a newer
+        # version exists and what updating to it implies. Musizerr is updated by hand; this changes nothing.
+        key="check_for_updates",
+        task_name="workers.maintenance.check_for_updates",
+        default_interval_minutes=24 * 60,
+        min_interval_minutes=60,
+    ),
 )
 
 _BY_KEY: dict[str, RoutineDef] = {r.key: r for r in ROUTINES}

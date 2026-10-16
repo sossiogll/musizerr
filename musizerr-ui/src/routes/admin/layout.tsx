@@ -1,6 +1,7 @@
 import { Outlet } from "@tanstack/react-router";
 import { CountBadge } from "@/components/shell/CountBadge";
 import { TabLink, TabNav } from "@/components/TabNav";
+import { UpdateNotice } from "@/components/updates/UpdateNotice";
 import { usePendingRequestCount } from "@/hooks/usePendingRequestCount";
 import { useI18n, type MessageKey } from "@/i18n";
 
@@ -21,6 +22,7 @@ export function AdminLayout() {
   return (
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-bold max-sm:sr-only">{t("adminArea.title")}</h1>
+      <UpdateNotice />
       <TabNav label={t("adminArea.sections")}>
         {SECTIONS.map((section) => (
           <TabLink key={section.to} to={section.to}>

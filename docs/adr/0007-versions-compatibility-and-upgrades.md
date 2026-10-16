@@ -51,15 +51,17 @@ Every versioned thing follows semantic versioning, with these meanings:
 ### 2. One version, from the tag
 
 - The git tag is the only place a version is written. The images workflow passes it to the builds as
-  `MUSIZERR_VERSION` (`1.4.0` for a tag `v1.4.0`; `1.4.0-dev.7+abc1234` for a merge into master, from
-  `git describe`) with `MUSIZERR_COMMIT`. The development stack is `dev`.
+  `MUSIZERR_VERSION` (`1.4.0` for a tag `v1.4.0`; `1.3.2+7.abc1234` for a merge into master seven commits
+  after `v1.3.2`: build metadata, so it ranks as that release and the next one counts as newer) with
+  `MUSIZERR_COMMIT`. The development stack is `dev`.
 - The app and the gateway images carry it as environment variables; the frontend as a build constant.
   The hand-written `1.0.0` go away.
-- `GET /health` reports `version` and `commit`, the gateway's health its own, and the FastAPI application the
-  same version (the documentation it serves).
-- The About page shows the version of the server, of the web app and of the gateway, the provider contracts
-  this version runs, and the database schema revision. A web app older than its server (a cached page) is
-  pointed out, with a reload.
+- `GET /health` reports `version` and `commit` to admins only (like the providers: telling everyone which
+  version runs would tell who looks for a vulnerable one where to find it), the gateway's health its own,
+  and the FastAPI application the same version (the documentation it serves).
+- The About page shows everyone the version of the web app, and admins the server's (with its commit); a
+  web app and a server of different versions (a cached page, a server not restarted) are pointed out. The
+  provider contracts and the schema revision join it with phases 2 and 3.
 
 ### 3. The provider contract
 
