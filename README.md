@@ -36,19 +36,29 @@ You need Docker with Compose, on a kernel with user namespaces (the gateway's sa
    CREDENTIALS_KEY=...          # openssl rand -base64 32 | tr '+/' '-_'
    ADMIN_BOOTSTRAP_EMAIL=you@example.com
    ADMIN_BOOTSTRAP_PASSWORD=...
+   # MUSIZERR_VERSION=1.2.0     # optional: pin a release (the tags of the GitHub releases); default latest
    ```
 
    Keep `CREDENTIALS_KEY` with your database backups: without it the stored credentials cannot be read and every
    account has to be connected again ([`docs/credentials.md`](docs/credentials.md)).
 
-2. Start it:
+2. Start it: Compose pulls the published images (`ghcr.io/sossiogll/musizerr`, `musizerr-gateway`, `musizerr-frontend`,
+   for linux/amd64 and linux/arm64), nothing is built.
 
    ```sh
-   docker compose up -d --build
+   docker compose pull && docker compose up -d
    ```
 
    The web app is on port 80 (`APP_PORT` changes it). The first start creates the admin from the bootstrap
-   variables.
+   variables. To update, pull again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the
+   database before the API and the workers start. The repository is needed for `docker-compose.yaml` and the
+   gateway's seccomp profile (`gateway/seccomp/`), which Docker reads from the host.
+
+   To build the images from the checkout instead (a fork, unreleased changes):
+
+   ```sh
+   docker compose -f docker-compose.yaml -f docker-compose.build.yml up -d --build
+   ```
 
 3. In Administration › Sources, add a catalog, then install the providers you want from it:
 
