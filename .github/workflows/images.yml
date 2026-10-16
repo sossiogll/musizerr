@@ -1,27 +1,112 @@
 name: images
 
-# A merge into master rebuilds the images of Musizerr and pushes them to GHCR for linux/amd64 and
-# linux/arm64: :latest and :<commit>. The provider base image is pushed as :<contract> and :<SDK version>
-# (scripts/publish-provider-base.sh does the same from a machine).
+# Every merge into master builds the images of Musizerr for linux/amd64 and linux/arm64 and pushes them to
+# GHCR as :latest and :<commit>, with the provider base image (:<contract> and :<SDK version>,
+# scripts/publish-provider-base.sh does the same from a machine).
 #
-# A version tag (v1.2.3, pushed on a commit of master) pushes the images as :1.2.3 and :<commit> and
-# creates the GitHub release of that tag, its notes generated from the pull requests merged since the
-# previous one.
+# It is also the release (ADR-0007 §6): the pull requests merged into dev since the last release say what
+# this merge is, by their labels: breaking → MAJOR, feature → MINOR, fix → PATCH; chore alone → no
+# release. A release tags the commit vX.Y.Z (the first one 1.0.0), pushes the images as :X.Y.Z too, and
+# creates the GitHub release: notes by kind, the upgrade notes the pull requests wrote, the images, and
+# release.json (what an instance's update check reads). Run by hand, it rebuilds the images, no release.
 on:
   push:
     branches: [master]
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
-concurrency: images-${{ github.ref }}
+concurrency: images
 
 jobs:
+  version:
+    name: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the tag
+      pull-requests: read
+    outputs:
+      release: ${{ steps.compute.outputs.release }}
+      version: ${{ steps.compute.outputs.version }}
+      build: ${{ steps.compute.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tags and the history since the last one
+      - name: what this merge is, from the labels of its pull requests
+        id: compute
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes=$RUNNER_TEMP/notes; mkdir -p "$notes"
+          : > "$notes/breaking.md"; : > "$notes/feature.md"; : > "$notes/fix.md"; : > "$notes/chore.md"; : > "$notes/upgrade.md"
+          last=$(git describe --tags --abbrev=0 --match "v[0-9]*" 2>/dev/null || true)
+          range=${last:+$last..}HEAD
+          # The pull requests merged since the last release: their merge commits ("Merge pull request #N").
+          numbers=$(git log --format=%s "$range" | sed -n 's/^Merge pull request #\([0-9][0-9]*\) from .*/\1/p' | sort -n -u)
+          for number in $numbers; do
+            pr=$(gh pr view "$number" --json number,title,url,labels,body,baseRefName)
+            [ "$(jq -r .baseRefName <<<"$pr")" = dev ] || continue # dev → master carries no change of its own
+            kind=$(jq -r '[.labels[].name | select(. == "breaking" or . == "feature" or . == "fix" or . == "chore")][0] // "chore"' <<<"$pr")
+            jq -r '"- \(.title) ([#\(.number)](\(.url)))"' <<<"$pr" >> "$notes/$kind.md"
+            # The "Upgrade notes" section of its description, comments and blank lines left out.
+            upgrade=$(jq -r '.body // ""' <<<"$pr" | tr -d '\r' \
+              | awk '/^#+[[:space:]]*Upgrade notes/{on=1; next} /^#+[[:space:]]/{on=0} on' \
+              | sed '/<!--/,/-->/d' | sed '/^[[:space:]]*$/d')
+            if [ -n "$upgrade" ]; then
+              { jq -r '"### \(.title) ([#\(.number)](\(.url)))"' <<<"$pr"; echo; echo "$upgrade"; echo; } >> "$notes/upgrade.md"
+            fi
+          done
+
+          if [ -s "$notes/breaking.md" ]; then bump=major; elif [ -s "$notes/feature.md" ]; then bump=minor
+          elif [ -s "$notes/fix.md" ]; then bump=patch; else bump=none; fi
+
+          version=""
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$bump" != none ]; then
+            if [ -z "$last" ]; then
+              version=1.0.0 # the first release
+            else
+              IFS=. read -r major minor patch <<<"${last#v}"
+              case $bump in
+                major) version="$((major + 1)).0.0" ;;
+                minor) version="$major.$((minor + 1)).0" ;;
+                patch) version="$major.$minor.$((patch + 1))" ;;
+              esac
+            fi
+          fi
+
+          if [ -n "$version" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "v$version" -m "Musizerr $version"
+            git push origin "v$version"
+            build=$version
+            echo "release v$version ($bump)"
+          else
+            # A build of master that is no release: the last release plus how far after it, "1.3.2+7.abc1234".
+            base=${last:-v0.0.0}
+            ahead=$(git rev-list --count ${last:+$last..}HEAD)
+            build="${base#v}+${ahead}.${GITHUB_SHA::7}"
+            echo "no release ($bump): images only, $build"
+          fi
+          {
+            echo "release=$([ -n "$version" ] && echo true || echo false)"
+            echo "version=$version"
+            echo "build=$build"
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: steps.compute.outputs.release == 'true'
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
   image:
     name: ${{ matrix.image }}
+    needs: version
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -44,8 +129,6 @@ jobs:
             description: "Musizerr: the provider gateway, which runs every provider in a sandbox."
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # the tags: the version of a build of master counts from the last one
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -53,20 +136,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: the image's name and channel
+      - name: the image's name
         shell: bash
-        run: |
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}" >> "$GITHUB_ENV"
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            echo "CHANNEL=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-            echo "MUSIZERR_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          else
-            # A build of master: the last release plus how far after it (ADR-0007 §2), "1.3.2+7.abc1234".
-            last=$(git describe --tags --abbrev=0 --match "v[0-9]*" 2>/dev/null || true)
-            if [ -n "$last" ]; then ahead=$(git rev-list --count "$last..HEAD"); else last=v0.0.0; ahead=$(git rev-list --count HEAD); fi
-            echo "CHANNEL=latest" >> "$GITHUB_ENV"
-            echo "MUSIZERR_VERSION=${last#v}+${ahead}.${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-          fi
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}" >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -74,17 +146,19 @@ jobs:
           target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            MUSIZERR_VERSION=${{ env.MUSIZERR_VERSION }}
+            MUSIZERR_VERSION=${{ needs.version.outputs.build }}
             MUSIZERR_COMMIT=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
           tags: |
-            ${{ env.IMAGE }}:${{ env.CHANNEL }}
+            ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ needs.version.outputs.release == 'true' && format('{0}:{1}', env.IMAGE, needs.version.outputs.version) || '' }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.version.outputs.build }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
             org.opencontainers.image.description=${{ matrix.description }}
           # GHCR reads the repository, the description and the license of a multi-platform image from its index.
@@ -97,8 +171,6 @@ jobs:
 
   provider-base:
     name: musizerr-provider-base
-    # Versioned by the SDK, not by the tags of Musizerr.
-    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -114,37 +186,50 @@ jobs:
 
   release:
     name: release
-    if: github.ref_type == 'tag'
-    needs: image
+    needs: [version, image]
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: the release of the tag, with its images and release.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+      - name: the GitHub release, with its notes, its images and release.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
         shell: bash
         run: |
-          version=${GITHUB_REF_NAME#v}
+          set -euo pipefail
+          notes=$RUNNER_TEMP/notes
           owner=${GITHUB_REPOSITORY_OWNER,,}
-          # What an instance's update check reads (ADR-0007 §5.1, services/update_check.py): the provider
-          # contracts this version runs and the digests of its images. The contract migrations and the
-          # manual steps join it with phases 3 and 4 of the ADR; until then the notes say them.
           contract=$(sed -n 's/^PROVIDER_API_VERSION = \([0-9][0-9]*\)$/\1/p' sdk/src/musizerr_sdk/interfaces.py)
           images='{}'
           {
+            section() { if [ -s "$notes/$1.md" ]; then echo "## $2"; echo; cat "$notes/$1.md"; echo; fi; }
+            section breaking "Breaking changes"
+            if [ -s "$notes/upgrade.md" ]; then echo "## Upgrade notes"; echo; cat "$notes/upgrade.md"; fi
+            section feature "Features"
+            section fix "Fixes"
+            section chore "Other changes"
             echo "## Images"
             echo
             for image in musizerr musizerr-frontend musizerr-gateway; do
-              digest=$(docker buildx imagetools inspect "ghcr.io/$owner/$image:$version" --format '{{json .Manifest}}' | jq -r .digest)
+              digest=$(docker buildx imagetools inspect "ghcr.io/$owner/$image:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
               images=$(jq -c --arg name "$image" --arg ref "ghcr.io/$owner/$image@$digest" '. + {($name): $ref}' <<<"$images")
-              echo "- \`ghcr.io/$owner/$image:$version\` (\`$digest\`)"
+              echo "- \`ghcr.io/$owner/$image:$VERSION\` (\`$digest\`)"
             done
+            echo
+            echo "Provider contract: $contract. To update: set \`MUSIZERR_VERSION=$VERSION\` in \`.env\`, then \`docker compose pull && docker compose up -d\`."
           } > "$RUNNER_TEMP/notes.md"
-          jq -n --arg version "$version" --argjson contract "$contract" --argjson images "$images" \
-            '{version: $version, provider_contracts: [$contract], images: $images}' > "$RUNNER_TEMP/release.json"
+          # What an instance's update check reads (ADR-0007 §5.1). The contract migrations join it with phase 3.
+          manual=$([ -s "$notes/upgrade.md" ] && echo true || echo false)
+          jq -n --arg version "$VERSION" --argjson contract "$contract" --argjson images "$images" --argjson manual "$manual" \
+            '{version: $version, provider_contracts: [$contract], images: $images, manual_steps: $manual}' > "$RUNNER_TEMP/release.json"
           cat "$RUNNER_TEMP/release.json"
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Musizerr $version" \
-            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes "$RUNNER_TEMP/release.json"
+          gh release create "v$VERSION" --verify-tag --title "Musizerr $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" "$RUNNER_TEMP/release.json"
