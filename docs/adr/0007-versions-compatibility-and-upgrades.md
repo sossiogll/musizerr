@@ -1,7 +1,7 @@
 # ADR-0007: Versions, compatibility and upgrades
 
 **Status:** Proposed. Reviewed in part by the maintainer on 2026-10-17 (update check, automatic updates,
-support of a contract until the next MAJOR); the rest awaits review.
+support of a contract until the next MAJOR, the last 5 backups kept); the rest awaits review.
 **Date:** 2026-10-17
 **Deciders:** @sossiogll (maintainer)
 
@@ -112,7 +112,7 @@ Every versioned thing follows semantic versioning, with these meanings:
   backup to restore; an app older than the database but still compatible starts (that is the rollback).
 - **A backup before every migration.** When migrations are pending, `init` dumps the database first
   (PostgreSQL: `pg_dump` in custom format; SQLite: a copy of the file) to `/data/backups/`, keeps the last
-  `MIGRATION_BACKUPS_KEEP` (default 5) and does not migrate if the backup fails. `MIGRATION_BACKUP=off`
+  `MIGRATION_BACKUPS_KEEP` (default 5, decided by the maintainer on 2026-10-17) and does not migrate if the backup fails. `MIGRATION_BACKUP=off`
   turns it off for whoever backs up otherwise.
 - **Upgrade paths.** A MAJOR declares the oldest version it upgrades from (the last minor of the previous
   major); `init` refuses a database last migrated by an older one and names the version to go through.
