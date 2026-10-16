@@ -3,16 +3,21 @@ name: images
 # A merge into master rebuilds the images of Musizerr and pushes them to GHCR for linux/amd64 and
 # linux/arm64: :latest and :<commit>. The provider base image is pushed as :<contract> and :<SDK version>
 # (scripts/publish-provider-base.sh does the same from a machine).
+#
+# A version tag (v1.2.3, pushed on a commit of master) pushes the images as :1.2.3 and :<commit> and
+# creates the GitHub release of that tag, its notes generated from the pull requests merged since the
+# previous one.
 on:
   push:
     branches: [master]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
-concurrency: images
+concurrency: images-${{ github.ref }}
 
 jobs:
   image:
@@ -26,14 +31,17 @@ jobs:
             context: .
             file: Dockerfile
             target: production
+            description: "Musizerr: the API, the workers and the database migrations."
           - image: musizerr-frontend
             context: musizerr-ui
             file: musizerr-ui/Dockerfile
             target: production
+            description: "Musizerr: the web app, served by nginx."
           - image: musizerr-gateway
             context: .
             file: gateway/Dockerfile
             target: production
+            description: "Musizerr: the provider gateway, which runs every provider in a sandbox."
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -43,9 +51,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: the image's name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}" >> "$GITHUB_ENV"
+      - name: the image's name and channel
         shell: bash
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}" >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then echo "CHANNEL=${GITHUB_REF_NAME#v}"; else echo "CHANNEL=latest"; fi >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -56,17 +66,25 @@ jobs:
           provenance: false
           sbom: false
           tags: |
-            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.CHANNEL }}
             ${{ env.IMAGE }}:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.description=${{ matrix.description }}
+          # GHCR reads the repository, the description and the license of a multi-platform image from its index.
+          annotations: |
+            index:org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            index:org.opencontainers.image.description=${{ matrix.description }}
+            index:org.opencontainers.image.licenses=AGPL-3.0-or-later
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   provider-base:
     name: musizerr-provider-base
+    # Versioned by the SDK, not by the tags of Musizerr.
+    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,3 +97,29 @@ jobs:
       - name: publish the base image of the providers
         run: GHCR_NAMESPACE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" scripts/publish-provider-base.sh
         shell: bash
+
+  release:
+    name: release
+    if: github.ref_type == 'tag'
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: the release of the tag, with its images
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          {
+            echo "## Images"
+            echo
+            for image in musizerr musizerr-frontend musizerr-gateway; do
+              echo "- \`ghcr.io/$owner/$image:$version\`"
+            done
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Musizerr $version" \
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes

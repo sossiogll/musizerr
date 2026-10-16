@@ -94,6 +94,10 @@ docker exec musizerr-frontend-1 pnpm test                                     # 
 The backend suite also runs on PostgreSQL (`TEST_DATABASE_URL`), and both must pass; the gateway has its own
 suite and integration tests with real sandboxes (`scripts/test-*-integration.sh`).
 
+Changes go through `dev`: a branch, a pull request into `dev`, then a pull request from `dev` into `master` (protected:
+every check of `ci.yml` must pass). A merge into `master` publishes the images as `:latest`; a version tag `vX.Y.Z` on
+`master` publishes them as `:X.Y.Z` and creates the GitHub release with notes generated from the pull requests.
+
 ## License
 
 Musizerr is free software, released under the GNU Affero General Public License, version 3 or later

@@ -29,11 +29,19 @@ IMAGE=$NAMESPACE/musizerr-provider-base
 
 docker buildx inspect "$BUILDER" >/dev/null 2>&1 || docker buildx create --name "$BUILDER" --driver docker-container >/dev/null
 
+# GHCR reads the repository, the description and the license of a multi-platform image from the
+# annotations of its index: the same values as the labels of the Dockerfile.
+set --
+for key in org.opencontainers.image.source org.opencontainers.image.description org.opencontainers.image.licenses; do
+  value=$(sed -n "s|.*$key=\"\([^\"]*\)\".*|\1|p" "$ROOT/provider-base/Dockerfile" | head -1)
+  [ -z "$value" ] || set -- "$@" --annotation "index:$key=$value"
+done
+
 META=$(mktemp)
 trap 'rm -f "$META"' EXIT
 echo "== $IMAGE:$CONTRACT and :$SDK_VERSION ($PLATFORMS)" >&2
 docker buildx build --builder "$BUILDER" --platform "$PLATFORMS" --provenance=false --sbom=false \
-  -f "$ROOT/provider-base/Dockerfile" -t "$IMAGE:$CONTRACT" -t "$IMAGE:$SDK_VERSION" \
+  -f "$ROOT/provider-base/Dockerfile" -t "$IMAGE:$CONTRACT" -t "$IMAGE:$SDK_VERSION" "$@" \
   --metadata-file "$META" --push "$ROOT/sdk" >&2
 
 DIGEST=$(sed -n 's/.*"containerimage.digest": *"\(sha256:[0-9a-f]\{64\}\)".*/\1/p' "$META" | head -1)
