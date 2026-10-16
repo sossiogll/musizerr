@@ -1,0 +1,25 @@
+musizerr-ui/node_modules
+musizerr-ui/dist
+musizerr-ui/.pnpm-store
+.env
+# project uses pnpm, not npm
+musizerr-ui/package-lock.json
+.claude
+.vscode
+.git
+**/__pycache__
+musizerr-ui/tsconfig.app.tsbuildinfo
+.venv
+data
+sql
+# Hypothesis example database (property-based tests)
+.hypothesis/
+# e2e smoke suite (e2e/README.md)
+e2e/node_modules
+e2e/.pnpm-store
+e2e/test-results
+e2e/playwright-report
+# Python packaging (pip install -e sdk)
+*.egg-info/
+sdk/build/
+gateway/build/

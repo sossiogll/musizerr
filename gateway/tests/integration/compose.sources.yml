@@ -1,0 +1,23 @@
+# Used by scripts/test-sources-integration.sh on top of docker-compose.dev.yml, under the compose project
+# `mzp4`: nothing published on a port the real stack uses (the local registry on 127.0.0.1:18600 only),
+# the library is a throwaway volume, and the catalog server serves the test's own folder.
+services:
+  provider-gateway:
+    volumes: !override
+      - ./gateway:/gateway
+      - ./sdk:/sdk
+      - provider_sockets:/run/musizerr
+      - gateway_state:/var/lib/musizerr-gateway
+      - downloads:/downloads
+  oci-registry:
+    ports: !override
+      - "127.0.0.1:${OCI_REGISTRY_PORT:-18600}:5000"
+  registry:
+    ports: !reset []
+    volumes: !override
+      - ${MZP4_CATALOG_DIR}:/srv:ro
+  redis:
+    ports: !reset []
+
+volumes:
+  downloads:

@@ -1,0 +1,22 @@
+# Used by scripts/test-gateway-integration.sh on top of docker-compose.dev.yml, under the compose
+# project `mzp3`: nothing published on a port the real stack uses, the library is a throwaway
+# volume instead of a folder of the host.
+services:
+  provider-gateway:
+    volumes: !override
+      - ./gateway:/gateway
+      - ./sdk:/sdk
+      - provider_sockets:/run/musizerr
+      - gateway_state:/var/lib/musizerr-gateway
+      - downloads:/downloads
+    environment:
+      # something a provider must never see, to look for it from inside
+      GATEWAY_CANARY: hostile-should-never-see-this
+  oci-registry:
+    ports: !override
+      - "127.0.0.1:${OCI_REGISTRY_PORT:-18500}:5000"
+  redis:
+    ports: !reset []
+
+volumes:
+  downloads:

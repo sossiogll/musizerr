@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "musizerr-gateway"
+version = "0.1.0"
+description = "The Musizerr provider gateway: pulls provider images by digest, runs each in a bubblewrap sandbox and filters its network egress."
+requires-python = ">=3.12"
+license = {text = "AGPL-3.0-or-later"}
+# The standard library and the SDK (the protocol, the wire codec, the manifest
+# types): nothing else. It is host infrastructure, not a provider, and never
+# imports the application.
+dependencies = ["musizerr-sdk"]
+
+[tool.setuptools.packages.find]
+include = ["musizerr_gateway*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = ["integration: needs Docker and builds images (scripts/test-gateway-integration.sh)"]

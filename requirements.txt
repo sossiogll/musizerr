@@ -1,0 +1,26 @@
+# Web framework
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+
+# Database
+sqlmodel==0.0.22
+alembic==1.14.1
+psycopg[binary]==3.2.13   # driver PostgreSQL (DATABASE_URL=postgresql+psycopg://...)
+
+# Task queue
+celery==5.5.3
+redis==5.0.7
+
+# HTTP client
+httpx==0.28.1
+
+# Auth
+bcrypt==4.2.1
+PyJWT==2.10.1
+cryptography==46.0.5   # Fernet: encryption of the stored credentials (docs/credentials.md)
+
+# Utilities
+mutagen==1.47.0        # lettura/scrittura tag audio (library scan, tag-repair)
+
+# Dev only — auto-reload del Celery worker in docker-compose.dev.yml
+watchdog==6.0.0

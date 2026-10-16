@@ -1,0 +1,8 @@
+# Le dipendenze si installano DENTRO l'immagine con pnpm. Un node_modules
+# presente sull'host (creato da un altro gestore di pacchetti) non deve
+# finire nel contesto di build: il `COPY . .` lo sovrapporrebbe a quello di
+# pnpm e la build fallirebbe.
+node_modules
+dist
+coverage
+.vite

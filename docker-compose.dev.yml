@@ -1,0 +1,251 @@
+# Il database di tutti i servizi: PostgreSQL (il servizio `postgres` qui sotto).
+# POSTGRES_PASSWORD viene da .env (non versionato, vedi .env.example): una
+# password sicura in un URL (lettere e cifre). Senza DATABASE_URL i servizi
+# userebbero il file SQLite di DATA_DIR: vedi docs/postgresql.md.
+x-database: &database
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-musizerr}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-musizerr}
+
+# The key that encrypts the stored credentials (docs/credentials.md): from .env, required by every
+# service that reads the database (init: its migration encrypts the existing credentials; app;
+# the workers). CREDENTIALS_KEY_PREVIOUS holds the keys it replaced during a rotation. The provider
+# gateway never gets either.
+x-credentials: &credentials
+  CREDENTIALS_KEY: ${CREDENTIALS_KEY:?set CREDENTIALS_KEY in .env (docs/credentials.md)}
+  CREDENTIALS_KEY_PREVIOUS: ${CREDENTIALS_KEY_PREVIOUS:-}
+
+x-wait-for-database: &wait-for-database
+  postgres:
+    condition: service_healthy
+
+services:
+
+  # ------------------------------------------------------------------
+  # Init — bind mount del codice per coerenza con gli altri container
+  # ------------------------------------------------------------------
+  init:
+    build:
+      context: .
+      target: development
+    command: python -m scripts.library_scan
+    restart: "no"
+    volumes:
+      - ./app:/app
+      - ./sdk:/sdk
+      - ./data:/data
+      - ${MUSIC_DIR:-./data/music}:/downloads
+    environment:
+      <<: [*database, *credentials]
+    depends_on: *wait-for-database
+
+  # ------------------------------------------------------------------
+  # API FastAPI — hot reload via uvicorn --reload
+  # ------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      target: development
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app --reload-dir /sdk --timeout-graceful-shutdown 5
+    ports:
+      - "8000:8000" # esposto direttamente in dev, senza nginx davanti
+    volumes:
+      - ./app:/app # bind mount → ogni modifica riavvia uvicorn automaticamente
+      - ./sdk:/sdk # il contratto dei provider, modificabile dal vivo
+      - ./data:/data
+      - ${MUSIC_DIR:-./data/music}:/downloads
+      - provider_sockets:/run/musizerr # the sockets of the providers the gateway runs
+    environment:
+      <<: [*database, *credentials]
+      DATA_DIR: /data
+      REDIS_URL: redis://redis:6379/0
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-} # set once for first boot
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+    depends_on: *wait-for-database
+
+  # ------------------------------------------------------------------
+  # Celery workers — uno per coda (vedi docs/workers.md), così un download
+  # lento non fa mai aspettare i routine né i job chiesti da un utente.
+  # watchmedo rileva le modifiche e riavvia il worker.
+  #
+  # - worker:             coda "downloads" (concurrency dal setting
+  #                       max_concurrent_downloads, letto all'avvio)
+  # - worker-jobs:        coda "jobs" (sync dei mi piace, download dei mi
+  #                       piace mancanti, verifica full-sync)
+  # - worker-maintenance: coda "maintenance" (tick, routine, riconciliazioni;
+  #                       "default" solo per svuotare i messaggi accodati
+  #                       prima della separazione delle code)
+  #                       + beat incorporato (-B): UN solo beat per istanza,
+  #                       quindi solo questo worker lo ha. Lo schedule
+  #                       (workers/celery_app.py) è costruito a livello di
+  #                       modulo, visibile a questo stesso processo.
+  #
+  # Il file di stato di beat va in /tmp: la cartella di lavoro /app è il
+  # repository montato dall'host, e il file vi comparirebbe fra i sorgenti.
+  # ------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      target: development
+    command: >
+      watchmedo auto-restart --directory=/app --directory=/sdk --pattern=*.py --recursive -- celery -A workers.celery_app.celery worker --hostname=downloads@%h --loglevel=debug --queues=downloads
+    volumes: &worker-volumes
+      - ./app:/app
+      - ./sdk:/sdk
+      - ./data:/data
+      - ${MUSIC_DIR:-./data/music}:/downloads
+      - provider_sockets:/run/musizerr
+    environment: &worker-environment
+      <<: [*database, *credentials]
+      DATA_DIR: /data
+      REDIS_URL: redis://redis:6379/0
+    depends_on: *wait-for-database
+
+  worker-jobs:
+    build:
+      context: .
+      target: development
+    command: >
+      watchmedo auto-restart --directory=/app --directory=/sdk --pattern=*.py --recursive -- celery -A workers.celery_app.celery worker --hostname=jobs@%h --loglevel=debug --queues=jobs --concurrency=2
+    volumes: *worker-volumes
+    environment: *worker-environment
+    depends_on: *wait-for-database
+
+  worker-maintenance:
+    build:
+      context: .
+      target: development
+    command: >
+      watchmedo auto-restart --directory=/app --directory=/sdk --pattern=*.py --recursive -- celery -A workers.celery_app.celery worker -B --schedule=/tmp/celerybeat-schedule --hostname=maintenance@%h --loglevel=debug --queues=maintenance,default --concurrency=2
+    volumes: *worker-volumes
+    environment: *worker-environment
+    depends_on: *wait-for-database
+
+  # ------------------------------------------------------------------
+  # Frontend — pnpm dev server con HMR
+  # ------------------------------------------------------------------
+  frontend:
+    build:
+      context: musizerr-ui
+      target: development
+    ports:
+      - "${FRONTEND_PORT:-3000}:5173"
+    volumes:
+      - ./musizerr-ui:/app
+      - /app/node_modules # volume anonimo: non sovrascrive node_modules del container
+    environment:
+      - VITE_API_URL=http://app:8000
+
+  # ------------------------------------------------------------------
+  # Provider gateway — pulls provider images by digest and runs each one in a
+  # bubblewrap sandbox with no network of its own (docs/gateway.md). It is the
+  # only service that starts provider processes; `app` and the workers reach them
+  # through the sockets in the shared `provider_sockets` volume.
+  #
+  # Not privileged, no capability, no published port. What it does need, and why:
+  #   - a seccomp profile: Docker's default plus the five syscalls bubblewrap
+  #     builds a sandbox with (gateway/seccomp/musizerr-gateway.json);
+  #   - systempaths=unconfined: a sandbox mounts its own /proc, which the kernel
+  #     refuses while the container's /proc has Docker's masked paths over it.
+  # The sandboxed processes get a further seccomp filter of their own that takes
+  # those syscalls away again (gateway/musizerr_gateway/sandbox_filter.py).
+  #
+  # uid 1000 is the application's user: the sockets and the workspace folders
+  # they share need no widening of permissions.
+  #
+  # Which providers it runs: what the host pushes to it from its database (docs/gateway.md); it
+  # runs nothing until it is told.
+  # ------------------------------------------------------------------
+  provider-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+      target: development
+    user: "1000:1000"
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt:
+      - seccomp=./gateway/seccomp/musizerr-gateway.json
+      - systempaths=unconfined
+    volumes:
+      - ./gateway:/gateway
+      - ./sdk:/sdk
+      - provider_sockets:/run/musizerr
+      - gateway_state:/var/lib/musizerr-gateway
+      - ${MUSIC_DIR:-./data/music}:/downloads # the same folder as app: the workspaces live in it
+    environment:
+      # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md): the library.
+      GATEWAY_FILESYSTEM_ROOTS: /downloads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.socket(socket.AF_UNIX).connect('/run/musizerr/gateway.sock')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------------
+  # Local OCI registry — for provider images under test. scripts/dev-catalog.sh <provider-dir>...
+  # builds images and pushes them here (the gateway reaches the registry as oci-registry:5000, over
+  # plain HTTP: the source that lists them is added with "allow insecure registry"). Bound to the
+  # loopback of the host, never to the network.
+  # The `registry` service below is something else: the server of the dev catalog.
+  # ------------------------------------------------------------------
+  oci-registry:
+    image: registry:2
+    ports:
+      - "127.0.0.1:${OCI_REGISTRY_PORT:-15000}:5000"
+    volumes:
+      - oci_registry:/var/lib/registry
+
+  # ------------------------------------------------------------------
+  # Catalog server — serves ./data/catalogs (gitignored, with the rest of data/): the development
+  # catalogs scripts/dev-catalog.sh writes, version 2 (docs/catalog.md). The repository lists no provider:
+  # build the ones you work on with that script, then add http://registry:9000/registry.json as a source
+  # in Administration, or with `python -m scripts.provider_sources add-source`. Its entries name images
+  # in the local `oci-registry` above, which is why that source needs "allow insecure registry".
+  # ------------------------------------------------------------------
+  registry:
+    image: python:3.12-slim
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./data/catalogs:/srv
+    working_dir: /srv
+    command: python -m http.server 9000
+
+  # ------------------------------------------------------------------
+  # Redis
+  # ------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379" # esposto in dev per debugging locale
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ------------------------------------------------------------------
+  # PostgreSQL — il database (docs/postgresql.md). Volume con nome: i dati
+  # sopravvivono a `down`; la password viene da .env, mai dal repository.
+  # ------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-musizerr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-musizerr}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  provider_sockets:
+  gateway_state:
+  oci_registry:

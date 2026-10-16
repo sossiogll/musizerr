@@ -1,0 +1,8 @@
+# Dipendenze di sviluppo/test — NON necessarie a runtime in produzione.
+# Installa con:  pip install -r requirements-dev.txt
+# In dev (docker) e' gia' installato dallo stage development del Dockerfile.
+-r requirements.txt
+
+pytest==8.3.4
+pytest-cov==6.0.0
+hypothesis==6.122.3
