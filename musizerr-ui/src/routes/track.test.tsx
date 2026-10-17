@@ -138,7 +138,7 @@ describe("Track page", () => {
       await screen.findByRole("button", { name: "Second line" });
 
       await waitFor(() => expect(boxScroll).toHaveBeenCalled());
-      expect(boxScroll.mock.contexts.at(-1)).toBe(screen.getAllByRole("region", { name: "Lyrics" })[1]);
+      expect(boxScroll.mock.contexts[boxScroll.mock.contexts.length - 1]).toBe(screen.getAllByRole("region", { name: "Lyrics" })[1]);
       // Reduced motion: no smooth scrolling.
       expect(boxScroll).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: "auto" }));
       expect(windowScroll).not.toHaveBeenCalled();
