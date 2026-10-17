@@ -154,13 +154,17 @@ workers, the gateway, the web app) is always updated by hand.
 
 ### 6. Releases
 
-- Every pull request into `dev` carries one label: `breaking`, `feature`, `fix` or `chore`; a CI check
-  fails without it. A pull request whose change needs a step from operators writes it in an "Upgrade
-  notes" section.
-- Releasing is a workflow run by hand on master: it computes the next version from the labels merged since
-  the last tag (`breaking` → major, `feature` → minor, otherwise patch), tags it, and the images workflow
-  publishes the images and the release. The notes have sections for breaking changes, features, fixes,
-  upgrade notes (from the pull requests and the contract migrations) and the provider contracts supported.
+- Every pull request into `dev` carries exactly one label: `breaking`, `feature`, `fix` or `chore`; the
+  check `release label` (`.github/workflows/labels.yml`) fails otherwise, and `dev` requires it. A pull
+  request whose change needs a step from operators writes it in the "Upgrade notes" section of its
+  description (`.github/pull_request_template.md`).
+- **Releases are automatic** (decided by the maintainer on 2026-10-17): every merge into master runs the
+  images workflow, which reads the labels of the pull requests merged into `dev` since the last tag
+  (`breaking` → MAJOR, `feature` → MINOR, `fix` → PATCH; `chore` alone, or nothing, → no release, the
+  images only) and, for a release, tags the commit `vX.Y.Z` (the first one `1.0.0`), pushes the images as
+  `:X.Y.Z` and creates the GitHub release. Its notes have sections for breaking changes, upgrade notes,
+  features, fixes and other changes, the images and the provider contract; a release with upgrade notes
+  has `manual_steps` in its `release.json`, so the update check says so.
 - The SDK gets tags of its own (`sdk-vX.Y.Z`), which publish the base image `:X` and `:X.Y.Z`, instead of
   republishing it on every merge.
 - Providers keep releasing through their catalog (a commit of `catalog.json`); a build may declare
@@ -174,7 +178,7 @@ workers, the gateway, the web app) is always updated by hand.
    peer, the compatibility test. SDK 5.5.0. Closes the latent break of minor SDK changes.
 3. **Database guard** (§4): backup in `init`, `schema_info` and the start check, the `phase` of every
    migration and its test (the existing ones are classified once).
-4. **Releases** (§6): labels and their check, the release workflow with `release.json`, SDK tags.
+4. **Releases** (§6): labels and their check, automatic releases with `release.json`; then SDK tags.
 5. **Updates** (§5.1): the check and its page in Administration, and the automatic updates of providers.
 6. **Overlapping majors** (§3.2): the contract window, the adapter, catalog format 3. Needed when contract 6
    is planned, not before.
