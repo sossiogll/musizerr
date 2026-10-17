@@ -23,7 +23,7 @@ CMD ["pnpm", "dev", "--host", "0.0.0.0"]
 # ------------------------------------------------------------------
 # Stage: builder — compila il frontend per la produzione
 # ------------------------------------------------------------------
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 # pnpm via corepack: usa esattamente la versione dichiarata in package.json
 # ("packageManager"). Un `npm install -g pnpm` senza versione prende l'ultima
