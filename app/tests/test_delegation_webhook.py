@@ -292,7 +292,9 @@ def test_router_is_mounted_both_with_and_without_the_api_prefix():
     """
     import main
 
-    paths = {getattr(r, "path", "") for r in main.app.routes}
+    from tests.route_support import all_routes
+
+    paths = {route.path for route in all_routes()}
     for suffix in ("/delegation/register-webhook", "/delegation/webhook/{provider_name}"):
         assert suffix in paths, f"manca il mount senza prefisso per {suffix}"
         assert f"/api{suffix}" in paths, f"manca il mount /api per {suffix}"

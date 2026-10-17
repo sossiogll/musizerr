@@ -104,15 +104,14 @@ def _dependencies(dependant):
 
 
 def test_routes_authenticated_like_full_audio_declare_the_stream_cookie():
-    from fastapi.routing import APIRoute
-
     from routes.deps import get_stream_user
+    from tests.route_support import api_routes
 
     paths = _spec()["paths"]
     missing = [
         (method, route.path)
-        for route in main.app.routes
-        if isinstance(route, APIRoute) and get_stream_user in set(_dependencies(route.dependant))
+        for route in api_routes()
+        if get_stream_user in set(_dependencies(route.dependant))
         for method in route.methods
         if {"StreamCookie": []} not in paths[route.path][method.lower()].get("security", [])
     ]
