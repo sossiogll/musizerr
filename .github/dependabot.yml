@@ -1,0 +1,67 @@
+# Dependency updates (https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file).
+#
+# Every pull request goes into dev, like any change (master takes pull requests from dev only), with the
+# release label fix: merged into master, it makes a PATCH release by itself (ADR-0007 §6). Minor and
+# patch updates come grouped, one pull request per ecosystem a week; a major update comes on its own,
+# still labelled fix: relabel it breaking or feature if it changes what operators or users see.
+#
+# Security updates are raised against the repository's default branch, whatever target-branch says.
+version: 2
+
+updates:
+  # The host: API, workers, migrations (the SDK and the gateway depend on nothing but the standard library).
+  - package-ecosystem: pip
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    labels: [fix]
+    commit-message:
+      prefix: deps
+    groups:
+      python:
+        update-types: [minor, patch]
+
+  # The web app (pnpm).
+  - package-ecosystem: npm
+    directory: /musizerr-ui
+    target-branch: dev
+    schedule:
+      interval: weekly
+    labels: [fix]
+    commit-message:
+      prefix: deps
+    groups:
+      web:
+        update-types: [minor, patch]
+
+  # The base images of the Musizerr images and of the providers' base image.
+  - package-ecosystem: docker
+    directories: [/, /gateway, /musizerr-ui, /provider-base]
+    target-branch: dev
+    schedule:
+      interval: weekly
+    labels: [fix]
+    commit-message:
+      prefix: deps
+    groups:
+      images:
+        update-types: [minor, patch]
+    ignore:
+      # python:3.12 → 3.13 is a "minor" tag here but the Python every provider runs on (the base image):
+      # moving it is a decision of its own, with the providers' tests, never a weekly update.
+      - dependency-name: python
+        update-types: [version-update:semver-minor, version-update:semver-major]
+
+  # The actions the workflows use.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    labels: [fix]
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        update-types: [minor, patch]
