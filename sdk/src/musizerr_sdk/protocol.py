@@ -9,8 +9,8 @@ provider streams). A frame is at most ``MAX_FRAME_SIZE`` long.
 
 **Requests** (host to runner, one JSON frame)::
 
-    {"v": 1, "op": "describe", "context": <ContextSnapshot>}
-    {"v": 1, "op": "call", "method": "search_tracks", "args": [...], "kwargs": {...},
+    {"v": 1, "sdk": "5.5.0", "op": "describe", "context": <ContextSnapshot>}
+    {"v": 1, "sdk": "5.5.0", "op": "call", "method": "search_tracks", "args": [...], "kwargs": {...},
      "session": <AuthSession> | null, "session_at": <index in args> | null,
      "context": <ContextSnapshot> | null}
 
@@ -20,6 +20,10 @@ back where it was (``session_at``, an index in ``args``; ``null``: the keyword
 ``session``). ``context`` is the snapshot of the provider's settings, timeouts
 and public URL prefix for THIS call: the provider never calls back into the
 host (``CONTEXT_FREE_METHODS`` are called without one).
+
+``sdk`` is the host's SDK version (ADR-0007 §3.1): the runner encodes its replies for it, leaving out
+the fields newer than the host knows; a request without it comes from a host built before 5.5. The host
+encodes a call for the provider's own SDK version, which its manifest says.
 
 **Replies** (runner to host, a sequence of frames)::
 
@@ -55,6 +59,7 @@ from . import wire
 from .auth import AuthSession
 from .context import ContextSnapshot
 from .failures import classify_exception
+from .version import BASELINE, SDK_VERSION, peer_minor
 
 PROTOCOL_VERSION = 1
 
@@ -190,21 +195,31 @@ def join_session(args: list, kwargs: dict, session: AuthSession | None, session_
 
 
 def describe_request(context: ContextSnapshot | None = None) -> Frame:
-    return json_frame({"v": PROTOCOL_VERSION, "op": OP_DESCRIBE, "context": wire.encode(context)})
+    # Before its manifest the provider's SDK is not known: the context goes as the oldest peer reads it.
+    return json_frame({"v": PROTOCOL_VERSION, "sdk": SDK_VERSION, "op": OP_DESCRIBE, "context": wire.encode(context, BASELINE)})
 
 
-def call_request(method: str, args: tuple | list, kwargs: dict, context: ContextSnapshot | None) -> Frame:
+def call_request(
+    method: str, args: tuple | list, kwargs: dict, context: ContextSnapshot | None, peer: tuple[int, int] = BASELINE,
+) -> Frame:
+    """A call, encoded for a provider of SDK minor ``peer`` (its manifest's ``sdk_version``)."""
     args, kwargs, session, session_at = split_session(args, kwargs)
     return json_frame({
         "v": PROTOCOL_VERSION,
+        "sdk": SDK_VERSION,
         "op": OP_CALL,
         "method": method,
-        "args": wire.encode(args),
-        "kwargs": wire.encode(kwargs),
-        "session": wire.encode(session),
+        "args": wire.encode(args, peer),
+        "kwargs": wire.encode(kwargs, peer),
+        "session": wire.encode(session, peer),
         "session_at": session_at,
-        "context": wire.encode(context),
+        "context": wire.encode(context, peer),
     })
+
+
+def peer_of(message: dict) -> tuple[int, int]:
+    """The SDK minor of the host that sent ``message`` (BASELINE: a host built before 5.5)."""
+    return peer_minor(message.get("sdk"))
 
 
 def parse_request(frame: Frame) -> dict:
@@ -221,20 +236,20 @@ def parse_request(frame: Frame) -> dict:
 # ------------------------------------------------------------------
 
 
-def manifest_frame(manifest: Any) -> Frame:
-    return json_frame({"t": MSG_MANIFEST, "value": wire.encode(manifest)})
+def manifest_frame(manifest: Any, peer: tuple[int, int] = BASELINE) -> Frame:
+    return json_frame({"t": MSG_MANIFEST, "value": wire.encode(manifest, peer)})
 
 
-def result_frame(value: Any, *, chunks: bool = False) -> Frame:
-    return json_frame({"t": MSG_RESULT, "value": wire.encode(value), "chunks": chunks})
+def result_frame(value: Any, *, chunks: bool = False, peer: tuple[int, int] = BASELINE) -> Frame:
+    return json_frame({"t": MSG_RESULT, "value": wire.encode(value, peer), "chunks": chunks})
 
 
 def stream_frame() -> Frame:
     return json_frame({"t": MSG_STREAM})
 
 
-def item_frame(value: Any) -> Frame:
-    return json_frame({"t": MSG_ITEM, "value": wire.encode(value)})
+def item_frame(value: Any, peer: tuple[int, int] = BASELINE) -> Frame:
+    return json_frame({"t": MSG_ITEM, "value": wire.encode(value, peer)})
 
 
 def end_frame() -> Frame:
@@ -246,7 +261,7 @@ def end_frame() -> Frame:
 # ------------------------------------------------------------------
 
 
-def error_body(exc: BaseException) -> dict[str, Any]:
+def error_body(exc: BaseException, peer: tuple[int, int] = BASELINE) -> dict[str, Any]:
     """The ``error`` of a reply for ``exc``."""
     failure = classify_exception(exc)
     body: dict[str, Any] = {
@@ -256,12 +271,12 @@ def error_body(exc: BaseException) -> dict[str, Any]:
         "type": type(exc).__name__,
     }
     if wire.exception_type(exc) is not None:
-        body["exception"] = wire.encode(exc)
+        body["exception"] = wire.encode(exc, peer)
     return body
 
 
-def error_frame(exc: BaseException) -> Frame:
-    return json_frame({"t": MSG_ERROR, "error": error_body(exc)})
+def error_frame(exc: BaseException, peer: tuple[int, int] = BASELINE) -> Frame:
+    return json_frame({"t": MSG_ERROR, "error": error_body(exc, peer)})
 
 
 @dataclass(frozen=True)

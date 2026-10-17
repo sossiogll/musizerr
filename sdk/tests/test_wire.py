@@ -231,7 +231,9 @@ def same(a, b) -> bool:
 
 
 def test_every_wire_type_has_a_strategy():
-    missing = [name for name, cls in wire.registered_types().items() if cls not in STRATEGIES]
+    # The types of the contract (a test may register a type of its own, test_contract_evolution.py's probe).
+    missing = [name for name, cls in wire.registered_types().items()
+               if cls.__module__.startswith("musizerr_sdk.") and cls not in STRATEGIES]
     assert not missing, f"no round trip strategy for {missing}"
     assert not [cls for cls in STRATEGIES if cls not in wire.registered_types().values()]
 
