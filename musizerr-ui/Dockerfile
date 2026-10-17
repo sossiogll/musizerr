@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------
 # Stage: development — pnpm dev server con HMR
 # ------------------------------------------------------------------
-FROM node:20-alpine AS development
+FROM node:24-alpine AS development
 
 # pnpm via corepack: usa esattamente la versione dichiarata in package.json
 # ("packageManager"). Un `npm install -g pnpm` senza versione prende l'ultima

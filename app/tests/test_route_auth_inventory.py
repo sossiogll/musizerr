@@ -17,10 +17,8 @@ Policy, dalla più restrittiva:
 """
 from __future__ import annotations
 
-from fastapi.routing import APIRoute
-
-import main
 from routes import deps
+from tests.route_support import api_routes
 
 _DEPENDENCY_POLICY = {
     deps.require_admin: "admin",
@@ -219,9 +217,7 @@ def _dependency_calls(dependant, found: set[str]) -> set[str]:
 
 def _actual_policies() -> dict[tuple[str, str], str]:
     actual: dict[tuple[str, str], str] = {}
-    for route in main.app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    for route in api_routes():
         found = _dependency_calls(route.dependant, set())
         policy = next((p for p in _ORDER if p in found), "none")
         for method in route.methods:
@@ -255,9 +251,8 @@ def test_token_routes_check_a_shared_token_with_constant_time_compare():
 
     token_endpoints = {
         route.endpoint
-        for route in main.app.routes
-        if isinstance(route, APIRoute)
-        and any(EXPECTED.get((m, route.path)) == "token" for m in route.methods)
+        for route in api_routes()
+        if any(EXPECTED.get((m, route.path)) == "token" for m in route.methods)
     }
     assert token_endpoints
     for endpoint in token_endpoints:

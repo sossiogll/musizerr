@@ -34,6 +34,7 @@ from .interfaces import (
 )
 from .permissions import Permissions, validate as validate_permissions
 from .settings import ProviderSetting
+from .version import SDK_VERSION
 
 # The kinds of provider, by the name the host files them under, in a stable order.
 ROLES: dict[str, type[BaseProvider]] = {
@@ -88,6 +89,9 @@ class Manifest:
     implements: tuple[str, ...] = ()
     # What the sandbox grants it (an empty declaration: nothing).
     permissions: Permissions = field(default_factory=Permissions)
+    # The SDK the provider was built on (ADR-0007 §3.1): the host encodes its calls for it. Added in 5.5,
+    # so a provider built before says nothing and is treated as 5.4.
+    sdk_version: str | None = field(default=None, metadata={wire.SINCE: "5.5"})
 
 
 def roles_of(provider: object) -> tuple[str, ...]:
@@ -164,5 +168,6 @@ def build(provider: BaseProvider) -> Manifest:
         declarations=declarations,
         implements=implemented_methods(provider),
         permissions=validate_permissions(getattr(provider, "permissions", Permissions())),
+        sdk_version=SDK_VERSION,
     )
 

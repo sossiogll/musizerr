@@ -183,5 +183,8 @@ catalog is a source with a token.
 version is the same number, and the base image's tag too. A catalog entry for
 another version is listed but cannot be installed, and the gateway refuses an
 image that implements another one. Within a version, the SDK only adds: optional
-methods with defaults, new declarations. A new major version comes with what a
-provider has to change.
+methods with defaults, new declarations, fields with a default. Your image says the
+SDK it was built on (the label `org.musizerr.provider.sdk-version`, put by the build),
+and Musizerr sends it only the fields that SDK knows: a provider built on 5.5 keeps
+working with a Musizerr on 5.9, and the other way round, without a rebuild. A new
+major version comes with what a provider has to change.
