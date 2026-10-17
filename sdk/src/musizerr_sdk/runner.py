@@ -48,6 +48,7 @@ from .protocol import (
     join_session,
     manifest_frame,
     parse_request,
+    peer_of,
     result_frame,
     stream_frame,
 )
@@ -145,20 +146,22 @@ class ProviderRunner:
         except Exception as exc:  # noqa: BLE001 — whatever it is, it is the host's answer
             yield error_frame(exc)
             return
+        # The host's SDK minor: every reply is encoded for it (ADR-0007 §3.1).
+        peer = peer_of(message)
         if message["op"] == OP_DESCRIBE:
-            yield self._describe(snapshot)
+            yield self._describe(snapshot, peer)
         else:
-            yield from self._call(message, snapshot)
+            yield from self._call(message, snapshot, peer)
 
-    def _describe(self, snapshot: ContextSnapshot | None) -> Frame:
+    def _describe(self, snapshot: ContextSnapshot | None, peer: tuple[int, int]) -> Frame:
         try:
             provider = self._provider_instance()
             with self._context.bound(snapshot):
-                return manifest_frame(build(provider))
+                return manifest_frame(build(provider), peer)
         except Exception as exc:  # noqa: BLE001
-            return error_frame(exc)
+            return error_frame(exc, peer)
 
-    def _call(self, message: dict, snapshot: ContextSnapshot | None) -> Iterator[Frame]:
+    def _call(self, message: dict, snapshot: ContextSnapshot | None, peer: tuple[int, int]) -> Iterator[Frame]:
         try:
             provider = self._provider_instance()
             method = message["method"]
@@ -173,23 +176,25 @@ class ProviderRunner:
             with self._context.bound(snapshot):
                 result = getattr(provider, method)(*args, **kwargs)
         except Exception as exc:  # noqa: BLE001 — a provider can raise anything
-            yield error_frame(exc)
+            yield error_frame(exc, peer)
             return
         if isinstance(result, IteratorABC):
             yield stream_frame()
-            yield from self._pages(result, snapshot)
+            yield from self._pages(result, snapshot, peer)
             return
         chunks = result.chunks if isinstance(result, StorageStreamResult) else None
         try:
-            reply = result_frame(result, chunks=chunks is not None)
+            reply = result_frame(result, chunks=chunks is not None, peer=peer)
         except Exception as exc:  # noqa: BLE001
-            yield error_frame(exc)
+            yield error_frame(exc, peer)
             return
         yield reply
         if chunks is not None:
-            yield from self._bytes(chunks, snapshot)
+            yield from self._bytes(chunks, snapshot, peer)
 
-    def _steps(self, iterator: Iterator, snapshot: ContextSnapshot | None, frame: Callable[[Any], Frame]) -> Iterator[Frame]:
+    def _steps(
+        self, iterator: Iterator, snapshot: ContextSnapshot | None, frame: Callable[[Any], Frame], peer: tuple[int, int],
+    ) -> Iterator[Frame]:
         """One frame per item of ``iterator``, each produced on demand, then the
         end of the stream (or the error that stopped it)."""
         iterator = iter(iterator)
@@ -203,18 +208,18 @@ class ProviderRunner:
                 yield frame(item)
             yield end_frame()
         except Exception as exc:  # noqa: BLE001 — raised by the provider or by encoding an item
-            yield error_frame(exc)
+            yield error_frame(exc, peer)
         finally:
             close = getattr(iterator, "close", None)
             if close is not None:
                 with self._context.bound(snapshot):
                     close()
 
-    def _pages(self, iterator: Iterator, snapshot: ContextSnapshot | None) -> Iterator[Frame]:
-        return self._steps(iterator, snapshot, item_frame)
+    def _pages(self, iterator: Iterator, snapshot: ContextSnapshot | None, peer: tuple[int, int]) -> Iterator[Frame]:
+        return self._steps(iterator, snapshot, lambda item: item_frame(item, peer), peer)
 
-    def _bytes(self, chunks: Iterator[bytes], snapshot: ContextSnapshot | None) -> Iterator[Frame]:
-        return self._steps(chunks, snapshot, bytes_frame)
+    def _bytes(self, chunks: Iterator[bytes], snapshot: ContextSnapshot | None, peer: tuple[int, int]) -> Iterator[Frame]:
+        return self._steps(chunks, snapshot, bytes_frame, peer)
 
 
 # ------------------------------------------------------------------
