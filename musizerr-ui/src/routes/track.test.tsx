@@ -136,6 +136,8 @@ describe("Track page", () => {
       Object.assign(player, { track: { provider: "prov", provider_id: "p1" }, playbackType: "full", playing: true, currentTime: 12 });
       renderTrack();
       await screen.findByRole("button", { name: "Second line" });
+      // The router puts the window at the top once, when the page loads: that is not the lyrics following.
+      windowScroll.mockClear();
 
       await waitFor(() => expect(boxScroll).toHaveBeenCalled());
       expect(boxScroll.mock.contexts.at(-1)).toBe(screen.getAllByRole("region", { name: "Lyrics" })[1]);
