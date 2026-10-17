@@ -25,6 +25,8 @@ LABEL_ROLES = LABEL_PREFIX + "roles"
 LABEL_API_VERSION = LABEL_PREFIX + "api-version"
 LABEL_PERMISSIONS = LABEL_PREFIX + "permissions"
 LABEL_LABEL = LABEL_PREFIX + "label"  # the name to show; optional (the gateway ignores it), a catalog entry is made from it
+# The SDK the image was built on (ADR-0007 §3.1); optional: an image built before 5.5 has none.
+LABEL_SDK_VERSION = LABEL_PREFIX + "sdk-version"
 
 REQUIRED_LABELS = (LABEL_NAME, LABEL_ROLES, LABEL_API_VERSION, LABEL_PERMISSIONS)
 
@@ -46,13 +48,16 @@ class DeclaredManifest:
 def labels_for(manifest: Manifest) -> dict[str, str]:
     if manifest.provider_api_version is None:
         raise LabelError(f"{manifest.name} does not declare 'provider_api_version'")
-    return {
+    labels = {
         LABEL_NAME: manifest.name,
         LABEL_ROLES: ",".join(manifest.roles),
         LABEL_API_VERSION: str(manifest.provider_api_version),
         LABEL_PERMISSIONS: to_json(manifest.permissions),
         LABEL_LABEL: manifest.label,
     }
+    if manifest.sdk_version:
+        labels[LABEL_SDK_VERSION] = manifest.sdk_version
+    return labels
 
 
 def declared_from_labels(labels: Mapping[str, str] | None) -> DeclaredManifest:

@@ -176,6 +176,9 @@ workers, the gateway, the web app) is always updated by hand.
    every later step.
 2. **Additive contract** (§3.1): tolerant codec, `since` markers, the SDK version label, encoding for the
    peer, the compatibility test. SDK 5.5.0. Closes the latent break of minor SDK changes.
+   *Done* (2026-10-17): the compatibility test simulates an older peer's strict codec; a run against real
+   images built on 5.4 passed. A test against a runner of an older SDK release joins CI once the SDK has
+   release tags of its own (§6).
 3. **Database guard** (§4): backup in `init`, `schema_info` and the start check, the `phase` of every
    migration and its test (the existing ones are classified once).
 4. **Releases** (§6): labels and their check, automatic releases with `release.json`; then SDK tags.

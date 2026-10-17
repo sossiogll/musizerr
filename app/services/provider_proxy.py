@@ -34,6 +34,7 @@ from musizerr_sdk.context import ContextSnapshot
 from musizerr_sdk.interfaces import BaseProvider, StorageStreamResult
 from musizerr_sdk.manifest import DECLARED_QUERIES, ROLES, Manifest, declared_names
 from musizerr_sdk.protocol import Frame, ProtocolError, RemoteError
+from musizerr_sdk.version import peer_minor
 
 
 class ProviderCallFailed(Exception):
@@ -117,6 +118,9 @@ class ProviderProxy:
         self.context = context
         self._transport = transport
         self._implements = frozenset(manifest.implements)
+        # The SDK minor the provider was built on (ADR-0007 §3.1): every call is encoded for it, so a
+        # provider built on an older SDK never meets a field it would not know.
+        self._peer = peer_minor(manifest.sdk_version)
         attributes, _queries = declared_names(manifest.roles)
         for name in attributes:
             setattr(self, name, manifest.declarations[name])
@@ -131,7 +135,7 @@ class ProviderProxy:
 
     def _invoke(self, method: str, args: tuple, kwargs: dict) -> Any:
         snapshot = None if method in protocol.CONTEXT_FREE_METHODS else self.context.snapshot()
-        request = protocol.call_request(method, args, kwargs, snapshot)
+        request = protocol.call_request(method, args, kwargs, snapshot, self._peer)
         try:
             value = protocol.read_reply(self._transport.request(request), _failure)
         except (ProtocolError, wire.WireError, TransportError) as exc:
