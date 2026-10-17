@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { TrendingUp } from "lucide-react";
 import {
   getNewReleases,
@@ -14,11 +14,14 @@ import { LoadMoreButton } from "@/components/ContentList";
 import { TileShelf } from "@/components/TileShelf";
 import { TrackList } from "@/components/tracks/TrackList";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Track } from "@/types";
+import type { Track, WithProviderErrors } from "@/types";
 
 const STALE_MS = 10 * 60 * 1000;
 const FETCHED = 20;
 const TRACKS_SHOWN = 10;
+
+/** What the page reads of a section's query, whatever the items are. */
+type SectionQuery = Pick<UseQueryResult<{ items: readonly unknown[] } & WithProviderErrors>, "isLoading" | "data">;
 
 /** New releases and what is trending, from every metadata provider. */
 export function DiscoverContent() {
@@ -44,12 +47,12 @@ export function DiscoverContent() {
     staleTime: STALE_MS,
   });
 
-  const sections = [newReleases, trendingTracks, trendingAlbums, trendingArtists];
-  const shows = (q: (typeof sections)[number]) => q.isLoading || (q.data?.items.length ?? 0) > 0;
+  const sections: SectionQuery[] = [newReleases, trendingTracks, trendingAlbums, trendingArtists];
+  const shows = (q: SectionQuery) => q.isLoading || (q.data?.items.length ?? 0) > 0;
   // A section says itself when its data is incomplete; a section that is not
   // shown (nothing came back) has no place for that, so the page says it.
   const hiddenErrors = mergeProviderErrors(sections.filter((q) => !shows(q)).map((q) => q.data?.provider_errors));
-  const incomplete = (q: (typeof sections)[number]) => <IncompleteResults variant="inline" errors={q.data?.provider_errors} />;
+  const incomplete = (q: SectionQuery) => <IncompleteResults variant="inline" errors={q.data?.provider_errors} />;
 
   return (
     <div className="space-y-10">
