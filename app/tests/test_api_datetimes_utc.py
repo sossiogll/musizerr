@@ -14,7 +14,6 @@ import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import DateTime
 from sqlmodel import Session, SQLModel, select
@@ -43,6 +42,7 @@ from services.config_manager import ConfigManager
 
 from tests.database import new_engine
 from tests.conftest import FakeAuthManager, FakeMetadataProvider, FakeRegistry, FakeSyncProvider
+from tests.route_support import api_routes
 
 # An ISO datetime (date, "T", time); its zone is checked separately.
 ISO_DATETIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?")
@@ -138,8 +138,8 @@ def _strings(value, path=""):
 
 def _sweepable_routes() -> list[str]:
     return sorted({
-        route.path for route in main.app.routes
-        if isinstance(route, APIRoute) and "GET" in route.methods and "{" not in route.path
+        route.path for route in api_routes()
+        if "GET" in route.methods and "{" not in route.path
         and route.path not in SKIPPED and not route.path.startswith(("/api/", "/credentials"))
     })
 
