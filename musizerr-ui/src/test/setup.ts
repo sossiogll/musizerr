@@ -40,7 +40,7 @@ if (typeof Element !== "undefined") {
   const NEVER_IN_JSDOM = new Set([":modal", ":fullscreen"]);
   Element.prototype.matches = function (this: Element, selector: string) {
     return NEVER_IN_JSDOM.has(selector) ? false : matches.call(this, selector);
-  };
+  } as typeof matches;
 }
 
 // Smonta l'albero React e pulisce il DOM dopo ogni test.
