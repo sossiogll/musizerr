@@ -25,7 +25,15 @@ that travels as itself is a tagged object with the arguments it is built from,
 and ``DelegateHoldsRelease`` is also an argument (``search_delegated``).
 
 An unknown tag, an unregistered dataclass or enum and a value of any other type
-are a :class:`WireError`: nothing is guessed. An iterator is not a value; the
+are a :class:`WireError`: nothing is guessed.
+
+**Evolution within a contract major** (ADR-0007 §3.1). Decoding ignores a field
+it does not know (a newer peer's) and gives a missing one its default (an older
+peer's). A field added after the first release of the major carries the minor
+it exists since, ``field(default=..., metadata={SINCE: "5.5"})``, and must have a
+default; ``encode(value, peer=(5, 4))`` leaves out the fields newer than the
+peer's minor, so a peer that still decodes strictly (every SDK before 5.5) never
+meets one. ``peer=None`` encodes everything. An iterator is not a value; the
 protocol streams it (``musizerr_sdk.protocol``). The one iterator inside a
 contract type, ``StorageStreamResult.chunks``, is encoded as a marker and
 rebuilt from the byte stream the caller hands to :func:`decode`.
@@ -42,8 +50,14 @@ from enum import Enum
 from typing import Any, Callable, Iterator, NamedTuple, TypeVar
 
 from . import auth, context, delegation, errors, identifiers, interfaces, models, permissions, settings
+from .version import minor_of
 
 TAG = "$"
+# The metadata key of a field added after the first release of the contract major: the SDK minor it
+# exists since ("5.5").
+SINCE = "since"
+
+Peer = tuple[int, int] | None
 
 _T = TypeVar("_T", bound=type)
 
@@ -54,6 +68,10 @@ class WireError(ValueError):
 
 _classes: dict[str, type] = {}
 _fields: dict[type, tuple[str, ...]] = {}
+_known: dict[type, frozenset[str]] = {}
+# The fields a type gained after the first release of the major, with the minor of each.
+_since: dict[type, tuple[tuple[str, tuple[int, int]], ...]] = {}
+_fields_for_peer: dict[tuple[type, tuple[int, int]], tuple[str, ...]] = {}
 _enums: dict[str, type[Enum]] = {}
 _enum_names: dict[type, str] = {}
 
@@ -74,9 +92,33 @@ def register(cls: _T) -> _T:
     name = cls.__name__
     if _classes.get(name, cls) is not cls:
         raise ValueError(f"two wire types are named {name}")
+    fields = [f for f in dataclasses.fields(cls) if f.init]
+    marked = []
+    for f in fields:
+        if SINCE not in f.metadata:
+            continue
+        minor = minor_of(f.metadata[SINCE])
+        if minor is None:
+            raise TypeError(f"{name}.{f.name}: '{f.metadata[SINCE]}' is not an SDK minor")
+        if f.default is dataclasses.MISSING and f.default_factory is dataclasses.MISSING:
+            raise TypeError(f"{name}.{f.name} was added in {f.metadata[SINCE]}: it needs a default (an older peer never sends it)")
+        marked.append((f.name, minor))
     _classes[name] = cls
-    _fields[cls] = tuple(f.name for f in dataclasses.fields(cls) if f.init)
+    _fields[cls] = tuple(f.name for f in fields)
+    _known[cls] = frozenset(_fields[cls])
+    if marked:
+        _since[cls] = tuple(marked)
     return cls
+
+
+def _peer_fields(kind: type, peer: tuple[int, int]) -> tuple[str, ...]:
+    """The fields of ``kind`` a peer of minor ``peer`` knows."""
+    key = (kind, peer)
+    fields = _fields_for_peer.get(key)
+    if fields is None:
+        newer = {name for name, minor in _since[kind] if minor > peer}
+        fields = _fields_for_peer[key] = tuple(name for name in _fields[kind] if name not in newer)
+    return fields
 
 
 def register_enum(cls: _T) -> _T:
@@ -187,8 +229,9 @@ register_exception(NotImplementedError, lambda e: {"message": str(e)}, lambda f:
 # ------------------------------------------------------------------
 
 
-def encode(value: Any) -> Any:
-    """``value`` as JSON-compatible data. Raises :class:`WireError`."""
+def encode(value: Any, peer: Peer = None) -> Any:
+    """``value`` as JSON-compatible data, for a peer of SDK minor ``peer`` (None: every field). Raises
+    :class:`WireError`."""
     if value is None:
         return None
     kind = type(value)
@@ -197,24 +240,26 @@ def encode(value: Any) -> Any:
     if kind is float:
         return value if math.isfinite(value) else {TAG: "float", "v": repr(value)}
     if kind is list:
-        return [encode(item) for item in value]
+        return [encode(item, peer) for item in value]
     if kind is dict:
-        return _encode_dict(value)
+        return _encode_dict(value, peer)
     fields = _fields.get(kind)
     if fields is not None:
-        return _encode_object(value, kind, fields)
+        if peer is not None and kind in _since:
+            fields = _peer_fields(kind, peer)
+        return _encode_object(value, kind, fields, peer)
     if kind is tuple:
-        return {TAG: "tuple", "v": [encode(item) for item in value]}
-    return _encode_other(value, kind)
+        return {TAG: "tuple", "v": [encode(item, peer) for item in value]}
+    return _encode_other(value, kind, peer)
 
 
-def _encode_dict(value: Mapping) -> Any:
+def _encode_dict(value: Mapping, peer: Peer) -> Any:
     if TAG not in value and all(type(key) is str for key in value):
-        return {key: encode(item) for key, item in value.items()}
-    return {TAG: "dict", "v": [[encode(key), encode(item)] for key, item in value.items()]}
+        return {key: encode(item, peer) for key, item in value.items()}
+    return {TAG: "dict", "v": [[encode(key, peer), encode(item, peer)] for key, item in value.items()]}
 
 
-def _encode_object(value: Any, kind: type, fields: tuple[str, ...]) -> dict:
+def _encode_object(value: Any, kind: type, fields: tuple[str, ...], peer: Peer) -> dict:
     out: dict[str, Any] = {TAG: kind.__name__}
     streams = _STREAM_FIELDS.get(kind, ())
     for name in fields:
@@ -224,11 +269,11 @@ def _encode_object(value: Any, kind: type, fields: tuple[str, ...]) -> dict:
         elif name in streams:
             out[name] = {TAG: "chunks"}
         else:
-            out[name] = encode(item)
+            out[name] = encode(item, peer)
     return out
 
 
-def _encode_other(value: Any, kind: type) -> Any:
+def _encode_other(value: Any, kind: type, peer: Peer) -> Any:
     if kind in _enum_names:
         return {TAG: "enum", "e": _enum_names[kind], "v": value.value}
     if isinstance(value, Enum):
@@ -237,13 +282,13 @@ def _encode_other(value: Any, kind: type) -> Any:
         for cls in kind.__mro__:
             if cls in _exceptions:
                 entry = _exceptions[cls]
-                return {TAG: entry.tag, **{name: encode(item) for name, item in entry.fields(value).items()}}
+                return {TAG: entry.tag, **{name: encode(item, peer) for name, item in entry.fields(value).items()}}
         raise WireError(f"the exception {kind.__name__} is not a wire type")
     if isinstance(value, datetime):
         return {TAG: "datetime", "v": value.isoformat()}
     if isinstance(value, (set, frozenset)):
         # Sorted by their encoding, so that the same set is always the same bytes.
-        items = sorted((encode(item) for item in value), key=lambda item: json.dumps(item, sort_keys=True))
+        items = sorted((encode(item, peer) for item in value), key=lambda item: json.dumps(item, sort_keys=True))
         return {TAG: "set" if isinstance(value, set) else "frozenset", "v": items}
     if isinstance(value, (bytes, bytearray)):
         return {TAG: "bytes", "v": base64.b64encode(bytes(value)).decode("ascii")}
@@ -252,15 +297,15 @@ def _encode_other(value: Any, kind: type) -> Any:
     if isinstance(value, int):
         return int(value)
     if isinstance(value, float):
-        return encode(float(value))
+        return encode(float(value), peer)
     if isinstance(value, str):
         return str(value)
     if isinstance(value, Mapping):
-        return _encode_dict(value)
+        return _encode_dict(value, peer)
     if isinstance(value, list):
-        return [encode(item) for item in value]
+        return [encode(item, peer) for item in value]
     if isinstance(value, tuple):
-        return {TAG: "tuple", "v": [encode(item) for item in value]}
+        return {TAG: "tuple", "v": [encode(item, peer) for item in value]}
     raise WireError(f"{kind.__module__}.{kind.__qualname__} is not a wire type")
 
 
@@ -294,9 +339,10 @@ def _decode(data: Any, chunks: Iterator[bytes] | None) -> Any:
 
 def _decode_object(cls: type, data: dict, chunks: Iterator[bytes] | None) -> Any:
     streams = _STREAM_FIELDS.get(cls, ())
+    known = _known[cls]
     kwargs = {}
     for name, item in data.items():
-        if name == TAG:
+        if name not in known:  # the tag, or a field of a newer peer's SDK: ignored
             continue
         if name in streams and item is not None:
             if item != {TAG: "chunks"}:
@@ -348,9 +394,9 @@ def _decode_tagged(tag: Any, data: dict, chunks: Iterator[bytes] | None) -> Any:
 # ------------------------------------------------------------------
 
 
-def dumps(value: Any) -> bytes:
-    """``value`` as compact UTF-8 JSON."""
-    return json.dumps(encode(value), separators=(",", ":"), allow_nan=False).encode("utf-8")
+def dumps(value: Any, peer: Peer = None) -> bytes:
+    """``value`` as compact UTF-8 JSON (for a peer of SDK minor ``peer``)."""
+    return json.dumps(encode(value, peer), separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
 def loads(payload: bytes | str, *, chunks: Iterator[bytes] | None = None) -> Any:
