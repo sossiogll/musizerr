@@ -9,7 +9,7 @@ psycopg[binary]==3.2.13   # driver PostgreSQL (DATABASE_URL=postgresql+psycopg:/
 
 # Task queue
 celery==5.5.3
-redis==5.0.7
+redis==8.1.0
 
 # HTTP client
 httpx==0.28.1
