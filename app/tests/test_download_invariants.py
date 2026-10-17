@@ -298,8 +298,11 @@ class DownloadLifecycle(RuleBasedStateMachine):
                 assert count <= 1, f"{count} library entries for {track_id}"
 
 
+# Not derandomized: CI sets the derandomized profile by default, and with hypothesis 6.169 a derandomized
+# state machine fails with FlakyStrategyDefinition ("Aborted test because unable to satisfy sampled_from([Rule...")
+# on a source tree and passes on the next, whatever the code does.
 DownloadLifecycle.TestCase.settings = settings(
-    max_examples=200, stateful_step_count=30, deadline=None,
+    max_examples=200, stateful_step_count=30, deadline=None, derandomize=False,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
 )
 test_download_lifecycle = DownloadLifecycle.TestCase

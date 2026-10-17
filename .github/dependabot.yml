@@ -21,6 +21,10 @@ updates:
     groups:
       python:
         update-types: [minor, patch]
+    ignore:
+      # redis-py 6.5 and later are not supported by kombu (Celery's Redis transport): wait until it is.
+      - dependency-name: redis
+        update-types: [version-update:semver-major]
 
   # The web app (pnpm).
   - package-ecosystem: npm
@@ -34,6 +38,10 @@ updates:
     groups:
       web:
         update-types: [minor, patch]
+    ignore:
+      # The major of @types/node follows the Node the project runs (24).
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
 
   # The base images of the Musizerr images and of the providers' base image.
   - package-ecosystem: docker
@@ -48,6 +56,9 @@ updates:
       images:
         update-types: [minor, patch]
     ignore:
+      # The Node of the images is a decision of its own and stays on an LTS (24), never a weekly update.
+      - dependency-name: node
+        update-types: [version-update:semver-minor, version-update:semver-major]
       # python:3.12 → 3.13 is a "minor" tag here but the Python every provider runs on (the base image):
       # moving it is a decision of its own, with the providers' tests, never a weekly update.
       - dependency-name: python
