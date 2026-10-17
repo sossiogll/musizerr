@@ -62,12 +62,22 @@ def require_strong_secret() -> None:
 # Password hashing
 # ------------------------------------------------------------------
 
+# bcrypt reads at most 72 bytes of a password. Up to 4.x it ignored the rest; 5.0 raises ValueError instead,
+# which would be a 500 on sign-in for anyone whose password is longer. The bytes bcrypt ignored are cut here,
+# so the hashes already stored (of any password length) keep verifying.
+_BCRYPT_MAX_BYTES = 72
+
+
+def _password_bytes(plain: str) -> bytes:
+    return plain.encode()[:_BCRYPT_MAX_BYTES]
+
+
 def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(_password_bytes(plain), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    return bcrypt.checkpw(_password_bytes(plain), hashed.encode())
 
 
 # ------------------------------------------------------------------
