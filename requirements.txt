@@ -1,5 +1,5 @@
 # Web framework
-fastapi==0.143.0
+fastapi==0.143.1
 uvicorn[standard]==0.54.0
 
 # Database
@@ -9,7 +9,7 @@ psycopg[binary]==3.3.6   # driver PostgreSQL (DATABASE_URL=postgresql+psycopg://
 
 # Task queue
 celery==5.6.3
-redis==5.0.7
+redis==5.3.1
 
 # HTTP client
 httpx==0.28.1
