@@ -165,8 +165,17 @@ workers, the gateway, the web app) is always updated by hand.
   `:X.Y.Z` and creates the GitHub release. Its notes have sections for breaking changes, upgrade notes,
   features, fixes and other changes, the images and the provider contract; a release with upgrade notes
   has `manual_steps` in its `release.json`, so the update check says so.
-- The SDK gets tags of its own (`sdk-vX.Y.Z`), which publish the base image `:X` and `:X.Y.Z`, instead of
-  republishing it on every merge.
+- **Which images a release builds** (decided by the maintainer on 2026-10-17):
+  - **Musizerr** (`musizerr`, `musizerr-frontend`, `musizerr-gateway`) is one product: the three images share one
+    version and are all rebuilt on every merge into master, even when only one of them changed. They are tested
+    and run together, the compose pins them with one `MUSIZERR_VERSION`, and each rebuild picks up the security
+    updates of their base images (Python, nginx, Alpine).
+  - **The provider base image** is built only when the SDK version changes, and a published version is never
+    pushed again: today every merge rebuilds it and pushes it again under the same `:X.Y.Z`, so one version names
+    different contents over time and two providers built "on 5.5.0" a day apart differ. The SDK gets tags of its
+    own (`sdk-vX.Y.Z`), which publish the base image `:X` and `:X.Y.Z` once; the images workflow skips it when
+    `:X.Y.Z` already exists.
+  - **Providers** are published only when their own version is raised (their repositories, `provider version`).
 - Providers keep releasing through their catalog (a commit of `catalog.json`); a build may declare
   `min_musizerr`.
 
@@ -181,7 +190,8 @@ workers, the gateway, the web app) is always updated by hand.
    release tags of its own (§6).
 3. **Database guard** (§4): backup in `init`, `schema_info` and the start check, the `phase` of every
    migration and its test (the existing ones are classified once).
-4. **Releases** (§6): labels and their check, automatic releases with `release.json`; then SDK tags.
+4. **Releases** (§6): labels and their check, automatic releases with `release.json` (*done*); still to do: SDK
+   tags, and the provider base image published once per SDK version, never pushed again under a published tag.
 5. **Updates** (§5.1): the check and its page in Administration, and the automatic updates of providers.
 6. **Overlapping majors** (§3.2): the contract window, the adapter, catalog format 3. Needed when contract 6
    is planned, not before.
