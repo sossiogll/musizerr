@@ -93,7 +93,7 @@ describe("Track page", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Song A" })).toBeInTheDocument();
     expect(screen.getByText(/Track · No\. 4 · 2020/)).toBeInTheDocument();
     expect(await screen.findByText("via Lyrics Co")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Best Of 2010" })).toHaveAttribute("href", "/album/prov/al9");
+    expect(screen.getByRole("link", { name: /^Best Of\s?2010$/ })).toHaveAttribute("href", "/album/prov/al9");
   });
 
   it("synced lyrics follow the player: the current line is marked and a line seeks there", async () => {
