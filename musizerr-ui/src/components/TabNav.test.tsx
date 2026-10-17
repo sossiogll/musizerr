@@ -42,8 +42,9 @@ describe("FilterTabs", () => {
     );
     const group = await screen.findByRole("group", { name: "Filter by state" });
     expect(group).toHaveClass(...tabStripClass.split(" "));
-    const all = within(group).getByRole("button", { name: "All 12" });
-    const failed = within(group).getByRole("button", { name: "Failed 2" });
+    // The count is a span after the label: whether jsdom puts a space between the two depends on its default display of a span, the browser's on the flex gap.
+    const all = within(group).getByRole("button", { name: /^All\s?12$/ });
+    const failed = within(group).getByRole("button", { name: /^Failed\s?2$/ });
     expect(all).toHaveAttribute("aria-pressed", "true");
     expect(failed).toHaveAttribute("aria-pressed", "false");
     expect(hasClasses(failed, tabItemClass)).toBe(true);
