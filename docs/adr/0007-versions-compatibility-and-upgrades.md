@@ -190,14 +190,18 @@ workers, the gateway, the web app) is always updated by hand.
    release tags of its own (§6).
 3. **Database guard** (§4): backup in `init`, `schema_info` and the start check, the `phase` of every
    migration and its test (the existing ones are classified once).
-   *Interactions (added 2026-10-24):* ADR-0008 (root folders) and ADR-0009 (environment names) are written as
-   expand in a MINOR and contract in a MAJOR; their expand steps are safe without this step, their contract steps
-   need it.
+   *Interactions (added 2026-10-24, revised the same day):* ADR-0010 (the rename to Musizeer, with ADR-0008 and ADR-0009
+   inside it) is a one-off breaking release with no expand/contract window. It does not need this step: the owner's only
+   install moves its database by dump and restore and the migrations run on the copy, so the old volume is the rollback.
+   The guard is still necessary before any later contract migration on a live database.
 4. **Releases** (§6): labels and their check, automatic releases with `release.json` (*done*); still to do: SDK
    tags, and the provider base image published once per SDK version, never pushed again under a published tag.
 5. **Updates** (§5.1): the check and its page in Administration, and the automatic updates of providers.
 6. **Overlapping majors** (§3.2): the contract window, the adapter, catalog format 3. Needed when contract 6
    is planned, not before.
+   *Note (2026-10-24):* contract 6 is the rename of ADR-0010, and it is **not** served by this machinery: with nobody
+   but the owner on contract 5, 6 ships as one breaking release with only itself supported. The overlap stays the rule
+   for the major after it.
 
 ## Alternatives considered
 
