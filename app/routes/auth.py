@@ -62,7 +62,7 @@ def auth_status_global(config: ConfigDep):
     return {
         "auth_enabled": config.auth_enabled,
         "authenticated": not config.auth_enabled,
-        "registration_open": config.registration_open,
+        "registration_open": config.registration_available,
     }
 
 

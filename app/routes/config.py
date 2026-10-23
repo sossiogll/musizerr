@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from core.auth_manager import AuthError
@@ -121,17 +123,24 @@ def get_settings_values(config: ConfigDep, registry: RegistryDep, session: Sessi
 
 
 @router.patch("/settings")
-def patch_settings(body: SettingsPatch, config: ConfigDep, registry: RegistryDep, session: SessionDep, user: CurrentUserDep):
+def patch_settings(
+    body: SettingsPatch, config: ConfigDep, registry: RegistryDep, session: SessionDep, user: CurrentUserDep,
+    adopt_into: Optional[str] = Query(None),
+):
     """
     Applica un batch di modifiche come unità atomica: chiave sconosciuta,
     vietata per il ruolo, non coercibile o non valida rifiuta l'INTERA
     richiesta (nulla viene scritto). Instrada ogni chiave allo storage giusto
     guidato dalla sua dichiarazione (namespace di provider / scope), mai dal
     nome della chiave.
+
+    ``adopt_into`` (id di un amministratore): chi riceve i dati del proprietario
+    dell'istanza se la scrittura accende l'autenticazione (di default il più
+    anziano che possa accedere); ignorato in ogni altro caso.
     """
     service = SettingsService(session, config, registry)
     try:
-        return service.write_values(body.model_dump(exclude_none=True), user)
+        return service.write_values(body.model_dump(exclude_none=True), user, adopt_into=adopt_into)
     except SettingsWriteError as exc:
         _raise_for_write_error(exc)
 

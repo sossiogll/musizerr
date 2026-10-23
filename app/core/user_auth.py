@@ -21,6 +21,8 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 MIN_SECRET_LENGTH = 32
+# The shortest password an administrator may give a new account (Administration › Users).
+MIN_PASSWORD_LENGTH = 8
 # The values that ship in examples and old compose files: public, so anyone can forge a token with them.
 PLACEHOLDER_SECRETS = frozenset({"change-me-in-production", "change-me", "secret"})
 
