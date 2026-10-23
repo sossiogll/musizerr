@@ -11,7 +11,9 @@ the gateway never does.
   of running providers changed);
 - :class:`ProviderReloader` runs in every process that holds a registry: it listens, and
   rebuilds the registry (``ProviderRegistry.reload``) on each event. After a lost connection it
-  rebuilds once more, since an event may have been missed meanwhile;
+  rebuilds once more, since an event may have been missed meanwhile, and on its first subscription
+  it does when the gateway's set already differs from what the registry loaded. A worker starts
+  one per PROCESS that runs tasks (``services/process_registry.py``), never in the parent that forks;
 - :class:`GatewayWatcher` runs in the API only. It compares the gateway's ``epoch`` and
   ``generation`` (they change whenever its set of running providers does, a restart
   included) with what the registry last loaded, and announces the difference: it is how a
@@ -84,6 +86,13 @@ class ProviderReloader:
         self._stop.set()
         self._thread.join(5)
 
+    def _is_stale(self) -> bool:
+        try:
+            return self._registry.is_stale()
+        except Exception:  # noqa: BLE001 — the listener must survive; the next event rebuilds anyway
+            logger.exception("could not compare the provider registry with the gateway")
+            return False
+
     def _reload(self) -> None:
         try:
             self._registry.reload()
@@ -108,8 +117,10 @@ class ProviderReloader:
                 if self._stop.wait(RECONNECT_SECONDS):
                     return
                 continue
-            if reconnected:
-                self._reload()  # an event may have been missed while it was down
+            # An event may have been missed while it was down, or before this first subscription
+            # (a registry built just before it): the gateway's set is then not the one it loaded.
+            if reconnected or self._is_stale():
+                self._reload()
             try:
                 while not self._stop.is_set():
                     message = pubsub.get_message(timeout=1.0)

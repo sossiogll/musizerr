@@ -24,6 +24,16 @@ wait.
   left in flight on its own queue: the downloads worker the downloads still
   "in progress", the jobs worker the library jobs still "running". The
   maintenance worker touches neither.
+- **The provider registry lives in the processes that run tasks.** The
+  Celery parent (where `worker_init` runs, and the embedded beat) builds none:
+  a prefork child would inherit a frozen copy of it as of fork time (usually
+  empty, the gateway starts its providers after the workers) and the thread
+  that follows the gateway does not survive a fork. `get_registry()`
+  (`services/process_registry.py`) builds the registry and its own
+  `ProviderReloader` the first time a process asks, so every child, and the
+  solo or threads pool, sees the providers and follows the providers-changed
+  event of the API (`services/provider_events.py`). A standalone `beat` only
+  sends tasks and needs none.
 - Every worker refreshes a heartbeat per queue it consumes
   (`services/worker_health.py`, `musizerr:worker:heartbeat:<queue>`). A
   library job queued while no `jobs` worker is alive is failed as

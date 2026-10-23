@@ -133,6 +133,15 @@ class ProviderRegistry:
         """The providers of the gateway that the host refuses, with the reason."""
         return dict(self._rejected)
 
+    def is_stale(self) -> bool:
+        """True when the gateway's set of running providers is not the one this registry loaded
+        (a gateway that does not answer is not a change)."""
+        try:
+            listing = self._gateway.listing()
+        except GatewayUnreachable:
+            return False
+        return (listing.epoch, listing.generation) != self.gateway_key
+
     def reload(self) -> None:
         """Rebuild this process's registry from the providers the gateway runs
         now. Called by the process itself when it hears that the providers changed
