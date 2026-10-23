@@ -1,6 +1,7 @@
 """
 Indicizza ora la libreria che lo storage provider configurato contiene già
-(``services.library_scan``), una volta sola per installazione. È quello che fa
+(``services.library_scan``); anche se è già stata importata una volta (i file
+noti si saltano). È quello che fa
 da sé la routine ``import_existing_library`` (ogni pochi minuti, finché lo
 storage non risponde); qui lo si fa a mano e subito.
 
@@ -40,7 +41,7 @@ def main() -> None:
     init_db()
     with Session(engine) as session:
         scan_library_once(
-            session, ProviderRegistry(), get_config(), auth_manager_for(shared_store(session)),
+            session, ProviderRegistry(), get_config(), auth_manager_for(shared_store(session)), force=True,
         )
 
 

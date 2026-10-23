@@ -749,6 +749,8 @@ export interface RoutineInfo {
   min_interval_minutes: number;
   last_run: RoutineRunInfo | null;
   next_run_at: string | null;
+  /** A one-time job that has finished: nothing schedules it again (null next run), "Run now" still runs it. */
+  done?: boolean;
   /** A run waits in the queue for a worker. */
   queued: boolean;
   /** A run is executing now. */

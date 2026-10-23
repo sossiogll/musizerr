@@ -17,7 +17,8 @@ from musizerr_sdk.interfaces import StorageStreamResult
 from db.models import LibraryEntry, TrackIdentifierRecord, TrackRecord
 from db.settings_store import SettingsRepository
 from db.track_store import find_or_create_track
-from services.library_scan import LIBRARY_SCANNED, import_existing_library, scan_library_once
+from core.routines import LIBRARY_SCANNED
+from services.library_scan import import_existing_library, scan_library_once
 from tests.database import new_engine
 from tests.conftest import FakeAuthManager, FakeRegistry, FakeStorageProvider, make_track, write_flac
 
@@ -279,15 +280,27 @@ def test_the_routine_waits_while_no_storage_provider_is_there_and_imports_when_o
     assert _scanned(session) and len(_entries(session)) == 2
 
 
-def test_the_routine_does_nothing_once_the_library_is_imported(session, library, tmp_path, sent_tasks):
+def test_a_run_after_the_import_is_a_rescan_that_adds_only_the_new_files(session, library, tmp_path, sent_tasks):
     storage = _LibraryStorage(library)
     _import(session, storage, tmp_path)
     storage.streamed.clear()
+    write_flac(library / "A" / "03 three.flac", title="Three", artist="Artist")
 
     again = _import(session, storage, tmp_path)
 
-    assert again["state"] == "already_imported" and again["status"] == "ok"
-    assert storage.streamed == [], "the storage is not even listed again"
+    assert again == {"status": "ok", "state": "imported", "indexed": 1}
+    assert storage.streamed == ["A/03 three.flac"], "the files already indexed are not read again"
+    assert len(_entries(session)) == 3 and _scanned(session)
+
+
+def test_the_scan_itself_still_skips_a_library_already_scanned_unless_forced(session, library, tmp_path, sent_tasks):
+    storage = _LibraryStorage(library)
+    _scan(session, storage, tmp_path)
+    write_flac(library / "A" / "03 three.flac", title="Three", artist="Artist")
+
+    assert _scan(session, storage, tmp_path) is None
+    config = SimpleNamespace(storage_provider=storage.name, workspace_dir=tmp_path / "work")
+    assert scan_library_once(session, FakeRegistry(storage=[storage]), config, FakeAuthManager(), force=True) == 1
 
 
 def test_the_routine_keeps_looking_at_an_empty_storage(session, tmp_path):

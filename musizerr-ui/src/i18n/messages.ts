@@ -439,7 +439,7 @@ export const en = {
       reconcile_library_files:
         "Checks the library against the files the storage really holds: a moved file is found again, a vanished one no longer counts as in the library. Deletes nothing.",
       import_existing_library:
-        "Adds the music the storage already holds to the library, once. It waits until a storage provider is installed and answering, so on a new installation it starts a few minutes after you set the storage up, and then does nothing.",
+        "Adds the music the storage already holds to the library, once. It waits until a storage provider is installed and answering, so on a new installation it runs a few minutes after you set the storage up, and then it is done and does not run again by itself. \"Run now\" scans again and adds the files that are new.",
       retry_transient_failures:
         "Queues again, a few at a time, the tracks whose last download failed for a temporary error (network, provider down).",
     },
@@ -453,6 +453,7 @@ export const en = {
     saved: "Saved",
     lastRun: "Last run",
     nextRun: "Next run",
+    done: "Done: it does not run again by itself",
     neverRun: "Never run yet",
     statusOk: "OK",
     statusError: "Error",
@@ -1854,7 +1855,7 @@ export const it: Translations<typeof en> = {
       reconcile_library_files:
         "Confronta la libreria con i file che lo storage contiene davvero: un file spostato si ritrova, uno sparito non conta più come in libreria. Non cancella nulla.",
       import_existing_library:
-        "Aggiunge una volta alla libreria la musica che lo storage contiene già. Aspetta che un provider di storage sia installato e risponda: su un'installazione nuova parte pochi minuti dopo aver configurato lo storage, poi non fa più nulla.",
+        "Aggiunge una volta alla libreria la musica che lo storage contiene già. Aspetta che un provider di storage sia installato e risponda: su un'installazione nuova parte pochi minuti dopo aver configurato lo storage, poi è completata e non riparte da sola. \"Esegui ora\" scansiona di nuovo e aggiunge i file nuovi.",
       retry_transient_failures:
         "Rimette in coda, poche per volta, le tracce il cui ultimo download è fallito per un errore temporaneo (rete, provider irraggiungibile).",
     },
@@ -1868,6 +1869,7 @@ export const it: Translations<typeof en> = {
     saved: "Salvato",
     lastRun: "Ultima esecuzione",
     nextRun: "Prossima esecuzione",
+    done: "Completato: non riparte da solo",
     neverRun: "Mai eseguita",
     statusOk: "OK",
     statusError: "Errore",

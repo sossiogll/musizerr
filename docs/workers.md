@@ -56,20 +56,31 @@ period.
   On `maintenance` it would hold one of its two processes, and with another
   long routine (duplicates scan, file reconciliation) the tick would wait.
   On `jobs` it runs beside the users' likes syncs, which start it anyway.
-- **The existing library is imported by a routine, not by the init container**
-  (`import_existing_library`, every 5 minutes, `services/library_scan.py`). The
-  first scan used to run in `init`, which has no providers: the gateway runs a
-  provider only after the API told it which are installed (and `init` finishes
-  before the API starts), so the scan always saw an empty registry. Now each run
-  checks the one-time flag (`library_scanned`) and, if it is not set, scans the
-  library the configured storage provider holds. Its result says where it
-  stands: `waiting` (no storage provider installed, configured or answering yet:
-  it looks again at the next run, it is not an error), `empty` (the storage holds
-  no audio file yet, looks again), `imported` (with `indexed`, the files added)
-  and `already_imported` (nothing to do, and the storage is not even listed). A
-  new installation therefore imports its library a few minutes after the storage
-  provider is installed and configured; "Run now" does it at once, and
-  `docker compose exec app python -m scripts.library_scan` does it from a shell.
+- **A routine can be a job done once** (`RoutineDef.done_when`: the key of a
+  system flag). While the flag is not set it is an ordinary routine; once it is
+  set the tick never dispatches it by itself (`core.routines.is_done`, no case
+  for any key), `GET /system/routines` reports `done: true` with no next run
+  (the page shows "Done", its last result and when), and **"Run now" still runs
+  it**. Setting the flag back to anything but `true` re-arms it.
+- **The existing library is imported by such a routine, not by the init container**
+  (`import_existing_library`, flag `library_scanned`, every 5 minutes until done,
+  `services/library_scan.py`). The first scan used to run in `init`, which has no
+  providers: the gateway runs a provider only after the API told it which are
+  installed (and `init` finishes before the API starts), so the scan always saw
+  an empty registry. Now each run scans the library the configured storage
+  provider holds and sets the flag when the scan completed. Its result says
+  where it stands: `waiting` (no storage provider installed, configured or
+  answering yet: it looks again at the next run, it is not an error), `empty`
+  (the storage holds no audio file yet, looks again) or `imported` (with
+  `indexed`, the files added). A new installation therefore imports its library
+  a few minutes after the storage provider is configured, and then the routine
+  is done. "Run now" afterwards scans again and adds only the files that are
+  new (a forced rescan). What re-arms it: nothing in the application clears the
+  flag by itself. ("Delete imported likes", the old "Elimina dati libreria",
+  deletes the user's imported likes and sync history only; it touches neither the
+  library entries nor this flag.) To import from scratch, for instance after
+  switching to another storage, set the system setting `library_scanned` to
+  `false`; `docker compose exec app python -m scripts.library_scan` also scans now.
 - **A routine can follow another** (`RoutineDef.follows`): the end of every
   run of the leader, ok or failed, dispatches its enabled followers, and the
   tick does not start a follower while its leader is running, or queued with

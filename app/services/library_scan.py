@@ -24,7 +24,7 @@ from sqlmodel import Session, select
 from musizerr_sdk.auth import AuthSession
 from musizerr_sdk.interfaces import StorageProvider
 from musizerr_sdk.models import Track
-from core.routines import SYNC_LIBRARY_INDEX
+from core.routines import LIBRARY_SCANNED, SYNC_LIBRARY_INDEX
 from core.tagging import read_track_tags
 from db.models import LibraryEntry
 from db.settings_store import SettingsRepository
@@ -36,18 +36,18 @@ from services.workspace import open_workspace
 
 logger = logging.getLogger(__name__)
 
-LIBRARY_SCANNED = "library_scanned"
 AUDIO_EXTENSIONS = frozenset({".mp3", ".flac", ".ogg", ".m4a", ".opus", ".wav"})
 
 
 def import_existing_library(session: Session, registry, config, auth_manager) -> dict:
-    """The routine ``import_existing_library``: runs the one-time library scan if it is still to
-    be done. The result says where it stands (``state``) and is a success in every case: a storage
-    that is not there yet (no provider installed, not configured, not answering) is "waiting", and the
-    routine looks again at its next run. ``detail`` is for the page when the result has no numbers."""
-    if SettingsRepository(session).get_system(LIBRARY_SCANNED) is True:
-        return {"status": "ok", "state": "already_imported", "detail": "The existing library was already imported."}
-    indexed = scan_library_once(session, registry, config, auth_manager)
+    """The routine ``import_existing_library``: scans the library the configured storage holds. The
+    routine is a one-time job (``RoutineDef.done_when``): the tick runs it until the scan completed
+    and then leaves it alone, so a run of this task after that is a "Run now", a forced rescan (files
+    already indexed are skipped, the new ones added). The result says where it stands (``state``)
+    and is a success in every case: a storage that is not there yet (no provider installed, not
+    configured, not answering) is "waiting", and the tick looks again. ``detail`` is for the page
+    when the result has no numbers."""
+    indexed = scan_library_once(session, registry, config, auth_manager, force=True)
     if indexed is None:
         return {"status": "ok", "state": "waiting",
                 "detail": "No storage provider answers yet: the library is imported once one does."}
@@ -56,10 +56,11 @@ def import_existing_library(session: Session, registry, config, auth_manager) ->
     return {"status": "ok", "state": "empty", "detail": "The library on the storage is empty: looking again at the next run."}
 
 
-def scan_library_once(session: Session, registry, config, auth_manager) -> int | None:
+def scan_library_once(session: Session, registry, config, auth_manager, *, force: bool = False) -> int | None:
     """Indicizza la libreria dello storage provider configurato, se non è già
     stato fatto. Ritorna quanti file ha indicizzato, o None se la scansione
-    non è avvenuta.
+    non è avvenuta. ``force``: anche se è già stata fatta (i file già
+    indicizzati si saltano).
 
     Solo una scansione completa di una libreria con almeno un file audio la
     segna come scansionata. Senza storage provider, con uno che non sa
@@ -67,7 +68,7 @@ def scan_library_once(session: Session, registry, config, auth_manager) -> int |
     vuota (un'installazione nuova, il cui storage non è ancora quello
     definitivo), il prossimo avvio riprova e salta i file già indicizzati."""
     settings = SettingsRepository(session)
-    if settings.get_system(LIBRARY_SCANNED) is True:
+    if not force and settings.get_system(LIBRARY_SCANNED) is True:
         logger.info("Library already scanned, skipping.")
         return None
 

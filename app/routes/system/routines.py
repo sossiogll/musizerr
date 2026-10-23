@@ -11,7 +11,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from core.routines import ROUTINES, enabled_setting_key, get_routine, interval_setting_key
+from core.routines import ROUTINES, enabled_setting_key, get_routine, interval_setting_key, is_done
+from db.settings_store import SettingsRepository
 from db.routine_run_store import STATUS_ERROR, STATUS_QUEUED, STATUS_RUNNING, active_run, last_started_at, latest_run
 from routes.deps import AdminUserDep, ConfigDep, RegistryDep, SessionDep
 from services import routines as routine_runs
@@ -47,15 +48,17 @@ def list_routines(admin: AdminUserDep, config: ConfigDep, registry: RegistryDep,
     dispaccio, avviata davvero, finita; esito come dato, attesa in coda e
     durata), in coda o in corso o no, lavoro avviato ancora in corso,
     prossima esecuzione stimata dall'ultimo avvio reale (None se mai
-    partito, cioè già dovuto) e ``scheduler_stale`` quando quella stima è
+    partito, cioè già dovuto, o se è un lavoro una tantum già finito: ``done``) e ``scheduler_stale`` quando quella stima è
     scaduta da oltre il margine. ``scheduler_stale`` in cima vale True se lo
     è almeno un routine."""
     now = datetime.now(timezone.utc)
     service = SettingsService(session, config, registry)
     values = service.effective_values(admin, include_providers=False)
 
+    system_flags = SettingsRepository(session).all_system()
     routines = []
     for routine in ROUTINES:
+        done = is_done(routine, system_flags)
         enabled = bool(values.get(enabled_setting_key(routine.key), routine.default_enabled))
         interval_minutes = int(values.get(interval_setting_key(routine.key), routine.default_interval_minutes))
 
@@ -87,7 +90,8 @@ def list_routines(admin: AdminUserDep, config: ConfigDep, registry: RegistryDep,
             elif run.status == STATUS_ERROR and run.detail:
                 last_run.update(public_error(run.detail, "routine", show_detail=True))
         started = last_started_at(session, routine.key)
-        next_run_at = started + timedelta(minutes=interval_minutes) if started else None
+        # A one-time job that is done has no next run (its tick skips it); "Run now" still works.
+        next_run_at = None if done else (started + timedelta(minutes=interval_minutes) if started else None)
         active = active_run(session, routine.key, stale_after_seconds=routine.max_runtime_minutes * 60)
 
         routines.append({
@@ -100,6 +104,8 @@ def list_routines(admin: AdminUserDep, config: ConfigDep, registry: RegistryDep,
             "min_interval_minutes": routine.min_interval_minutes,
             "last_run": last_run,
             "next_run_at": next_run_at,
+            # A one-time job (``RoutineDef.done_when``) that has finished: not scheduled again by itself.
+            "done": done,
             # Waiting in the queue / executing now (never both).
             "queued": active is not None and active.status == STATUS_QUEUED,
             "running": active is not None and active.status == STATUS_RUNNING,

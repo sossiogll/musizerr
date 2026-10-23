@@ -988,7 +988,7 @@ components:
 
     RoutineInfo:
       type: object
-      required: [key, task, enabled, interval_minutes, min_interval_minutes, queued, running, scheduler_stale]
+      required: [key, task, enabled, interval_minutes, min_interval_minutes, done, queued, running, scheduler_stale]
       properties:
         key:
           type: string
@@ -1013,7 +1013,12 @@ components:
         next_run_at:
           type: [string, "null"]
           format: date-time
-          description: The last real start plus the interval; null if it never started (due now).
+          description: The last real start plus the interval; null if it never started (due now), or if the routine is done.
+        done:
+          type: boolean
+          description: >
+            A one-time job (declared with a completion flag) that has finished: the scheduler no longer starts it
+            by itself and it has no next run; "run now" still runs it. Clearing its flag re-arms it.
         queued:
           type: boolean
           description: A run waits in the queue for a worker.
