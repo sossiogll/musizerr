@@ -135,7 +135,16 @@ services:
   # those syscalls away again (gateway/musizerr_gateway/sandbox_filter.py).
   #
   # uid 1000 is the application's user (the `musizerr` user of the image): the
-  # sockets and the workspace folders they share need no widening of permissions.
+  # sockets and the workspace folders they share need no widening of permissions, and
+  # the files a sandbox writes into the library belong to the same user as the application's.
+  #
+  # pids_limit caps the processes and threads of the whole container, the gateway and every
+  # sandbox in it (the cgroup pids controller: only this container counts toward it). It is
+  # what keeps a runaway provider from exhausting the host's process table. The gateway sets
+  # no RLIMIT_NPROC on a sandbox: the kernel counts that over every process of the same uid on
+  # the whole host (other containers included), so under uid 1000 it failed on a busy server.
+  # Each sandbox is also held to the `limits.processes` of its manifest by the gateway itself
+  # (docs/gateway.md, "Processes and threads"). GATEWAY_PIDS_LIMIT in .env changes the number.
   #
   # Which providers it runs: what the host pushes to it from its database (docs/gateway.md);
   # it runs nothing until it is told.
@@ -144,6 +153,7 @@ services:
     image: *gateway-image
     user: "1000:1000"
     restart: unless-stopped
+    pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}
     cap_drop: [ALL]
     security_opt:
       - seccomp=${GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizerr-gateway.json}
