@@ -7,10 +7,11 @@ from typing import Literal, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from core import download_policy, user_auth
+from core import download_policy
 from db import user_service
 from db.models import SYSTEM_USER_ID
 from services import request_policy
+from ._password import new_password_hash
 from .deps import AdminUserDep, ConfigDep, SessionDep
 from ._pagination import paginated_response
 
@@ -32,7 +33,7 @@ class UserCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     username: str = Field(min_length=1, max_length=150)
-    password: str = Field(min_length=user_auth.MIN_PASSWORD_LENGTH, max_length=1024)
+    password: str = Field(max_length=1024)  # the rule is user_auth.hash_new_password's, answered as a coded 422
     email: Optional[str] = Field(None, max_length=320)
     role: Literal["admin", "user"] = "user"
 
@@ -87,7 +88,7 @@ def create_user(body: UserCreate, admin: AdminUserDep, session: SessionDep):  # 
     the password is hashed like every other."""
     try:
         user = user_service.create_account(
-            session, username=body.username, password_hash=user_auth.hash_password(body.password),
+            session, username=body.username, password_hash=new_password_hash(body.password),
             email=body.email, role=body.role,
         )
     except user_service.AccountExists as exists:
@@ -121,7 +122,7 @@ def update_user(user_id: str, body: UserPatch, admin: AdminUserDep, session: Ses
         if body.is_active:
             fields["pending_approval"] = False  # activating an account is approving it
     if body.password is not None:
-        fields["password_hash"] = user_auth.hash_password(body.password)
+        fields["password_hash"] = new_password_hash(body.password)
 
     user = user_service.update_user(session, user, **fields)
     return UserPublic(

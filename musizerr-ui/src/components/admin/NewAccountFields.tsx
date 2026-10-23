@@ -1,9 +1,7 @@
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { useI18n, type MessageKey } from "@/i18n";
-
-/** The shortest password the server accepts for an account an administrator creates (core/user_auth.py). */
-export const MIN_PASSWORD_LENGTH = 8;
+import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 
 export interface NewAccount {
   username: string;

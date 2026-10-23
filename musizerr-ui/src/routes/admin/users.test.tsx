@@ -230,6 +230,17 @@ describe("Admin users — New user", () => {
     expect(within(dialog).getByLabelText("Username")).toHaveValue("alice");
   });
 
+  it("says the server's password refusal in words, from its code", async () => {
+    mockCreate.mockRejectedValue(conflict("password_too_short"));
+    renderUsers();
+
+    const dialog = await openNewUser();
+    fill(dialog, { username: "dave", password: "correct-horse", confirm: "correct-horse" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create account" }));
+
+    expect(await within(dialog).findByText("That password is too short: it needs at least 8 characters.")).toBeInTheDocument();
+  });
+
   it("says a taken email in words too", async () => {
     mockCreate.mockRejectedValue(conflict("email_taken"));
     renderUsers();

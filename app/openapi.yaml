@@ -1210,8 +1210,8 @@ components:
           description: Surrounding spaces are trimmed; the synthetic user's id is not a valid username.
         password:
           type: string
-          minLength: 8
           maxLength: 1024
+          description: At least 8 characters (422 `password_too_short` otherwise), like every password that is set.
         email:
           type: [string, "null"]
           maxLength: 320
@@ -2970,6 +2970,29 @@ components:
         default: 20
 
   responses:
+    WeakPassword:
+      description: >-
+        The password being set is shorter than 8 characters (the one rule of every path that sets a
+        password: registration, an account made or changed by an administrator). `detail.error_code`
+        `password_too_short`; the minimum is in `detail.min_length`. An existing password shorter than
+        that still signs in: the rule applies only when a password is set.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [detail]
+            properties:
+              detail:
+                type: object
+                required: [error_code, error_message, min_length]
+                properties:
+                  error_code:
+                    type: string
+                    enum: [password_too_short]
+                  error_message:
+                    type: string
+                  min_length:
+                    type: integer
     SourceRefused:
       description: >-
         A refusal with a stable code in `detail.error_code` (the operation lists them) and a
@@ -3121,6 +3144,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/WeakPassword"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -3413,7 +3438,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserConflictResponse"
         "422":
-          description: Invalid body (empty username, password shorter than 8, malformed email)
+          description: >-
+            Invalid body (empty username, malformed email), or a password shorter than 8 characters
+            (`detail.error_code` `password_too_short`, see the WeakPassword response).
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -3447,6 +3474,9 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          description: >-
+            An unknown role, or a new password shorter than 8 characters (`password_too_short`).
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
     delete:

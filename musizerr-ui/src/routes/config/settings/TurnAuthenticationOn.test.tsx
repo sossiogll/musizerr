@@ -198,6 +198,21 @@ describe("turning authentication on when nobody can sign in", () => {
     expect(mockLogin).not.toHaveBeenCalled();
   });
 
+  it("says the server's password refusal in words and goes no further", async () => {
+    mockPatchSettings.mockRejectedValueOnce(NO_ADMIN);
+    mockCreateUser.mockRejectedValueOnce(refusal("password_too_short", "The password must have at least 8 characters.", 422));
+    renderSystem();
+    await askToTurnItOn();
+    const dialog = await guidedStep();
+    fill(dialog, "boss", "correct-horse");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create and turn on" }));
+
+    expect(await within(dialog).findByText("That password is too short: it needs at least 8 characters.")).toBeInTheDocument();
+    expect(mockPatchSettings).toHaveBeenCalledTimes(1);
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
   it("after a failure the next attempt goes on from where it stopped: the account is not created twice", async () => {
     mockPatchSettings
       .mockRejectedValueOnce(NO_ADMIN)

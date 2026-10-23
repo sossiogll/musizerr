@@ -1005,6 +1005,7 @@ export const en = {
       "Authentication can't be turned on: no administrator account exists to sign in with. Create one first.",
     adoption_target_invalid:
       "The data of this instance can only go to an active administrator account that can sign in.",
+    password_too_short: "That password is too short: it needs at least 8 characters.",
     username_taken: "That username is already taken.",
     email_taken: "That email is already used by another account.",
     playlist_access_restricted: "The provider does not let this account read the playlist's tracks.",
@@ -2458,6 +2459,7 @@ export const it: Translations<typeof en> = {
       "Non si può attivare l'autenticazione: non esiste nessun account amministratore con cui accedere. Creane prima uno.",
     adoption_target_invalid:
       "I dati di questa istanza possono passare solo a un account amministratore attivo che possa accedere.",
+    password_too_short: "Questa password è troppo corta: servono almeno 8 caratteri.",
     username_taken: "Questo nome utente è già in uso.",
     email_taken: "Questa email è già usata da un altro account.",
     playlist_access_restricted: "Il provider non consente a questo account di leggere i brani della playlist.",

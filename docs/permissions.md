@@ -85,13 +85,22 @@ the UI never derives it.
 
 **Creating an account from Administration** (`POST /admin/users`, admin only, in either
 mode): a username (trimmed, 1-150 characters, the synthetic user's id is refused), a password
-(at least 8 characters, hashed as every other: `core.user_auth.hash_password`), an optional
+(the password rule, below), an optional
 email and the role (`user` by default, or `admin`). The account is active at once. It goes
 through the same service as registration (`db.user_service.create_account`): a username or an
 email already used is a 409 with `detail.error_code` `username_taken` / `email_taken` (translated
 by the UI), also when a registration and a creation race (the unique constraints decide). With
-authentication off the accounts wait: they can sign in once it is turned on. Registration
-itself keeps no minimum for a password (unchanged).
+authentication off the accounts wait: they can sign in once it is turned on.
+
+**One password rule.** A password that is SET has at least 8 characters (`core.user_auth.MIN_PASSWORD_LENGTH`),
+checked and hashed by ONE function, `user_auth.hash_new_password`, which every path that sets a password
+calls: registration, `POST /admin/users` (and with it the guided administrator step of the settings
+page), an administrator changing a password (`PATCH /admin/users/{id}` with `password`) and the first
+administrator of a deployment (`ADMIN_BOOTSTRAP_PASSWORD`: a short one is logged as an error and no
+administrator is created). The routes answer 422 with `detail.error_code` `password_too_short` and
+`detail.min_length` (`routes/_password.py`), which the UI words in the viewer's language. The rule applies
+only when a password is set: an account whose password is shorter keeps signing in
+(`verify_password` asks nothing of the length). Tests: `tests/test_password_rule.py`.
 
 **Turning authentication ON** (`PATCH /settings {"auth_enabled": true}`, from the settings
 page or any writer):

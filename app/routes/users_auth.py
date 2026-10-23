@@ -13,6 +13,7 @@ from db.models import User
 from services import download_requests, refresh_tokens
 from services.capabilities import capabilities_for, viewer_mode
 
+from ._password import new_password_hash
 from .deps import ConfigDep, CurrentUserDep, OptionalUserDep, SessionDep
 
 _bearer_optional = HTTPBearer(auto_error=False)
@@ -123,7 +124,7 @@ def register(
 
     try:
         user = user_service.create_account(
-            session, username=body.username, password_hash=user_auth.hash_password(body.password), email=body.email,
+            session, username=body.username, password_hash=new_password_hash(body.password), email=body.email,
         )
     except user_service.AccountExists as exists:
         raise HTTPException(status_code=409, detail=_TAKEN[exists.field]) from None
