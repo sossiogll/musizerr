@@ -1,104 +1,22 @@
 """The host and the provider gateway: which providers the registry gets from it, and what it tells it."""
 from __future__ import annotations
 
-import json
 import logging
-import socketserver
-import threading
-from pathlib import Path
 
 import pytest
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.models import Lyrics, Track
-from musizerr_sdk.permissions import FilesystemAccess, Permissions, TcpAccess, to_json
-from musizerr_sdk.runner import ProviderRunner, RunnerServer
+from musizerr_sdk.auth import AuthSession
+from musizerr_sdk.interfaces import PROVIDER_API_VERSION
+from musizerr_sdk.models import Track
+from musizerr_sdk.permissions import FilesystemAccess, Permissions, TcpAccess
 from services import gateway_client, provider_events
 from services.gateway_client import EgressGrants, GatewayClient, GatewayProviderContext, GatewayUnreachable
 from services.provider_registry import ProviderRegistry
 
+from tests.gateway_support import PERMISSIONS, FakeGateway, Remote, declared, gateway  # noqa: F401 — `gateway` is a fixture
+
 SESSION = AuthSession.anonymous()
 TRACK = Track(title="Song", artist="Artist", album="Album", duration_ms=1000)
-NO_AUTH = AuthDefinition(flow=AuthFlow.NONE, account_model=AccountModel.NONE)
-PERMISSIONS = Permissions(egress=("api.example.org:443",), egress_from_settings=("url",))
-
-
-class Remote(LyricsProvider):
-    name = "remote"
-    label = "Remote"
-    auth = NO_AUTH
-    provider_api_version = PROVIDER_API_VERSION
-    permissions = PERMISSIONS
-
-    def validate_config(self, config): return True
-    def test_connection(self, session): return None
-
-    def get_lyrics(self, track, session):
-        return Lyrics(plain=f"lyrics of {track.title} for {self.context.setting('url')}")
-
-
-def declared(name="remote", roles=("lyrics",), version=PROVIDER_API_VERSION, permissions=PERMISSIONS) -> dict:
-    return {"name": name, "roles": list(roles), "provider_api_version": version, "permissions": json.loads(to_json(permissions))}
-
-
-class FakeGateway:
-    """The control socket of a gateway, answering from a listing the test edits, and the sockets
-    of the providers it lists."""
-
-    def __init__(self, run_dir: Path) -> None:
-        self.run_dir = run_dir
-        self.providers: list[dict] = []
-        self.generation = 1
-        self.epoch = "e1"
-        self.requests: list[dict] = []
-        self.servers: list[RunnerServer] = []
-        gateway = self
-
-        class Handler(socketserver.StreamRequestHandler):
-            def handle(self):
-                for line in self.rfile:
-                    request = json.loads(line)
-                    gateway.requests.append(request)
-                    self.wfile.write(json.dumps(gateway.answer(request)).encode() + b"\n")
-                    self.wfile.flush()
-
-        self.server = socketserver.ThreadingUnixStreamServer(str(run_dir / "gateway.sock"), Handler)
-        self.server.daemon_threads = True
-        threading.Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
-
-    def answer(self, request: dict) -> dict:
-        if request["op"] == "list":
-            return {"ok": True, "epoch": self.epoch, "generation": self.generation, "workspace_root": "/downloads/.musizerr-work",
-                    "sandbox": {"available": True, "reason": "ok"}, "rejected": {}, "providers": self.providers}
-        if request["op"] == "egress":
-            return {"ok": True, "granted": len(request["targets"])}
-        return {"ok": False, "error": "unknown"}
-
-    def serve(self, factory, name: str, *, state="running", declaration=None) -> None:
-        """List a provider and serve it on its socket."""
-        socket_dir = self.run_dir / "providers" / name
-        socket_dir.mkdir(parents=True, exist_ok=True)
-        entry = {"name": name, "image": f"r.test/m/{name}@sha256:{'a' * 64}", "state": state, "reason": "", "restarts": 0,
-                 "started_at": 1.0, "socket": f"providers/{name}/provider.sock" if state == "running" else None,
-                 "declared": declaration if declaration is not None else declared(name)}
-        if state == "running":
-            server = RunnerServer(str(socket_dir / "provider.sock"), ProviderRunner(factory))
-            threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
-            self.servers.append(server)
-        self.providers.append(entry)
-
-    def close(self) -> None:
-        for server in (*self.servers, self.server):
-            server.shutdown()
-            server.server_close()
-
-
-@pytest.fixture
-def gateway(tmp_path):
-    fake = FakeGateway(tmp_path)
-    yield fake
-    fake.close()
 
 
 @pytest.fixture(autouse=True)
@@ -304,9 +222,13 @@ def test_the_client_reads_the_gateways_answers_and_reports_what_it_cannot(gatewa
 
 
 class Registry:
-    def __init__(self, key=None):
+    def __init__(self, key=None, stale=False):
         self.gateway_key = key
         self.reloaded = 0
+        self.stale = stale
+
+    def is_stale(self):
+        return self.stale
 
     def reload(self):
         self.reloaded += 1
@@ -373,6 +295,37 @@ def test_every_process_rebuilds_its_registry_when_it_hears_the_event(monkeypatch
     finally:
         reloader.stop()
     assert pubsub.closed
+
+
+def test_a_registry_the_gateway_already_moved_past_is_rebuilt_on_the_first_subscription():
+    registry = Registry(stale=True)  # built just before the listener subscribed: the event is gone
+    reloader = provider_events.ProviderReloader(registry, connect=lambda: Pubsub([])).start()
+    try:
+        assert wait_for(lambda: registry.reloaded == 1)
+    finally:
+        reloader.stop()
+
+
+def test_a_current_registry_is_not_rebuilt_when_the_listener_subscribes():
+    registry = Registry(stale=False)
+    reloader = provider_events.ProviderReloader(registry, connect=lambda: Pubsub([None, None])).start()
+    try:
+        wait_for(lambda: False, timeout=0.3)  # give it the chance to (wrongly) rebuild
+    finally:
+        reloader.stop()
+    assert registry.reloaded == 0
+
+
+def test_the_registry_knows_when_the_gateways_set_is_not_the_one_it_loaded(gateway, tmp_path):
+    registry = registry_for(gateway)
+    assert registry.is_stale() is False
+    gateway.generation = 2
+    assert registry.is_stale() is True
+    registry.reload()
+    assert registry.is_stale() is False
+    gateway.epoch = "e2"  # the gateway restarted
+    assert registry.is_stale() is True
+    assert ProviderRegistry(gateway=GatewayClient(tmp_path / "gone.sock")).is_stale() is False, "a gateway that is down is not a change"
 
 
 def test_a_burst_of_events_is_one_rebuild(monkeypatch):

@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n";
 import { register as apiRegister } from "@/lib/api-client";
+import { classifyError } from "@/lib/api-errors";
+import { useErrorText } from "@/lib/error-text";
+import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 import { safeRedirect } from "@/lib/safe-redirect";
 
 export function RegisterPage() {
   const { authConfig, login } = useAuth();
   const { t } = useI18n();
+  const errorText = useErrorText();
   const navigate = useNavigate();
   const { redirect } = useSearch({ strict: false }) as { redirect?: string };
   const back = redirect ? { redirect } : {};
@@ -45,6 +49,10 @@ export function RegisterPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(t("admin.new.passwordShort") + " " + t("admin.new.passwordHint", { count: MIN_PASSWORD_LENGTH }));
+      return;
+    }
     if (password !== confirmPassword) {
       setError(t("auth.passwordsMismatch"));
       return;
@@ -55,10 +63,10 @@ export function RegisterPage() {
       await login(username, password);
       navigate({ href: safeRedirect(redirect), replace: true });
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail ?? t("auth.registrationFailed");
-      setError(msg);
+      // A refusal with a stable code (password_too_short) arrives in the viewer's language; the others
+      // (a taken username) are the server's plain text.
+      const { body, detail } = classifyError(err);
+      setError(body?.error_code ? errorText(body.error_code, body.error_message) : (detail ?? t("auth.registrationFailed")));
     } finally {
       setLoading(false);
     }

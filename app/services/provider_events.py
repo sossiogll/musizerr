@@ -11,7 +11,9 @@ the gateway never does.
   of running providers changed);
 - :class:`ProviderReloader` runs in every process that holds a registry: it listens, and
   rebuilds the registry (``ProviderRegistry.reload``) on each event. After a lost connection it
-  rebuilds once more, since an event may have been missed meanwhile;
+  rebuilds once more, since an event may have been missed meanwhile, and on its first subscription
+  it does when the gateway's set already differs from what the registry loaded. A worker starts
+  one per PROCESS that runs tasks (``services/process_registry.py``), never in the parent that forks;
 - :class:`GatewayWatcher` runs in the API only. It compares the gateway's ``epoch`` and
   ``generation`` (they change whenever its set of running providers does, a restart
   included) with what the registry last loaded, and announces the difference: it is how a
@@ -28,6 +30,7 @@ import os
 import threading
 from typing import Callable
 
+from services.config_manager import get_config
 from services.gateway_client import GatewayClient, GatewayUnreachable
 from services.gateway_sync import GatewaySync
 
@@ -84,6 +87,13 @@ class ProviderReloader:
         self._stop.set()
         self._thread.join(5)
 
+    def _is_stale(self) -> bool:
+        try:
+            return self._registry.is_stale()
+        except Exception:  # noqa: BLE001 — the listener must survive; the next event rebuilds anyway
+            logger.exception("could not compare the provider registry with the gateway")
+            return False
+
     def _reload(self) -> None:
         try:
             self._registry.reload()
@@ -108,8 +118,10 @@ class ProviderReloader:
                 if self._stop.wait(RECONNECT_SECONDS):
                     return
                 continue
-            if reconnected:
-                self._reload()  # an event may have been missed while it was down
+            # An event may have been missed while it was down, or before this first subscription
+            # (a registry built just before it): the gateway's set is then not the one it loaded.
+            if reconnected or self._is_stale():
+                self._reload()
             try:
                 while not self._stop.is_set():
                     message = pubsub.get_message(timeout=1.0)
@@ -134,12 +146,16 @@ class GatewayWatcher:
     """Announces a change of the gateway's set of running providers."""
 
     def __init__(self, registry, client: GatewayClient | None = None, announce: Callable[[], None] = announce_changed,
-                 interval: float = WATCH_INTERVAL_SECONDS, sync: GatewaySync | None = None) -> None:
+                 interval: float = WATCH_INTERVAL_SECONDS, sync: GatewaySync | None = None,
+                 workspace_dir: Callable[[], object] | None = None) -> None:
         self._registry = registry
         self._client = client or GatewayClient()
         self._sync = sync
         self._announce = announce
         self._interval = interval
+        # The host's workspace folder (the setting), compared with the gateway's own (docs/deployment.md).
+        self._workspace_dir = workspace_dir or (lambda: get_config().workspace_dir)
+        self._workspace_warned: tuple[str, str] | None = None
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="gateway-watcher", daemon=True)
 
@@ -157,6 +173,7 @@ class GatewayWatcher:
             listing = self._client.listing()
         except GatewayUnreachable:
             return False
+        self._check_workspace(listing.workspace_root)
         if self._sync is not None:
             try:
                 self._sync.ensure(listing)  # the next check sees the providers it starts
@@ -170,6 +187,27 @@ class GatewayWatcher:
             logger.warning("could not announce a change of the providers: %s", exc)
             return False
         return True
+
+    def _check_workspace(self, gateway_root: str) -> None:
+        """The host and the gateway must name the same workspace folder: the gateway mounts
+        ``<folder>/<provider>`` in each sandbox and the host creates its call folders in ITS folder,
+        so with two different ones every call that carries a file fails, far from the cause. Said once
+        per pair of values, in the log (the setting and ``GATEWAY_WORKSPACE_DIR`` come from ``WORKSPACE_DIR``)."""
+        try:
+            mine = os.path.normpath(str(self._workspace_dir()))
+        except Exception:  # noqa: BLE001 — the settings may not be readable yet; the next check looks again
+            return
+        theirs = os.path.normpath(gateway_root)
+        if mine == theirs:
+            self._workspace_warned = None
+            return
+        if self._workspace_warned != (mine, theirs):
+            self._workspace_warned = (mine, theirs)
+            logger.error(
+                "The workspace folder of the host (setting workspace_dir: %s) is not the gateway's (GATEWAY_WORKSPACE_DIR: %s): "
+                "providers cannot exchange files with Musizerr. Set both from WORKSPACE_DIR, or change the setting to the gateway's "
+                "value (docs/deployment.md).", mine, theirs,
+            )
 
     def _run(self) -> None:
         while not self._stop.wait(self._interval):

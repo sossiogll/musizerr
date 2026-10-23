@@ -84,11 +84,8 @@ export function ConfigPage() {
   const areaHasSettings = (key: string) => schemaData.settings.some((s) => s.area === key);
 
   const isAreaVisible = (key: string): boolean => {
-    // Visible for a real account, AND in open mode (sign-in off) even
-    // though there is no account there — AccountTab itself decides what to
-    // render in that case (no identity block, language/theme as
-    // device-local controls, owner-less scope="user" settings hidden).
-    if (key === "account") return can.settings_personal || mode === "open";
+    // Every viewer who has personal settings: a user, an admin and the owner of an open instance.
+    if (key === "account") return can.settings_personal;
     // System-wide settings live in Administration › System.
     if (ADMIN_AREAS.has(key)) return false;
     return areaHasSettings(key);

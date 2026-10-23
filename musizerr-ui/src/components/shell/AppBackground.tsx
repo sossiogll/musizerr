@@ -13,7 +13,7 @@ const BackgroundCanvas = lazy(() => import("@/components/background/BackgroundCa
 /**
  * The viewer's animated background (the personal `background` setting), or
  * nothing. Decided here, cheaply, before any of the canvas code exists:
- * the setting is off or absent, there is no account to own it (open mode), or
+ * the setting is off or absent, there is no profile to own it (a guest), or
  * the device is not a desktop (BACKGROUND_DESKTOP_QUERY, followed live) →
  * null: no import, no canvas, no animation loop, no listeners but the one
  * media query.

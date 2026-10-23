@@ -107,8 +107,9 @@ bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-sess
   but x86-64 and AArch64. It is written by hand in classic BPF (no libseccomp) and its logic is tested against
   a small BPF interpreter; the integration test checks it in a real sandbox.
 - **Fail closed.** If a sandbox cannot be made (no bubblewrap, no user namespaces, the container's
-  seccomp profile or `/proc` in the way) the provider does **not** run: `health` says
-  `sandbox unavailable: <reason>`, and the sandbox is checked again every 30 s. There is no unconfined
+  seccomp profile, AppArmor or `/proc` in the way) the provider does **not** run: `health` says
+  `sandbox unavailable: <reason>` (with a hint on what to change when the reason is a known one, see
+  [Troubleshooting](#troubleshooting)), and the sandbox is checked again every 30 s. There is no unconfined
   fallback.
 
 ### Egress
@@ -215,7 +216,8 @@ declared. The host sends the CURRENT value with the grant (`paths`), and the gat
 
 - it is absolute and normalized (no `..`, `//` or trailing `/`) and is not `/`;
 - it lies inside one of the roots of **`GATEWAY_FILESYSTEM_ROOTS`** (`:`-separated; empty: no folder is ever
-  granted; the compose files set `/downloads`, the library) **and so does what it resolves to**: a link inside the root
+  granted; the compose files set `/downloads`, the library volume, unless `.env` says otherwise: several roots are
+  `GATEWAY_FILESYSTEM_ROOTS=/downloads:/library`, [deployment.md](deployment.md#folders)) **and so does what it resolves to**: a link inside the root
   that leads out of it is refused. A root that is `/`, relative, inside or holding the gateway's own state or run
   directory, or one of `/proc`, `/dev`, `/tmp`, `/run`, `/workspace` stops the gateway from starting;
 - it exists and is a directory, is not inside the workspace directory, and does not collide with what every sandbox
@@ -256,17 +258,64 @@ sufficient (each was checked by removing it). Nothing else changes: `clone3` sti
 checks that the shipped file is exactly that and the copy of the default is the one it says it is. To update:
 fetch the new default, update `MOBY_SHA256` in `gateway/tests/test_seccomp_profile.py`, run `derive.py`.
 
-`systempaths=unconfined` is also required: a sandbox mounts its own `/proc`, which the kernel refuses while
-the container's `/proc` has Docker's masked paths mounted over it (`bwrap: Can't mount proc`). The sandboxes
-get their own fresh `/proc`; the container is not privileged and has no added capability (`cap_drop: [ALL]`).
+Two more settings of the container are required, and neither is a capability:
+
+- `systempaths=unconfined`: a sandbox mounts its own `/proc`, which the kernel refuses while the container's `/proc`
+  has Docker's masked paths mounted over it (`bwrap: Can't mount proc`). The sandboxes get their own fresh `/proc`.
+- `apparmor=unconfined`: on a host with AppArmor (Debian, Ubuntu, ...) Docker confines every container with the
+  `docker-default` profile, which denies the namespace calls bubblewrap makes (`bwrap: Creating new namespace failed:
+  Permission denied`, an `EACCES`; seccomp, which the profile above takes care of, answers `EPERM` instead). On a
+  host without AppArmor the option does nothing. Only the gateway container loses the profile; it stays
+  unprivileged, with `cap_drop: [ALL]`, the seccomp profile above and no network of its own to reach.
+
+All of them go in `security_opt`, in every compose file that runs the gateway:
+
+```yaml
+provider-gateway:
+  user: "1000:1000"
+  cap_drop: [ALL]
+  security_opt:
+    - seccomp=./gateway/seccomp/musizerr-gateway.json    # or musizerr-gateway.seccomp.json next to a release's compose file
+    - apparmor=unconfined
+    - systempaths=unconfined
+```
+
+**Never `privileged: true`**, and never a `cap_add`. `privileged` "fixes" this by switching AppArmor and
+seccomp off and handing the container every device and capability of the host: the sandbox exists to keep a provider away from
+all of that, and a gateway that runs privileged is the host to anything that gets out of a sandbox. If the three options
+above are not enough on your host, the answer is one of the host settings in the table below, not `privileged`.
 
 Neither is optional. With Docker's default profile bubblewrap fails with `No permissions to create a new
 namespace`, and the gateway reports it and runs nothing (integration test, check c).
 
 **Host requirements.** A kernel with unprivileged user namespaces (`kernel.unprivileged_userns_clone`,
 `user.max_user_namespaces` > 0), and no AppArmor/SELinux policy that denies them to containers (recent Ubuntu
-has `kernel.apparmor_restrict_unprivileged_userns`; a profile for the gateway container or setting it to 0 is
-needed there). Where that is impossible the providers outside the application do not run.
+has `kernel.apparmor_restrict_unprivileged_userns`: `apparmor=unconfined` covers a container, or set the sysctl to 0).
+Where that is impossible the providers outside the application do not run.
+
+## Troubleshooting
+
+`docker compose exec provider-gateway python -m musizerr_gateway.ctl health` (or `docker compose logs provider-gateway`)
+says `sandbox unavailable: <bubblewrap's error> (hint: ...)` when no sandbox can be made; the gateway adds the hint
+for the errors below (`SANDBOX_HINTS` in `sandbox.py`) and checks again every 30 s, so fixing the container and
+`docker compose up -d provider-gateway` is enough. Nothing runs unconfined in the meantime.
+
+| What bubblewrap says | Errno | Cause | Fix |
+|---|---|---|---|
+| `Creating new namespace failed: Permission denied` | `EACCES` | AppArmor: Docker's `docker-default` profile denies the namespace calls. This is what a stock Debian or Ubuntu host shows. | `apparmor=unconfined` in the gateway's `security_opt` (not `privileged`). |
+| `setting up uid map: Permission denied` | `EACCES` | An AppArmor policy that restricts unprivileged user namespaces (`kernel.apparmor_restrict_unprivileged_userns=1`, Ubuntu 24.04+). | `apparmor=unconfined` for the container, or `sysctl kernel.apparmor_restrict_unprivileged_userns=0` on the host. |
+| `No permissions to create a new namespace` (older: `...to creating new namespace, likely because the kernel does not allow non-privileged user namespaces`) | `EPERM` | Docker's default seccomp profile is in use (the `seccomp=` file was not found or not given), or the kernel forbids unprivileged user namespaces. | The `seccomp=` option must name `musizerr-gateway.json` as a path that exists **on the Docker host** (`GATEWAY_SECCOMP_PROFILE`, [deployment.md](deployment.md#apparmor-and-seccomp)); on Debian `sysctl kernel.unprivileged_userns_clone=1`; check `sysctl user.max_user_namespaces` is not 0. |
+| `Creating new namespace failed, likely because the kernel does not support user namespaces` | `EINVAL` | The kernel has no user namespaces, or `user.max_user_namespaces` is 0. | `sysctl user.max_user_namespaces=15000` (persist it in `/etc/sysctl.d/`); a kernel built without `CONFIG_USER_NS` cannot run the gateway. |
+| `Can't mount proc on /newroot/proc: Operation not permitted` | `EPERM` | The container's `/proc` is masked. | `systempaths=unconfined` in `security_opt`. |
+| `pivot_root: Operation not permitted`, `Can't mount tmpfs ...: Operation not permitted` | `EPERM` | The seccomp profile in use does not allow `mount`, `pivot_root`, `unshare`, `clone`, `umount2`. | The gateway's profile, not Docker's default (above). |
+| `bwrap: execvp ...: No such file or directory`, `bubblewrap is not installed` | | A gateway image that is not the published one. | Pull `musizerr-gateway`. |
+
+The same table, from the host's side: `EACCES` is a **Linux security module** (AppArmor, SELinux) saying no; `EPERM` is
+**seccomp** or a **sysctl**. On an SELinux host (Fedora, RHEL) the container may need `label=disable` in
+`security_opt` for the same reason; that is the equivalent of `apparmor=unconfined` and has not been tested here.
+A profile of its own for the container, allowing what bubblewrap needs instead of unconfining it, is an alternative that has not been written or tested here.
+
+A provider that is `refused` or `failed` (not `unavailable`) is another matter: `ctl list` gives its `reason`.
 
 ## Control socket
 
@@ -290,7 +339,11 @@ out. `python -m musizerr_gateway.ctl [list|health|install|grant]` is a client (`
   `/run/musizerr` owned by it, so the volume is initialised right whoever starts first). In development the app
   runs as root, which reaches the sockets anyway.
 - The workspace directory (`workspace_dir`, default `/downloads/.musizerr-work`) must be the same path in the
-  gateway (`GATEWAY_WORKSPACE_DIR`) and the host. A call's workspace is
+  gateway (`GATEWAY_WORKSPACE_DIR`) and the host, and lie inside a volume all of them mount. Compose sets both from
+  ONE variable, `WORKSPACE_DIR` (in `.env`): the gateway gets it as `GATEWAY_WORKSPACE_DIR`, the host as the default of its
+  `workspace_dir` setting. A value saved in the settings wins over that default, so changing the setting in the
+  interface without changing `WORKSPACE_DIR` desyncs them; the API compares its setting with the gateway's
+  `workspace_root` every few seconds and logs an error (once per pair of values) when they differ. A call's workspace is
   `<workspace_dir>/<provider>/<random>`; the sandbox of `<provider>` sees `<workspace_dir>/<provider>` as
   `/workspace` and nothing else. The provider folder is 0711 (crossed, not listed), the call folder 0777: the
   sandbox's uid is mapped to the gateway's uid, which may differ from the host's. A file that moves from one

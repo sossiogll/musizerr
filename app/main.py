@@ -67,7 +67,11 @@ def _bootstrap_admin() -> None:
     try:
         if user_service.get_user_count(session) > 0:
             return
-        hashed = user_auth.hash_password(admin_password)
+        try:
+            hashed = user_auth.hash_new_password(admin_password)
+        except user_auth.WeakPassword as weak:
+            logger.error("ADMIN_BOOTSTRAP_PASSWORD was not used, no administrator was created: %s", weak)
+            return
         user = user_service.create_user(
             session,
             username=admin_email.split("@")[0],

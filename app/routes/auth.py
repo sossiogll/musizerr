@@ -27,7 +27,7 @@ from .deps import AdminUserDep, ConfigDep, CurrentUserDep, RegistryDep, SessionD
 from .provider_login import finish_callback as finish_login_callback
 from .users_auth import LoginBody, login as account_login
 
-_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 router = APIRouter()
 
@@ -62,7 +62,7 @@ def auth_status_global(config: ConfigDep):
     return {
         "auth_enabled": config.auth_enabled,
         "authenticated": not config.auth_enabled,
-        "registration_open": config.registration_open,
+        "registration_open": config.registration_available,
     }
 
 

@@ -26,9 +26,13 @@ The architecture, its rules and its patterns are described in the guide at the r
 
 ## Run it
 
-You need Docker with Compose, on a kernel with user namespaces (the gateway's sandboxes).
+You need Docker with Compose, on a kernel with user namespaces (the gateway's sandboxes). The complete guide, with the
+files to download, the secrets, AppArmor and seccomp, the public URL, folders and upgrades, is
+**[`docs/deployment.md`](docs/deployment.md)**. In short:
 
-1. Clone the repository and create `.env` next to `docker-compose.yaml` (see [`.env.example`](.env.example)):
+1. Put `docker-compose.yaml`, `musizerr-gateway.seccomp.json` and `.env` (from `env.example`) in one folder: all three are
+   attached to every [release](https://github.com/sossiogll/musizerr/releases/latest), no clone needed (a clone has
+   them too: `docker-compose.yaml`, `gateway/seccomp/`, `.env.example`). Then set, in `.env`:
 
    ```sh
    POSTGRES_PASSWORD=...        # openssl rand -hex 24
@@ -36,6 +40,8 @@ You need Docker with Compose, on a kernel with user namespaces (the gateway's sa
    CREDENTIALS_KEY=...          # openssl rand -base64 32 | tr '+/' '-_'
    ADMIN_BOOTSTRAP_EMAIL=you@example.com
    ADMIN_BOOTSTRAP_PASSWORD=...
+   PUBLIC_URL=http://your-server:8080   # the address people type; OAuth callbacks and sign-in redirects use it
+   APP_PORT=8080
    # MUSIZERR_VERSION=1.2.0     # optional: pin a release (the tags of the GitHub releases); default latest
    ```
 
@@ -49,10 +55,14 @@ You need Docker with Compose, on a kernel with user namespaces (the gateway's sa
    docker compose pull && docker compose up -d
    ```
 
-   The web app is on port 80 (`APP_PORT` changes it). The first start creates the admin from the bootstrap
-   variables. To update, pull again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the
-   database before the API and the workers start. The repository is needed for `docker-compose.yaml` and the
-   gateway's seccomp profile (`gateway/seccomp/`), which Docker reads from the host.
+   The web app is on `APP_PORT` (default 80). The first start creates the admin from the bootstrap variables (only
+   while no account exists). A new install has authentication off: you are the one owner and there is nothing to
+   sign in to. Turn it on in Administration › System; the admin account is what lets you sign in afterwards, and if
+   you set no bootstrap variables the settings page asks you to create one at that moment (what you have in
+   Musizerr by then becomes that account's, [`docs/permissions.md`](docs/permissions.md)). To update, pull
+   again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the database before the API and the workers
+   start. The gateway container is never `privileged`: it needs the seccomp profile, `apparmor=unconfined` and
+   `systempaths=unconfined`, which the compose file already sets ([why](docs/deployment.md#apparmor-and-seccomp)).
 
    To build the images from the checkout instead (a fork, unreleased changes):
 
@@ -69,10 +79,10 @@ You need Docker with Compose, on a kernel with user namespaces (the gateway's sa
    A private catalog is added with a token that can read it. Then configure the providers in Administration ›
    Providers and connect your accounts in Settings.
 
-More: [PostgreSQL and moving from SQLite](docs/postgresql.md), [workers](docs/workers.md),
+More: [the deployment guide](docs/deployment.md), [PostgreSQL and moving from SQLite](docs/postgresql.md), [workers](docs/workers.md),
 [users and permissions](docs/permissions.md), [signing in through a provider](docs/provider-login.md),
 [playlists](docs/playlists.md), [sources and catalogs](docs/catalog.md), [the gateway](docs/gateway.md),
-[migrations](docs/migrations.md).
+[migrations](docs/migrations.md), [the push callback of delegated downloads](docs/delegation-webhook.md).
 
 ## Write a provider
 

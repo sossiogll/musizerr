@@ -456,11 +456,33 @@ class DownloadProvider(BaseProvider, ABC):
     def register_push_endpoint(self, callback_url: str, session: AuthSession) -> str | None:
         """
         Chiede al sistema esterno di chiamare ``callback_url`` sugli eventi
-        rilevanti per la riconciliazione dei download delegati. Ritorna una
-        breve parola d'esito leggibile (es. "created", "updated"), o None
-        se il provider non supporta la registrazione push.
+        rilevanti per la riconciliazione dei download delegati.
 
-        Default: nessun supporto → None.
+        What the answer means (the host never infers it from the return value
+        alone):
+
+        - A provider that does NOT support push does not override this method
+          (the manifest's ``implements`` says so): the host reports
+          "not supported" and never calls it.
+        - A provider that overrides it returns a short outcome word
+          ("created", "updated") when the external system accepted the
+          registration.
+        - When the external system refuses (a validation error because it
+          cannot reach ``callback_url``, a rejected credential, an error of
+          its own) or cannot be reached, the provider RAISES, with the
+          external system's own reason in the message: the host classifies the
+          failure (``unreachable``, ``auth_failed``, ``upstream_error``,
+          ``failed``...) and shows the message to the administrator. An
+          exception that carries ``response.status_code`` is classified by it.
+          The provider must not put secrets in the message: ``callback_url``
+          carries the shared token of the inbound webhook, so a message that
+          quotes it must hide the token.
+        - ``None`` from an implementation means only "nothing was registered
+          and there is no reason to tell" (e.g. the system is not configured
+          yet); the host reports it as a registration without an outcome, never
+          as "not supported". Prefer raising with a reason.
+
+        Default: nessun supporto → None (never called by the host).
         """
         return None
 

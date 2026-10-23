@@ -9,8 +9,6 @@ import {
   patchSettings,
   startFullSyncVerify,
   getFullSyncVerifyStatus,
-  registerDelegationWebhooks,
-  type DelegationWebhookRegistrationResult,
   type SettingDef,
 } from "@/lib/api-client";
 import type { ProviderInfo, ProvidersResponse } from "@/types";
@@ -20,10 +18,13 @@ import { Separator } from "@/components/ui/separator";
 import { useI18n } from "@/i18n";
 import type { ApiErrorBody } from "@/lib/api-errors";
 import { useErrorText } from "@/lib/error-text";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { CreateAdministratorDialog, NO_ADMIN_ACCOUNT } from "./CreateAdministratorDialog";
 import { SettingControl } from "./SettingControl";
 import { ProviderOrderList } from "./ProviderOrderList";
 import { ProviderRefControl } from "./ProviderRefControl";
+import { RegisterWebhook } from "./RegisterWebhook";
 import {
   findProviderByName,
   isLockedUnavailable,
@@ -40,21 +41,6 @@ interface SettingsAreaProps {
    * es. "account" | "providers" | "library" | "system", o una futura area
    * dichiarata più avanti: questo componente non ne conosce l'elenco. */
   area: string;
-  /**
-   * Quando "user", esclude dalla vista generica ogni impostazione la cui
-   * `scope` dichiarata è ESATTAMENTE "user" — una scelta puramente personale
-   * (lingua, tema) che in modalità no-login non ha nessun
-   * account a cui essere attribuita (vedi AccountTab, che in quel caso
-   * renderizza lingua/tema come controlli locali a parte, mai tramite
-   * questo componente). Deciso dal campo `scope` dichiarato nel catalogo,
-   * MAI da un elenco di chiavi: una futura impostazione scope="user" viene
-   * esclusa automaticamente, senza alcuna modifica qui. Non tocca
-   * "system_with_user_override" (es. metadata_provider_priority), che in
-   * modalità no-login edita comunque il default globale — resta visibile.
-   * Quando omesso (default), il comportamento è invariato per qualunque
-   * area, incluso "account" per un utente reale.
-   */
-  excludeScope?: "user";
 }
 
 /**
@@ -66,7 +52,7 @@ interface SettingsAreaProps {
  * duplicato) con un solo renderer generico, guidato interamente da
  * GET /settings/schema + GET /settings/values.
  */
-export function SettingsArea({ area, excludeScope }: SettingsAreaProps) {
+export function SettingsArea({ area }: SettingsAreaProps) {
   const { t, tx } = useI18n();
   const errorText = useErrorText();
   const queryClient = useQueryClient();
@@ -74,6 +60,8 @@ export function SettingsArea({ area, excludeScope }: SettingsAreaProps) {
   const { data: values } = useQuery({ queryKey: ["settings-values"], queryFn: getSettingsValues });
   const { data: providersData } = useQuery({ queryKey: ["providers"], queryFn: getProviders });
   const [edits, setEdits] = useState<Record<string, unknown>>({});
+  // The batch the server refused for want of an administrator: the guided step takes it from here.
+  const [needsAdministrator, setNeedsAdministrator] = useState<Record<string, unknown> | null>(null);
 
   const mutation = useMutation({
     mutationFn: (updates: Record<string, unknown>) => patchSettings(updates),
@@ -84,14 +72,19 @@ export function SettingsArea({ area, excludeScope }: SettingsAreaProps) {
       queryClient.setQueryData(["settings-values"], data);
       setEdits({});
       toast.success(t("settings.saved"));
+      // A setting can change who the viewer is or what they may do (authentication on or off,
+      // the download policy): the status is asked again.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.viewer });
     },
-    onError: (err: Error & { response?: { data?: { detail?: string | ApiErrorBody } } }) => {
+    onError: (err: Error & { response?: { data?: { detail?: string | ApiErrorBody } } }, updates) => {
       // Il batch fallisce TUTTO insieme: mostriamo esattamente il dettaglio
       // del backend (quale chiave, quale motivo) invece di un messaggio
       // generico — l'utente deve poter capire cosa correggere. Un rifiuto con
       // codice stabile (es. auth_secret_insecure) arriva tradotto.
       const detail = err.response?.data?.detail;
-      if (detail && typeof detail === "object") {
+      if (detail && typeof detail === "object" && detail.error_code === NO_ADMIN_ACCOUNT) {
+        setNeedsAdministrator(updates);
+      } else if (detail && typeof detail === "object") {
         toast.error(errorText(detail.error_code, detail.error_message) || t("settings.saveFailed"));
       } else {
         toast.error(detail ?? t("settings.saveFailed"));
@@ -114,10 +107,9 @@ export function SettingsArea({ area, excludeScope }: SettingsAreaProps) {
         (s) =>
           s.area === area &&
           !isProviderNamespacedKey(s.key) &&
-          !s.hidden &&
-          (!excludeScope || s.scope !== excludeScope),
+          !s.hidden,
       ),
-    [schemaData, area, excludeScope],
+    [schemaData, area],
   );
 
   // Ordine di visualizzazione dei gruppi: il primo incontro nell'elenco
@@ -207,6 +199,11 @@ export function SettingsArea({ area, excludeScope }: SettingsAreaProps) {
           </Card>
         );
       })}
+      <CreateAdministratorDialog
+        open={needsAdministrator !== null}
+        updates={needsAdministrator ?? {}}
+        onClose={() => setNeedsAdministrator(null)}
+      />
     </div>
   );
 }
@@ -408,60 +405,6 @@ function FullSyncVerify() {
         </Button>
       </div>
       {status && <div className="mt-2 text-xs text-muted-foreground">{status}</div>}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------
-// Widget d'azione del gruppo "reconciliation" — invariato da AdvancedTab.tsx.
-// ------------------------------------------------------------------
-
-function RegisterWebhook() {
-  const { t } = useI18n();
-  const [results, setResults] = useState<DelegationWebhookRegistrationResult[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const run = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await registerDelegationWebhooks();
-      setResults(r);
-      if (r.some((x) => x.ok)) {
-        toast.success(t("settings.webhookRegistered"));
-      } else {
-        toast.error(t("settings.webhookNoneAccepted"));
-      }
-    } catch {
-      setResults(null);
-      setError(t("settings.webhookRegistrationFailed"));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="rounded-lg border border-dashed p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm">
-          <div className="font-medium">{t("settings.registerWebhookTitle")}</div>
-          <div className="text-xs text-muted-foreground">
-            {t("settings.registerWebhookDescription")}
-          </div>
-        </div>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={run}>
-          {busy ? t("settings.inProgress") : t("settings.register")}
-        </Button>
-      </div>
-      {error && <div className="mt-2 break-all text-xs text-muted-foreground">{error}</div>}
-      {results && (
-        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-          {results.map((r) => (
-            <li key={r.provider}>
-              {r.ok ? "✅" : "⚪"} {r.label}: {r.detail}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

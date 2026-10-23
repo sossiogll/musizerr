@@ -43,8 +43,10 @@ from core.settings_resolver import (
     split_provider_key,
     validate_value,
 )
-from db.models import SYSTEM_USER_ID, User
+from db import user_service
+from db.models import User
 from db.settings_store import SettingsRepository
+from services import auth_transition
 from services.auth import auth_manager_for
 from services.credentials import shared_store, user_store
 
@@ -57,33 +59,26 @@ _ADMIN_ROLE = "admin"
 _NO_USER_VALUE = object()
 
 
-def _is_synthetic_user(user: User) -> bool:
-    """True for the no-login synthetic system user (routes/deps.py::
-    get_current_user returns it for every request when `auth_enabled` is
-    False). It has no row in the `users` table, so a scope='user' setting —
-    a purely personal choice — has no owner to attribute it to here: writing
-    one would leave a `settings` row whose `user_id` references nobody, and
-    reading one back could resurrect such a row from before this check
-    existed. Checked on the `User` object itself (not `config.auth_enabled`)
-    because this module's own tests exercise scope='user' routing against
-    real per-user rows independently of that config flag — the two only
-    coincide in production, where every `User` this service ever sees comes
-    from `get_current_user`."""
-    return user.id == SYSTEM_USER_ID
-
-
 def personal_value(session: Session, user_id: str, key: str) -> Any:
     """The value of the scope='user' setting ``key`` for ``user_id``, for code
     acting on behalf of one user (a worker, a service): that user's own row,
     else the declared default — never anybody else's row, never a system one.
-    The synthetic no-login user owns no personal setting (see
-    ``_is_synthetic_user``): always the default."""
+    The instance's synthetic user (authentication off) is a user like any
+    other here: its own row, stored for ``SYSTEM_USER_ID``."""
     setting = get_def(key)
     if setting is None or setting.scope != "user":
         raise ValueError(f"'{key}' is not a personal (scope='user') setting")
-    if user_id == SYSTEM_USER_ID:
-        return setting.default
     return SettingsRepository(session).get_user(key, user_id, setting.default)
+
+
+class _GuardFacts:
+    """What a ``SettingDef.guard_on`` check may ask about the deployment (``core.settings_catalog.GuardFacts``)."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def has_usable_administrator(self) -> bool:
+        return user_service.has_usable_administrator(self._session)
 
 
 class SettingsWriteError(Exception):
@@ -184,14 +179,6 @@ class SettingsService:
             # sovrascrivere una scelta reale già salvata. Il sentinel fa
             # sparire la chiave dal risultato di effective_values invece di
             # restituire un valore inventato.
-            #
-            # L'utente sintetico "no-login" (vedi _is_synthetic_user) non ha
-            # MAI una riga qui, a prescindere da cosa dice il DB: anche se una
-            # riga orfana esistesse (scritta prima di questo controllo), non
-            # ha un proprietario reale a cui attribuirla — trattata come "mai
-            # scelto", esattamente come se la riga non esistesse.
-            if _is_synthetic_user(user):
-                return _NO_USER_VALUE
             return self._settings_repo().get_user(setting.key, user.id, _NO_USER_VALUE)
 
         if setting.scope == "system_with_user_override":
@@ -328,18 +315,19 @@ class SettingsService:
     # POLICY: il server la applica, non solo la UI).
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _enforce_guards(coerced: dict[str, Any], schema_by_key: dict[str, SettingDef]) -> None:
+    def _enforce_guards(self, coerced: dict[str, Any], schema_by_key: dict[str, SettingDef]) -> None:
         """Rifiuta una scrittura che porta un'impostazione a un valore il cui
         ``guard_on`` dichiarato non passa (es. accendere l'autenticazione con un
-        segreto debole). Un solo punto per ogni scrittore: spegnere o portare
-        a un altro valore non chiama mai il controllo. Nulla è ancora scritto."""
+        segreto debole, o senza un amministratore che possa accedere). Un solo
+        punto per ogni scrittore: spegnere o portare a un altro valore non
+        chiama mai il controllo. Nulla è ancora scritto."""
+        facts = _GuardFacts(self._session)
         for key, value in coerced.items():
             guard = schema_by_key[key].guard_on
             if guard is None or value != guard[0]:
                 continue
             try:
-                guard[1]()
+                guard[1](facts)
             except SettingRefused as refused:
                 raise SettingsWriteError(400, f"{key}: {refused.message}", refused.error_code) from refused
 
@@ -446,13 +434,18 @@ class SettingsService:
 
     def write_values(
         self, raw_updates: dict[str, Any], user: User, *, include_providers: bool = True,
+        adopt_into: str | None = None,
     ) -> dict[str, Any]:
         """Applica ``raw_updates`` (chiave -> valore grezzo) come un'unica
         unità atomica: se una qualunque chiave è sconosciuta, vietata per il
         ruolo di ``user``, non coercibile o non valida, l'INTERA richiesta è
         rifiutata e NULLA viene scritto. Solo dopo che tutto è passato si
         persiste, instradando ogni chiave allo storage giusto in base alla
-        sua dichiarazione (mai al nome della chiave)."""
+        sua dichiarazione (mai al nome della chiave).
+
+        ``adopt_into``: l'amministratore che riceve i dati del proprietario
+        dell'istanza quando QUESTA scrittura accende l'autenticazione
+        (``services/auth_transition.py``); ignorato in ogni altro caso."""
         schema_by_key = {s.key: s for s in self.schema(include_providers=include_providers)}
 
         unknown = sorted(k for k in raw_updates if k not in schema_by_key)
@@ -464,20 +457,6 @@ class SettingsService:
             raise SettingsWriteError(
                 403, f"Admin role required for: {', '.join(forbidden)}",
             )
-
-        # L'utente sintetico "no-login" non ha una riga in `users`: una chiave
-        # scope='user' (scelta puramente personale — lingua/tema/auto-like)
-        # non ha nessuno a cui essere attribuita in questa modalità. Scriverla
-        # comunque lascerebbe una riga `settings` con uno `user_id` che non
-        # referenzia nessuno. A differenza di 'system_with_user_override'
-        # (es. metadata_provider_priority), qui non c'è un default globale
-        # verso cui deviare la scrittura: l'unica scelta corretta è rifiutare.
-        if _is_synthetic_user(user):
-            ownerless = sorted(k for k in raw_updates if schema_by_key[k].scope == "user")
-            if ownerless:
-                raise SettingsWriteError(
-                    400, f"No signed-in user to own: {', '.join(ownerless)}",
-                )
 
         coerced: dict[str, Any] = {}
         for key, raw in raw_updates.items():
@@ -543,7 +522,16 @@ class SettingsService:
             else:
                 app_level[key] = value
 
-        # Tutto convalidato: persisti.
+        # Tutto convalidato: persisti. Accendere l'autenticazione non è una
+        # scrittura come le altre: i dati del proprietario passano a un
+        # amministratore nella STESSA transazione (auth_transition), e se
+        # fallisce non è stato scritto nient'altro del batch.
+        if app_level.get(auth_transition.SETTING) is True:
+            del app_level[auth_transition.SETTING]
+            try:
+                auth_transition.turn_on(self._session, self._config, self._registry, administrator_id=adopt_into)
+            except auth_transition.TransitionRefused as refused:
+                raise SettingsWriteError(400, refused.message, refused.error_code) from refused
         repo = self._settings_repo()
         for key, value in provider_updates.items():
             repo.set_system(key, value, secret=schema_by_key[key].secret)

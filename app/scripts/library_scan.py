@@ -1,11 +1,19 @@
 """
-Container di init: applica le migrazioni e, al primo avvio, indicizza la
-libreria che lo storage provider configurato contiene già
-(``services.library_scan``).
+Indicizza ora la libreria che lo storage provider configurato contiene già
+(``services.library_scan``); anche se è già stata importata una volta (i file
+noti si saltano). È quello che fa
+da sé la routine ``import_existing_library`` (ogni pochi minuti, finché lo
+storage non risponde); qui lo si fa a mano e subito.
+
+Va eseguito in un container che vede i socket dei provider (il volume
+``provider_sockets``), per esempio
+``docker compose exec app python -m scripts.library_scan``: senza, il registry
+è vuoto e non c'è storage da scansionare. Non è il comando del container di
+init (che applica solo le migrazioni: ``scripts/init_db.py``).
 
 Uso: ``python -m scripts.library_scan`` dalla cartella ``app/``; gira anche
 come ``python scripts/library_scan.py`` (il comando dei container di init
-creati prima del passaggio a ``-m``, che ``docker start`` riusa così com'è).
+creati dalle versioni precedenti, che ``docker start`` riusa così com'è).
 """
 from __future__ import annotations
 
@@ -33,7 +41,7 @@ def main() -> None:
     init_db()
     with Session(engine) as session:
         scan_library_once(
-            session, ProviderRegistry(), get_config(), auth_manager_for(shared_store(session)),
+            session, ProviderRegistry(), get_config(), auth_manager_for(shared_store(session)), force=True,
         )
 
 

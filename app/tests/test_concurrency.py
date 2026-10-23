@@ -589,6 +589,42 @@ def test_a_login_code_is_spent_by_exactly_one_of_the_exchanges(engine):
 
 
 # ---------------------------------------------------------------------------
+# Turning authentication on, from several places at once
+# ---------------------------------------------------------------------------
+
+
+def test_authentication_turned_on_by_several_writers_adopts_the_owners_data_once(engine):
+    from db.models import SYSTEM_USER_ID
+    from services import auth_transition
+
+    for round_ in range(ROUNDS):
+        with Session(engine) as session:
+            user_service.ensure_system_user(session)
+            seed_parents(session, users=["admin-a", "admin-b"], tracks=[f"t{round_}"])
+            session.exec(User.__table__.update().where(User.id.in_(["admin-a", "admin-b"])).values(role="admin"))
+            session.add(UserFavorite(user_id=SYSTEM_USER_ID, track_id=f"t{round_}"))
+            session.commit()
+            settings_store.SettingsRepository(session).set_system("auth_enabled", False)
+
+        def turn_on(index: int):
+            with Session(engine) as session:
+                # Each writer asks for another administrator: only the first to get the lock decides.
+                return auth_transition.turn_on(
+                    session, ConfigManager(engine=engine), FakeRegistry(), administrator_id=("admin-a", "admin-b")[index % 2],
+                )
+
+        reports = race(turn_on)
+
+        assert sum(report is not None for report in reports) == 1, f"round {round_}"
+        with Session(engine) as session:
+            holders = {f.user_id for f in session.exec(select(UserFavorite)).all()}
+        assert len(holders) == 1 and SYSTEM_USER_ID not in holders
+        with Session(engine) as session:  # the next round starts from open mode again
+            session.exec(UserFavorite.__table__.delete())
+            session.commit()
+
+
+# ---------------------------------------------------------------------------
 # The lock itself
 # ---------------------------------------------------------------------------
 

@@ -15,7 +15,7 @@ vi.mock("@/lib/api-client", () => ({ getPendingRequestCount: async () => ({ pend
 
 const NONE: UpdatesInfo = {
   current: "1.2.0", commit: "abc1234def", development: false, check_enabled: true, checked_at: "2026-10-17T08:00:00+00:00",
-  last_check_failed: false, updates: [], latest: "1.2.0",
+  last_check_failed: false, release_info_unavailable: null, updates: [], latest: "1.2.0",
 };
 
 const renderLayout = () =>

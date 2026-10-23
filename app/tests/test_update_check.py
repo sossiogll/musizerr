@@ -137,9 +137,54 @@ def test_a_development_build_keeps_the_latest_release_only():
     assert [r["version"] for r in result["releases"]] == ["1.3.0"]
 
 
-def test_github_unreachable_fails_the_check():
+def _answering(status, *, headers=None, body=None):
+    return httpx.MockTransport(lambda request: httpx.Response(status, headers=headers or {}, json=body or {}))
+
+
+@pytest.mark.parametrize("status, headers, reason", [
+    (404, {}, "not_found"),                                        # the repository is private (for now) or renamed
+    (401, {}, "unauthorized"),
+    (403, {}, "unauthorized"),
+    (403, {"x-ratelimit-remaining": "0"}, "rate_limited"),         # GitHub's primary rate limit
+    (403, {"retry-after": "60"}, "rate_limited"),                  # its secondary one
+    (429, {}, "rate_limited"),
+    (500, {}, "upstream_error"),
+    (503, {}, "upstream_error"),
+])
+def test_a_feed_that_cannot_be_read_is_unavailable_not_an_error(status, headers, reason):
+    result = update_check.check("1.2.0", transport=_answering(status, headers=headers, body={"message": "no"}))
+
+    assert result["status"] == "ok" and result["state"] == "unavailable" and result["reason"] == reason
+    assert result["releases"] == [] and result["current"] == "1.2.0"
+    assert reason in update_check.UNAVAILABLE_REASONS
+
+
+@pytest.mark.parametrize("error", [
+    httpx.ConnectError("[Errno -3] Temporary failure in name resolution"),
+    httpx.ConnectTimeout("timed out"),
+    httpx.ReadError("connection reset"),
+])
+def test_a_network_without_access_to_github_is_unavailable(error):
+    def refuse(request):
+        raise error
+
+    result = update_check.check("1.2.0", transport=httpx.MockTransport(refuse))
+
+    assert (result["status"], result["state"], result["reason"]) == ("ok", "unavailable", "unreachable")
+
+
+def test_a_readable_feed_says_it_was_checked():
+    assert update_check.check("1.2.0", transport=_transport([_release("v1.2.0")]))["state"] == "checked"
+
+
+@pytest.mark.parametrize("transport", [
+    _answering(200, body={"message": "not a list"}),                                        # not a list of releases
+    httpx.MockTransport(lambda request: httpx.Response(200, content=b"<html>proxy</html>")),  # not JSON
+    _answering(422, body={"message": "invalid"}),                                           # a request GitHub refuses
+])
+def test_a_malformed_answer_is_still_an_error(transport):
     with pytest.raises(update_check.UpdateCheckError):
-        update_check.check("1.2.0", transport=_transport([], status=503))
+        update_check.check("1.2.0", transport=transport)
 
 
 # ---- the view of Administration ----------------------------------------------------------------------
@@ -206,11 +251,45 @@ def test_a_development_build_has_no_updates_but_knows_the_latest_release():
     assert view["development"] is True and view["updates"] == [] and view["latest"] == "2.0.0"
 
 
+UNAVAILABLE = {"status": "ok", "state": "unavailable", "reason": "not_found", "releases": [], "current": "1.2.0"}
+
+
+def test_an_unavailable_feed_is_not_a_failed_check():
+    with Session(new_engine()) as session:
+        _seed_run(session, UNAVAILABLE)
+        view = update_check.view(session, check_enabled=True, current="1.2.0")
+
+    assert view["release_info_unavailable"] == "not_found"
+    assert view["last_check_failed"] is False
+    assert view["updates"] == [] and view["latest"] is None and view["checked_at"] is None
+
+
+def test_an_unavailable_feed_keeps_the_last_answer_that_read_it():
+    with Session(new_engine()) as session:
+        _seed_run(session, RESULT, minutes_ago=60)
+        _seed_run(session, UNAVAILABLE, minutes_ago=1)
+        view = update_check.view(session, check_enabled=True, current="1.2.0")
+
+    assert view["release_info_unavailable"] == "not_found" and view["last_check_failed"] is False
+    assert [u["version"] for u in view["updates"]] == ["2.0.0", "1.3.0"]
+    assert view["checked_at"] is not None
+
+
+def test_a_feed_that_is_readable_again_is_not_reported_unavailable():
+    with Session(new_engine()) as session:
+        _seed_run(session, UNAVAILABLE, minutes_ago=60)
+        _seed_run(session, RESULT, minutes_ago=1)
+        view = update_check.view(session, check_enabled=True, current="1.2.0")
+
+    assert view["release_info_unavailable"] is None
+
+
 def test_never_checked():
     with Session(new_engine()) as session:
         view = update_check.view(session, check_enabled=False, current="1.2.0")
     assert view["checked_at"] is None and view["updates"] == [] and view["latest"] is None
     assert view["last_check_failed"] is False and view["check_enabled"] is False
+    assert view["release_info_unavailable"] is None
 
 
 # ---- the routes ----------------------------------------------------------------------------------------

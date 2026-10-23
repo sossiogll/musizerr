@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import delete, or_, update
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from .models import (
@@ -102,6 +103,56 @@ def create_user(
 
 def username_taken(session: Session, username: str) -> bool:
     return get_user_by_username(session, username) is not None or username == SYSTEM_USER_ID
+
+
+class AccountExists(Exception):
+    """The username or the email of a new account is already used. ``field`` says which."""
+
+    def __init__(self, field: str) -> None:
+        self.field = field
+        super().__init__(f"{field} already taken")
+
+
+def create_account(
+    session: Session,
+    *,
+    username: str,
+    password_hash: str,
+    email: Optional[str] = None,
+    role: str = "user",
+) -> User:
+    """A new account, the one way a person's account is made (registration and Administration ›
+    Users): the username (the synthetic user's id included) and the email must be free, and the
+    unique constraints decide a race (``AccountExists``, the session rolled back)."""
+    if username_taken(session, username):
+        raise AccountExists("username")
+    if email and get_user_by_email(session, email):
+        raise AccountExists("email")
+    try:
+        return create_user(session, username=username, password_hash=password_hash, email=email, role=role)
+    except IntegrityError:  # the same username or email was registered meanwhile
+        session.rollback()
+        raise AccountExists("username or email") from None
+
+
+def administrators(session: Session) -> list[User]:
+    """The administrators a person can sign in as, oldest first: active, approved, with a password.
+    The synthetic user is not one (its row is never active and has no password), nor an account
+    waiting for approval."""
+    return list(session.exec(_signable_administrators(select(User)).order_by(User.created_at, User.id)).all())
+
+
+def has_usable_administrator(session: Session) -> bool:
+    """Whether someone can sign in as an administrator (``administrators``). The check that
+    authentication may be turned on (``core.settings_catalog``, ``auth_enabled``)."""
+    return session.exec(_signable_administrators(select(User.id)).limit(1)).first() is not None
+
+
+def _signable_administrators(statement):
+    return statement.where(
+        User.role == "admin", User.is_active == True, User.pending_approval == False,  # noqa: E712
+        User.id != SYSTEM_USER_ID, User.password_hash != "",
+    )
 
 
 def update_user(session: Session, user: User, **fields) -> User:

@@ -843,7 +843,9 @@ def sweep_workspaces() -> dict:
 @celery.task(name="workers.maintenance.check_for_updates")
 def check_for_updates() -> dict:
     """Reads the releases of Musizerr and keeps the newer ones with their metadata (services/update_check.py):
-    Administration judges them against what runs. A failure to reach GitHub fails the run."""
+    Administration judges them against what runs. A feed that cannot be read (the repository is private or
+    renamed, a rate limit, GitHub or the network unreachable) is an ``ok`` run with ``state: "unavailable"`` and
+    its ``reason``; only an answer that is not a list of releases fails the run."""
     return update_check.check()
 
 

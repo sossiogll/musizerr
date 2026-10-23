@@ -1,12 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useIsSignedIn } from "@/contexts/PreferencesSync";
-import { useTheme, type Theme } from "@/contexts/ThemeContext";
-import { useI18n, type Locale } from "@/i18n";
-import { getSettingsSchema, revokeAllAuth } from "@/lib/api-client";
+import { useI18n } from "@/i18n";
+import { revokeAllAuth } from "@/lib/api-client";
 import {
   Card,
   CardContent,
@@ -16,29 +14,20 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { SettingsArea, SettingRow } from "./settings/SettingsArea";
+import { SettingsArea } from "./settings/SettingsArea";
 
 /**
- * Sezione Account, ospitata dentro Settings. Il blocco identità (username,
- * ruolo, logout, danger zone) resta lo stesso di prima di Fase 5a — solo
- * quello, e SOLO quando esiste un vero account (`signedIn`, vedi
- * `useIsSignedIn` — single source of truth condivisa con PreferencesSync).
- * Lingua, tema e le altre preferenze personali (SettingDef scope="user" nel
- * gruppo "account" — vedi core/settings_catalog.py) vengono dalla stessa
- * dichiarazione via
- * `SettingsArea`, non più duplicate a mano in questo file — TRANNE in
- * modalità no-login, dove lingua/tema non hanno alcun account server-side a
- * cui essere attribuiti: `LocalPreferences` sotto li rende invece come
- * controlli puramente locali (ThemeContext/I18nContext), e `excludeScope`
- * toglie ogni impostazione scope="user" (owner-less qui) dalla vista
- * generica — decisione presa dallo `scope` dichiarato, mai da un elenco di
- * chiavi, cosi' una futura impostazione personale sparisce da sola in
- * questa modalità senza toccare questo file.
+ * Sezione Account, ospitata dentro Settings. Il blocco identita' (username,
+ * ruolo, logout, danger zone) esiste SOLO quando c'e' un utente con un
+ * account (`user`): con l'autenticazione disattivata il proprietario
+ * dell'istanza non ha identita' da mostrare ne' una sessione da chiudere,
+ * ma ha le stesse preferenze personali di tutti (lingua, tema, sfondo, le
+ * altre impostazioni scope="user" del gruppo "account" — core/settings_catalog.py),
+ * salvate lato server per l'utente di sistema. Vengono tutte dalla stessa
+ * dichiarazione via `SettingsArea`; nessuna e' scritta a mano qui.
  */
 export function AccountTab() {
   const { user, logout } = useAuth();
-  const signedIn = useIsSignedIn();
   const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -70,14 +59,13 @@ export function AccountTab() {
     }
   };
 
-  // Nessun account reale in modalità no-login (vedi index.tsx::isAreaVisible,
-  // che per questo mostra comunque il tab): niente identità, niente logout,
-  // niente danger zone — non c'è nulla da disconnettere o eliminare.
-  if (!signedIn) {
+  // Con l'autenticazione disattivata non c'e' nessun utente: niente identita',
+  // niente logout, niente danger zone (non c'e' nulla da eliminare: il suo
+  // account e' quello condiviso, che si gestisce da Amministrazione).
+  if (!user) {
     return (
       <div className="space-y-6">
-        <LocalPreferences />
-        <SettingsArea area="account" excludeScope="user" />
+        <SettingsArea area="account" />
       </div>
     );
   }
@@ -124,53 +112,5 @@ export function AccountTab() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-/**
- * Lingua e tema in modalità no-login: nessun account server-side possiede
- * questa scelta (vedi SettingsService._is_synthetic_user lato backend, che
- * per lo stesso motivo rifiuta di scrivere queste chiavi per l'utente
- * sintetico) — restano quindi puramente locali, cablate direttamente su
- * ThemeContext/I18nContext (`setTheme`/`setLocale`, mai `applyServer*`, che è
- * riservato alla riconciliazione da PreferencesSync) e mai su PATCH
- * /settings. Riusa `SettingRow` (lo stesso controllo generico guidato dal
- * `type` dichiarato in GET /settings/schema) solo per l'aspetto — label e
- * descrizione restano quelle dichiarate nel catalogo, mai duplicate qui.
- */
-function LocalPreferences() {
-  const { t, locale, setLocale } = useI18n();
-  const { theme, setTheme } = useTheme();
-  const { data: schemaData } = useQuery({ queryKey: ["settings-schema"], queryFn: getSettingsSchema });
-
-  const languageDef = schemaData?.settings.find((s) => s.key === "language");
-  const themeDef = schemaData?.settings.find((s) => s.key === "theme");
-
-  if (!languageDef && !themeDef) return null;
-
-  return (
-    <Card className="p-4">
-      <h3 className="mb-1 text-sm font-semibold">{t("account.localPreferences")}</h3>
-      <p className="mb-3 text-xs text-muted-foreground">{t("account.localPreferencesHint")}</p>
-      <Separator className="mb-3" />
-      <div className="space-y-4">
-        {languageDef && (
-          <SettingRow
-            def={languageDef}
-            value={locale}
-            onChange={(v) => setLocale(v as Locale)}
-            providersData={undefined}
-          />
-        )}
-        {themeDef && (
-          <SettingRow
-            def={themeDef}
-            value={theme}
-            onChange={(v) => setTheme(v as Theme)}
-            providersData={undefined}
-          />
-        )}
-      </div>
-    </Card>
   );
 }

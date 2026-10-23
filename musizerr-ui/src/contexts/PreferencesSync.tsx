@@ -7,16 +7,13 @@ import { useTheme, DEFAULT_THEME, THEME_STORAGE_KEY, type Theme } from "@/contex
 import { useI18n, DEFAULT_LOCALE, LOCALE_STORAGE_KEY, type Locale } from "@/i18n";
 
 /**
- * "Is there a real account behind this session": the `settings_personal`
- * capability (a user or an admin; open mode has no personal profile). Every
- * place that decides between account-backed and device-local behavior (e.g.
- * AccountTab: identity block, language/theme through the API or straight
- * into ThemeContext/I18nContext) reuses this hook, so the decisions never
- * drift apart.
+ * "Does this session have a profile that stores personal settings": the
+ * `settings_personal` capability (a user, an admin, or the owner of an open
+ * instance, whose profile is the instance's own). Every place that reads or
+ * writes the personal settings through the API (language, theme, the
+ * background) reuses this hook, so the decisions never drift apart.
  */
 export function useIsSignedIn(): boolean {
-  // settings_personal is exactly "a real account owns this session": a user
-  // or an admin. Open mode (sign-in off) has no personal profile.
   return useCan("settings_personal");
 }
 
@@ -52,13 +49,10 @@ function readLocal(key: string): string | null {
  * `user`/`authConfig`, and inside ThemeProvider/I18nProvider too, since
  * those wrap the whole app from main.tsx. No UI of its own.
  *
- * Deliberately inert when there is no real signed-in account: `authConfig`
- * disabled means every request resolves to the backend's synthetic system
- * user (see app/routes/deps.py::_SYSTEM_USER) — syncing there would make
- * every browser hitting this deployment share one global theme/language
- * instead of a per-device preference, which is worse than what we have
- * today. That is why `signedIn` is the `settings_personal` capability (a
- * real account), which open mode does not have.
+ * Inert only for a guest (no profile, no settings): with authentication off
+ * every request resolves to the instance's synthetic user (see
+ * app/routes/deps.py::_SYSTEM_USER), which keeps its own personal settings
+ * like any user, so every browser of an open instance shares them.
  */
 export function PreferencesSync() {
   const { user } = useAuth();

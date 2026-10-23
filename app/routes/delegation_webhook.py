@@ -28,6 +28,8 @@ from db.models import Download
 from routes.deps import AdminUserDep, ConfigDep, RegistryDep, SessionDep
 from services.auth import auth_manager_for
 from services.credentials import shared_store
+from services.errors import public_error
+from services.log_redaction import REDACTED, redact
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +96,59 @@ async def delegation_webhook(
     return {"ok": True, "provider": provider_name, "triggered": triggered}
 
 
+# What a provider's registration came to (the ``state`` of a result).
+STATE_REGISTERED = "registered"
+STATE_NOT_SUPPORTED = "not_supported"
+STATE_FAILED = "failed"
+
+# The provider implements ``register_push_endpoint`` and returned None: it did not say it registered anything,
+# and it gave no reason. Not "not supported": it can push, it just did not confirm.
+NO_OUTCOME_CODE = "registration_not_confirmed"
+NO_OUTCOME_MESSAGE = "The provider did not confirm the registration and gave no reason."
+
+
+def _scrubbed(text: str, token: str) -> str:
+    """``text`` without the credentials it may quote: the callback URL carries the shared token of the inbound
+    webhook, and a provider's (or its upstream's) message may repeat the URL."""
+    if token:
+        text = text.replace(token, REDACTED)
+    return redact(text)
+
+
+def _registration_result(provider, callback_url: str, token: str, auth) -> dict:
+    """One provider's registration, as a result: registered, not supported, or failed with a classified
+    ``error_code`` and the provider's own reason (``error_detail``, for the administrator who asked)."""
+    entry = {"provider": provider.name, "label": provider.label}
+    # Declared by the provider's manifest: "not supported" is only ever the provider saying it has no push
+    # registration, never the host's reading of a failure or of an empty answer.
+    if not provider.implements("register_push_endpoint"):
+        return {**entry, "ok": False, "state": STATE_NOT_SUPPORTED, "detail": STATE_NOT_SUPPORTED}
+    try:
+        prov_session = auth.authenticate(provider)
+        outcome = provider.register_push_endpoint(callback_url, prov_session)
+    except Exception as exc:  # noqa: BLE001 — un provider non deve poter interrompere gli altri
+        body = public_error(exc, "download_provider", show_detail=True)
+        body["error_detail"] = _scrubbed(body["error_detail"], token)
+        logger.warning(
+            "register_push_endpoint('%s') failed (%s): %s", provider.name, body["error_code"], body["error_detail"],
+        )
+        return {**entry, "ok": False, "state": STATE_FAILED, "detail": STATE_FAILED, **body}
+    if outcome is None:
+        logger.warning("register_push_endpoint('%s') returned no outcome and no reason", provider.name)
+        return {
+            **entry, "ok": False, "state": STATE_FAILED, "detail": STATE_FAILED,
+            "error_code": NO_OUTCOME_CODE, "error_message": NO_OUTCOME_MESSAGE,
+        }
+    return {**entry, "ok": True, "state": STATE_REGISTERED, "detail": _scrubbed(str(outcome), token)}
+
+
 @router.post("/delegation/register-webhook")
 def register_delegation_webhooks(config: ConfigDep, session: SessionDep, registry: RegistryDep, admin: AdminUserDep):  # noqa: ARG001
     """
-    Auto-registra il callback push di musizerr su OGNI download provider che
-    supporta ``register_push_endpoint`` (le altre vengono saltate). Richiede
-    ``public_base_url`` configurato; genera un token se assente. Admin-only.
+    Registers musizerr's push callback on EVERY download provider, one result each: ``registered``,
+    ``not_supported`` (the provider does not implement ``register_push_endpoint``) or ``failed`` with the
+    classified ``error_code`` and the provider's own reason. Requires ``public_base_url``; generates a token
+    when there is none. Admin-only.
     """
     base = config.public_base_url.rstrip("/")
     if not base:
@@ -116,16 +165,7 @@ def register_delegation_webhooks(config: ConfigDep, session: SessionDep, registr
     results = []
     for provider in registry.all_download():
         callback_url = f"{base}/api{_INBOUND_PATH}/{provider.name}?token={token}"
-        try:
-            prov_session = auth.authenticate(provider)
-            outcome = provider.register_push_endpoint(callback_url, prov_session)
-        except Exception as exc:  # noqa: BLE001 — un provider non deve poter interrompere gli altri
-            logger.warning("register_push_endpoint('%s') fallito: %s", provider.name, exc)
-            results.append({"provider": provider.name, "label": provider.label, "ok": False, "detail": str(exc)})
-            continue
-        if outcome is None:
-            results.append({"provider": provider.name, "label": provider.label, "ok": False, "detail": "not_supported"})
-        else:
-            results.append({"provider": provider.name, "label": provider.label, "ok": True, "detail": outcome})
+        results.append(_registration_result(provider, callback_url, token, auth))
 
     return {"results": results}
+

@@ -305,6 +305,17 @@ export const getMe = () => http.get<User>("/auth/account/me").then((r) => r.data
 export const adminListUsers = () =>
   http.get<PaginatedResponse<User>>("/admin/users").then((r) => r.data);
 
+/** POST /admin/users: a new, active account (works with authentication on and off). */
+export interface NewAccountBody {
+  username: string;
+  password: string;
+  email?: string;
+  role: UserRole;
+}
+
+export const adminCreateUser = (body: NewAccountBody) =>
+  http.post<User>("/admin/users", body).then((r) => r.data);
+
 export const adminUpdateUser = (
   id: string,
   updates: { role?: UserRole; is_active?: boolean },
@@ -652,8 +663,14 @@ export const getSettingsSchema = () =>
 export const getSettingsValues = () =>
   http.get<Record<string, unknown>>("/settings/values").then((r) => r.data);
 
-export const patchSettings = (updates: Record<string, unknown>) =>
-  http.patch<Record<string, unknown>>("/settings", updates).then((r) => r.data);
+/**
+ * PATCH /settings. `adoptInto`: the administrator who takes the open-mode owner's data when this
+ * write turns authentication on (the server defaults to the oldest one that can sign in).
+ */
+export const patchSettings = (updates: Record<string, unknown>, options: { adoptInto?: string } = {}) =>
+  http
+    .patch<Record<string, unknown>>("/settings", updates, options.adoptInto ? { params: { adopt_into: options.adoptInto } } : undefined)
+    .then((r) => r.data);
 
 export type DownloadTone = "neutral" | "info" | "success" | "warning" | "danger";
 export type DownloadPhase = "queued" | "active" | "done" | "failed" | "review";
@@ -749,6 +766,8 @@ export interface RoutineInfo {
   min_interval_minutes: number;
   last_run: RoutineRunInfo | null;
   next_run_at: string | null;
+  /** A one-time job that has finished: nothing schedules it again (null next run), "Run now" still runs it. */
+  done?: boolean;
   /** A run waits in the queue for a worker. */
   queued: boolean;
   /** A run is executing now. */
@@ -795,6 +814,8 @@ export interface UpdatesInfo {
   check_enabled: boolean;
   checked_at: string | null;
   last_check_failed: boolean;
+  /** Why the releases could not be read at the last check that answered; not a failure of the instance. */
+  release_info_unavailable: "not_found" | "unauthorized" | "rate_limited" | "unreachable" | "upstream_error" | null;
   /** Newest first. */
   updates: AvailableUpdate[];
   latest: string | null;
@@ -803,11 +824,20 @@ export interface UpdatesInfo {
 /** GET /admin/updates: the version that runs and the newer releases of Musizerr (admin, ADR-0007). */
 export const getUpdates = () => http.get<UpdatesInfo>("/admin/updates").then((r) => r.data);
 
+/**
+ * One download provider's registration of the push callback (POST /delegation/register-webhook): registered,
+ * not supported (the provider does not implement it) or failed, with the classified `error_code` and the
+ * provider's own reason in `error_detail` (the route is admin-only).
+ */
 export interface DelegationWebhookRegistrationResult {
   provider: string;
   label: string;
   ok: boolean;
+  state: "registered" | "not_supported" | "failed";
   detail: string;
+  error_code?: string;
+  error_message?: string;
+  error_detail?: string;
 }
 
 export const registerDelegationWebhooks = () =>

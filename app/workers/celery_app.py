@@ -8,7 +8,7 @@ from celery.signals import worker_init, worker_ready
 from db import credential_cipher
 from services.config_manager import ConfigManager
 from services.log_redaction import install_log_redaction
-from services.provider_events import ProviderReloader
+from services.process_registry import ProcessRegistry
 from services.provider_registry import ProviderRegistry
 
 # Prima di tutto il resto: anche i log di Celery e di httpx nei task.
@@ -40,7 +40,8 @@ celery = Celery(
 # - ``jobs``: i job di libreria chiesti da un utente ("Sincronizza i mi
 #   piace", "Scarica i mi piace mancanti"), le azioni admin che aspettano
 #   un esito (verifica full-sync) e l'aggiornamento della libreria dal sync
-#   provider (routine ``sync_library_index``, minuti su una libreria grande).
+#   provider (routine ``sync_library_index``, minuti su una libreria grande) e
+#   l'importazione della libreria esistente (routine ``import_existing_library``).
 # - ``maintenance``: il tick dello scheduler, i routine, le chain di
 #   riconciliazione (download delegati, like) e i task brevi accodati dagli
 #   altri (unlike, like matching). È la coda di default: un task senza una
@@ -64,6 +65,8 @@ TASK_ROUTES = {
     # routine's task, ``workers.scheduler.dispatch_routine``): listing and
     # indexing a large sync library takes minutes, never on the tick's worker.
     "workers.tasks.sync_library_index": {"queue": QUEUE_JOBS},
+    # The routine ``import_existing_library``: reads the tags of every file of an existing library.
+    "workers.tasks.import_existing_library": {"queue": QUEUE_JOBS},
 }
 
 celery.conf.update(
@@ -124,7 +127,10 @@ celery.conf.beat_schedule = {
 # Stato globale del worker — inizializzato una volta sola al startup
 # ------------------------------------------------------------------
 
-_registry: ProviderRegistry | None = None
+# The registry is NOT built here: this runs in the Celery parent, and the tasks run in the
+# children it forks (services/process_registry.py). Every process builds its own, the first
+# time its code asks for it.
+_process_registry = ProcessRegistry()
 _config: ConfigManager | None = None
 
 
@@ -142,12 +148,10 @@ def consumed_queues(sender) -> frozenset[str]:
 
 @worker_init.connect
 def _on_worker_init(sender=None, **kwargs) -> None:
-    global _registry, _config, _consumed
+    global _config, _consumed
     logger.info("Initializing worker state...")
     _config = ConfigManager()
-    _registry = ProviderRegistry()
     _consumed = consumed_queues(sender)
-    ProviderReloader(_registry).start()  # the API announces changes; every process rebuilds its own registry
 
     # Each worker cleans up only after ITS predecessor: the work left in
     # flight on its own queue. A maintenance worker restarting must never
@@ -165,12 +169,7 @@ def _on_worker_init(sender=None, **kwargs) -> None:
     # the comment there. worker_init only fires in worker processes, never
     # in a standalone `celery beat` process, so a schedule assigned here
     # would be invisible to it.
-    logger.info(
-        "Worker ready — queues=%s, %d metadata providers, %d download providers",
-        ",".join(sorted(_consumed)) or "?",
-        len(_registry.metadata_names()),
-        len(_registry.download_names()),
-    )
+    logger.info("Worker ready — queues=%s", ",".join(sorted(_consumed)) or "?")
 
 
 def _reap_orphaned_running_downloads() -> int:
@@ -239,9 +238,9 @@ def _on_worker_ready(**kwargs) -> None:
 
 
 def get_registry() -> ProviderRegistry:
-    if _registry is None:
-        raise RuntimeError("ProviderRegistry non inizializzato — worker non ancora avviato?")
-    return _registry
+    """The registry of the process running the task: built on its first use and kept up to
+    date by its own reloader, never the copy of the parent that forked it."""
+    return _process_registry.get()
 
 
 def get_config() -> ConfigManager:

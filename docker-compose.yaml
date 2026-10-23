@@ -15,6 +15,37 @@ x-credentials: &credentials
   CREDENTIALS_KEY: ${CREDENTIALS_KEY:?set CREDENTIALS_KEY in .env (docs/credentials.md)}
   CREDENTIALS_KEY_PREVIOUS: ${CREDENTIALS_KEY_PREVIOUS:-}
 
+# Where Musizerr is reached from outside (docs/deployment.md, "The public URL"): the address users type in
+# their browser, with no trailing slash. OAuth2 providers send the browser back to it after the
+# user signed in at the service ("<PUBLIC_URL>/api/auth/<provider>/callback"), and the application ends
+# the flow on it. APP_BASE_URL (the callback's base, including /api) and FRONTEND_URL (where the flow
+# ends) are derived from it; set them only when the two differ (a proxy that strips /api, say).
+# The default is the stack on this machine, on APP_PORT.
+x-public-urls: &public-urls
+  APP_BASE_URL: ${APP_BASE_URL:-${PUBLIC_URL:-http://localhost}/api}
+  FRONTEND_URL: ${FRONTEND_URL:-${PUBLIC_URL:-http://localhost}}
+
+# The folder the host and the gateway exchange files through (the `workspace_dir` setting, docs/gateway.md):
+# ONE variable for both. The gateway mounts <WORKSPACE_DIR>/<provider> in each sandbox; the host creates
+# its call folders there and takes the default of the `workspace_dir` setting from it. It must lie inside a
+# volume that the application, the workers AND the gateway all mount at the same path.
+x-workspace: &workspace
+  WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizerr-work}
+
+# What a service that talks to the database, Redis and the providers waits for before it starts: the
+# migrations done (init), the database and Redis answering, the gateway up. The gateway's health is its
+# control socket answering; whether it can build a sandbox is another matter (`docker compose exec
+# provider-gateway python -m musizerr_gateway.ctl health`), and the application works without providers.
+x-backend-depends-on: &backend-depends-on
+  init:
+    condition: service_completed_successfully
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  provider-gateway:
+    condition: service_healthy
+
 # The images of Musizerr, published on GHCR for linux/amd64 and linux/arm64: every merge into master
 # updates :latest, every release publishes :X.Y.Z. MUSIZERR_VERSION (in .env) pins a release and
 # `docker compose pull` fetches it; MUSIZERR_IMAGES names another registry or owner (a fork). To build
@@ -27,12 +58,15 @@ x-images:
 services:
 
   # ------------------------------------------------------------------
-  # Init container: applica le migrazioni e, al primo avvio, indicizza la
-  # libreria che lo storage provider configurato contiene già
+  # Init container: applies the database migrations and exits. app, the workers and beat
+  # start only after it completed successfully. It does NOT scan the library any more: that
+  # needs the providers, which the gateway starts only once the API has told it which are
+  # installed, so the routine `import_existing_library` does it, once the storage provider
+  # answers (docs/workers.md).
   # ------------------------------------------------------------------
   init:
     image: *app-image
-    command: python -m scripts.library_scan
+    command: python -m scripts.init_db
     restart: "no"
     environment:
       <<: [*database, *credentials]
@@ -40,7 +74,6 @@ services:
       REDIS_URL: redis://redis:6379/0
     volumes:
       - data:/data
-      - downloads:/downloads
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,13 +81,15 @@ services:
         condition: service_healthy
 
   # ------------------------------------------------------------------
-  # API FastAPI
+  # API FastAPI. Healthy when /health answers 200 AND says the database answers
+  # ("db": "ok"): the frontend starts only then. The image is Python, so the check
+  # needs no curl.
   # ------------------------------------------------------------------
   app:
     image: *app-image
     restart: unless-stopped
     environment:
-      <<: [*database, *credentials]
+      <<: [*database, *credentials, *public-urls, *workspace]
       DATA_DIR: /data
       REDIS_URL: redis://redis:6379/0
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
@@ -64,11 +99,17 @@ services:
       - data:/data
       - downloads:/downloads
       - provider_sockets:/run/musizerr # the sockets of the providers the gateway runs
-    depends_on:
-      init:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
+    depends_on: *backend-depends-on
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, sys, urllib.request; reply = urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4); sys.exit(0 if reply.status == 200 and json.load(reply).get('db') == 'ok' else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
 
   # ------------------------------------------------------------------
   # Provider gateway — pulls provider images by digest and runs each one in a
@@ -76,9 +117,18 @@ services:
   # only service that starts provider processes; `app` and the workers reach them
   # through the sockets in the shared `provider_sockets` volume.
   #
-  # Not privileged, no capability, no published port. What it does need, and why:
+  # NEVER `privileged: true`; no capability, no published port. Privileged "works" only
+  # because it also switches AppArmor and seccomp off, which hands the host to whatever
+  # runs in the container. What the gateway does need, and why:
   #   - a seccomp profile: Docker's default plus the five syscalls bubblewrap
-  #     builds a sandbox with (gateway/seccomp/musizerr-gateway.json);
+  #     builds a sandbox with (gateway/seccomp/musizerr-gateway.json, or the
+  #     musizerr-gateway.seccomp.json that every release carries; GATEWAY_SECCOMP_PROFILE
+  #     names the file);
+  #   - apparmor=unconfined: Docker's docker-default AppArmor profile (Debian, Ubuntu...) denies
+  #     the namespace calls with EACCES, which bubblewrap reports as "Creating new namespace
+  #     failed: Permission denied". On a host without AppArmor it does nothing. Only this
+  #     container loses the profile: it stays unprivileged, with every capability dropped and the
+  #     seccomp profile above (docs/gateway.md, Troubleshooting, for a profile of its own);
   #   - systempaths=unconfined: a sandbox mounts its own /proc, which the kernel
   #     refuses while the container's /proc has Docker's masked paths over it.
   # The sandboxed processes get a further seccomp filter of their own that takes
@@ -96,20 +146,25 @@ services:
     restart: unless-stopped
     cap_drop: [ALL]
     security_opt:
-      - seccomp=./gateway/seccomp/musizerr-gateway.json
+      - seccomp=${GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizerr-gateway.json}
+      - apparmor=unconfined
       - systempaths=unconfined
     volumes:
       - provider_sockets:/run/musizerr
       - gateway_state:/var/lib/musizerr-gateway
       - downloads:/downloads # the workspaces live in the library volume, like the application's
     environment:
-      # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md): the library.
-      GATEWAY_FILESYSTEM_ROOTS: /downloads
+      # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md):
+      # the library. Several are separated with ":" (e.g. /downloads:/library, docs/deployment.md#folders).
+      GATEWAY_FILESYSTEM_ROOTS: ${GATEWAY_FILESYSTEM_ROOTS:-/downloads}
+      # The same folder as the host's WORKSPACE_DIR (see x-workspace above).
+      GATEWAY_WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizerr-work}
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.socket(socket.AF_UNIX).connect('/run/musizerr/gateway.sock')"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   # ------------------------------------------------------------------
   # Celery workers — uno per coda (vedi docs/workers.md), così un download
@@ -118,13 +173,15 @@ services:
   # - worker:             coda "downloads" (concurrency dal setting
   #                       max_concurrent_downloads, letto all'avvio)
   # - worker-jobs:        coda "jobs" (sync dei mi piace, download dei mi
-  #                       piace mancanti, verifica full-sync)
+  #                       piace mancanti, verifica full-sync, import della
+  #                       libreria esistente)
   # - worker-maintenance: coda "maintenance" (tick, routine, riconciliazioni);
   #                       "default" solo per svuotare i messaggi accodati
   #                       prima della separazione delle code.
   #
   # Una replica ciascuno: i reaper all'avvio (download e job rimasti
   # "in corso" dal processo precedente) contano su un solo processo per coda.
+  # They start after the migrations, with the database, Redis and the gateway up.
   # ------------------------------------------------------------------
   worker:
     image: *app-image
@@ -135,18 +192,14 @@ services:
       --queues=downloads
     restart: unless-stopped
     environment: &worker-environment
-      <<: [*database, *credentials]
+      <<: [*database, *credentials, *workspace]
       DATA_DIR: /data
       REDIS_URL: redis://redis:6379/0
     volumes: &worker-volumes
       - data:/data
       - downloads:/downloads
       - provider_sockets:/run/musizerr
-    depends_on: &worker-depends-on
-      init:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
+    depends_on: *backend-depends-on
 
   worker-jobs:
     image: *app-image
@@ -159,7 +212,7 @@ services:
     restart: unless-stopped
     environment: *worker-environment
     volumes: *worker-volumes
-    depends_on: *worker-depends-on
+    depends_on: *backend-depends-on
 
   worker-maintenance:
     image: *app-image
@@ -172,7 +225,7 @@ services:
     restart: unless-stopped
     environment: *worker-environment
     volumes: *worker-volumes
-    depends_on: *worker-depends-on
+    depends_on: *backend-depends-on
 
   # ------------------------------------------------------------------
   # Celery beat — pianifica i task periodici (sync libreria, sweep dei
@@ -198,22 +251,24 @@ services:
     volumes:
       - data:/data
       - downloads:/downloads
-    depends_on:
-      init:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
+    depends_on: *backend-depends-on
 
   # ------------------------------------------------------------------
-  # Frontend — nginx che serve la build statica e proxia /api/ → app
+  # Frontend — nginx that serves the static build and proxies /api/ to the API.
+  # BACKEND_URL is where it reaches the API (default: the `app` service of this file); nginx
+  # resolves the name again every few seconds (Docker's resolver), so a recreated `app`
+  # container is found. It starts when the API is healthy. docs/deployment.md.
   # ------------------------------------------------------------------
   frontend:
     image: *frontend-image
     restart: unless-stopped
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://app:8000}
     ports:
       - "${APP_PORT:-80}:80"
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   # ------------------------------------------------------------------
   # Redis — broker Celery + pub/sub per SSE

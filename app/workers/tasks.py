@@ -28,9 +28,9 @@ from core.settings_resolver import provider_config_from_system_settings
 from .celery_app import celery, get_config, get_registry
 from db import library_job_store as job_store
 from services import library_jobs
-from services.credentials import has_own_account, own_store, shared_store
+from services.credentials import account_holders, has_own_account, own_store, shared_store
 from services import downloads as download_service
-from services import favorites, playlist_monitor, playlist_sync, routines, sync_index
+from services import favorites, library_scan, playlist_monitor, playlist_sync, routines, sync_index
 from services.download_requests import liked_elsewhere_spec, request_download
 from services.enrichment import cross_enrich_track
 from services.errors import public_error
@@ -630,8 +630,13 @@ def sync_saved_tracks_for_user(user_id: str, run_id: str | None = None) -> dict:
                 reporter.finish(job_store.STATUS_FAILED, error_code=library_jobs.ACCOUNT_REQUIRED)
                 return {"status": "error", "detail": "user not found"}
             providers = [p for p in registry.all_metadata() if p.supports_user_library()]
-            reporter.set_providers(p.name for p in providers)
-            outcome = _sync_user_library(session, user, providers, reporter, registry)
+            if providers:
+                reporter.set_providers(p.name for p in providers)
+                outcome = _sync_user_library(session, user, providers, reporter, registry)
+            else:
+                # Nothing could ever be imported: say so, never "completed, 0 tracks".
+                reporter.finish(job_store.STATUS_FAILED, error_code=library_jobs.NO_LIBRARY_PROVIDER)
+                outcome = {"status": "failed", "total_synced": 0}
     except Exception as exc:  # noqa: BLE001 — the run must end, whatever happened
         logger.exception("Library sync failed for %s", user_id)
         reporter.finish(job_store.STATUS_FAILED, error_code=library_jobs.JOB_FAILED, error_detail=str(exc))
@@ -646,8 +651,10 @@ def sync_saved_tracks_for_user(user_id: str, run_id: str | None = None) -> dict:
 
 def _sync_user_library(session, user, providers, reporter, registry) -> dict:
     # The likes are the user's own: their own account only, never a shared
-    # one (and never an app-only token): ``own_store``. Checked before
-    # authenticating, so a user without one is "not connected", not an error.
+    # one (and never an app-only token): ``own_store`` (with authentication off
+    # the user is the instance and its own account is the shared one, see
+    # ``services.credentials``). Checked before authenticating, so a user
+    # without one is "not connected", not an error.
     store = own_store(session, user.id)
     auth_manager = auth_manager_for(store)
     total_synced = 0
@@ -712,6 +719,18 @@ def sync_library_index_task(progress=None) -> dict:
     return sync_index.index_result(reports)
 
 
+@celery.task(name="workers.tasks.import_existing_library")
+def import_existing_library_task() -> dict:
+    """Routine ``import_existing_library``: the first scan of the library the storage
+    provider already holds (``services.library_scan``). It waits (result ``state: waiting``)
+    until a storage provider answers and does nothing once the library is imported."""
+    registry = get_registry()
+    with Session(engine) as session:
+        return library_scan.import_existing_library(
+            session, registry, get_config(), auth_manager_for(shared_store(session)),
+        )
+
+
 @celery.task(name="workers.tasks.sync_playlists")
 def sync_playlists_task(progress=None) -> dict:
     """Routine ``sync_playlists``: le playlist degli utenti sul loro account
@@ -756,19 +775,19 @@ def match_likes_task(user_id: str | None = None) -> dict:
 
 @celery.task(name="workers.tasks.sync_all_users_saved_tracks")
 def sync_all_users_saved_tracks() -> dict:
-    """The periodic library sync: a run for every active user with an
-    account connected on a provider that has a user library, through the
-    same idempotent start as "Sync now" (a user whose sync is already queued
-    or running is left alone). A user with no such account is skipped: a run
-    for them could only fail as ``provider_not_connected``, every period."""
-    from db.models import User
-
+    """The periodic library sync: a run for every user the host acts for
+    (``services.credentials.account_holders``: the active users, or the
+    instance itself with authentication off) with an account connected on a
+    provider that has a user library, through the same idempotent start as
+    "Sync now" (a user whose sync is already queued or running is left
+    alone). A user with no such account is skipped: a run for them could only
+    fail as ``provider_not_connected``, every period."""
     registry = get_registry()
     providers = [p for p in registry.all_metadata() if p.supports_user_library()]
     started = 0
     skipped = 0
     with Session(engine) as session:
-        users = session.exec(select(User).where(User.is_active == True)).all()  # noqa: E712
+        users = account_holders(session)
         for u in users:
             store = own_store(session, u.id)
             if not any(has_own_account(store, p) for p in providers):

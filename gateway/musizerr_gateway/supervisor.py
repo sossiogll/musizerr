@@ -57,6 +57,7 @@ from .sandbox import (
     SandboxSpec,
     SandboxUnavailable,
     build_command,
+    explain_failure,
     limits_for,
     probe,
     seccomp_file,
@@ -406,9 +407,10 @@ class ManagedProvider:
 
     def _check_sandbox_failure(self) -> None:
         """A process that dies at once may have died because the sandbox could not be made."""
-        text = " ".join(self._tail).lower()
-        if text.startswith("bwrap:") or "bwrap:" in text:
-            raise SandboxUnavailable(self._tail[0] if self._tail else "bubblewrap failed")
+        lines = list(self._tail)
+        start = next((index for index, line in enumerate(lines) if "bwrap:" in line.lower()), None)
+        if start is not None:
+            raise SandboxUnavailable(explain_failure("\n".join(lines[start:])) or "bubblewrap failed")
 
     def _wait_ready(self, process: subprocess.Popen) -> bool:
         deadline = time.monotonic() + READY_TIMEOUT

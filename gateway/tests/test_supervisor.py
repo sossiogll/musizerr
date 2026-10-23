@@ -179,6 +179,19 @@ def test_without_a_sandbox_the_provider_does_not_run_and_says_why(world):
     assert supervisor.health.available is False
 
 
+def test_a_sandbox_that_fails_to_start_the_process_says_what_to_do(world, monkeypatch):
+    refusal = "print('bwrap: Creating new namespace failed: Permission denied'); raise SystemExit(1)"
+    monkeypatch.setattr(sv, "build_command", lambda spec, fd: [sys.executable, "-c", refusal])
+    supervisor = world()
+
+    supervisor.apply([ENTRY], {})
+
+    assert wait_for(lambda: state_of(supervisor) == sv.UNAVAILABLE)
+    reason = supervisor.get("demo").status.reason
+    assert reason.startswith("sandbox unavailable: bwrap: Creating new namespace failed: Permission denied (hint: ")
+    assert "apparmor=unconfined" in reason
+
+
 def test_the_sandbox_is_checked_again_and_the_provider_starts_when_it_works(world):
     available = [False]
 

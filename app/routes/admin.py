@@ -5,12 +5,13 @@ from datetime import datetime, timezone
 from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from core import download_policy, user_auth
+from core import download_policy
 from db import user_service
 from db.models import SYSTEM_USER_ID
 from services import request_policy
+from ._password import new_password_hash
 from .deps import AdminUserDep, ConfigDep, SessionDep
 from ._pagination import paginated_response
 
@@ -25,6 +26,32 @@ class UserPublic(BaseModel):
     is_active: bool
     # Created by a sign-in through a provider and waiting for an admin to activate it.
     pending_approval: bool = False
+
+
+class UserCreate(BaseModel):
+    """A new account made by an administrator (Administration › Users)."""
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=1, max_length=150)
+    password: str = Field(max_length=1024)  # the rule is user_auth.hash_new_password's, answered as a coded 422
+    email: Optional[str] = Field(None, max_length=320)
+    role: Literal["admin", "user"] = "user"
+
+    @field_validator("username")
+    @classmethod
+    def _username_is_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value or value == SYSTEM_USER_ID:
+            raise ValueError("username is not valid")
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def _email_or_nothing(cls, value: Optional[str]) -> Optional[str]:
+        value = (value or "").strip()
+        if value and ("@" not in value or value.startswith("@") or value.endswith("@")):
+            raise ValueError("email is not valid")
+        return value or None
 
 
 class UserPatch(BaseModel):
@@ -53,6 +80,29 @@ def list_users(admin: AdminUserDep, session: SessionDep):  # noqa: ARG001
     return paginated_response(items)
 
 
+@router.post("/users", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+def create_user(body: UserCreate, admin: AdminUserDep, session: SessionDep):  # noqa: ARG001
+    """A new, active account with the role asked, whether authentication is on or off (with it off
+    the accounts wait for it to be turned on, and the first administrator is what turning it on
+    needs). The username and the email must be free (409 ``username_taken`` / ``email_taken``);
+    the password is hashed like every other."""
+    try:
+        user = user_service.create_account(
+            session, username=body.username, password_hash=new_password_hash(body.password),
+            email=body.email, role=body.role,
+        )
+    except user_service.AccountExists as exists:
+        code = "email_taken" if exists.field == "email" else "username_taken"
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error_code": code, "error_message": f"The {exists.field} is already taken."},
+        ) from None
+    return UserPublic(
+        id=user.id, username=user.username, email=user.email,
+        role=user.role, is_active=user.is_active, pending_approval=user.pending_approval,
+    )
+
+
 @router.patch("/users/{user_id}", response_model=UserPublic)
 def update_user(user_id: str, body: UserPatch, admin: AdminUserDep, session: SessionDep):
     user = _managed_user(session, user_id)
@@ -72,7 +122,7 @@ def update_user(user_id: str, body: UserPatch, admin: AdminUserDep, session: Ses
         if body.is_active:
             fields["pending_approval"] = False  # activating an account is approving it
     if body.password is not None:
-        fields["password_hash"] = user_auth.hash_password(body.password)
+        fields["password_hash"] = new_password_hash(body.password)
 
     user = user_service.update_user(session, user, **fields)
     return UserPublic(

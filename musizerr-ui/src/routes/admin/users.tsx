@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Download, MoreHorizontal, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX } from "lucide-react";
+import { Download, MoreHorizontal, ShieldCheck, ShieldOff, Trash2, UserCheck, UserPlus, UserX } from "lucide-react";
 import { adminDeleteUser, adminListUsers, adminUpdateUser } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCapabilities } from "@/hooks/useCapabilities";
 import { useServerAction } from "@/hooks/useServerAction";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ApiErrorMessage } from "@/components/ErrorMessage";
+import { CreateUserDialog } from "./CreateUserDialog";
 import { UserDownloadPolicyPanel } from "./UserDownloadPolicy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,9 +32,11 @@ import type { User, UserRole } from "@/types";
  */
 export function AdminUsersPage() {
   const { user: currentUser } = useAuth();
+  const { mode } = useCapabilities();
   const queryClient = useQueryClient();
   const { t } = useI18n();
   const [deleting, setDeleting] = useState<User | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const { data: users, isLoading, error } = useQuery({ queryKey: queryKeys.adminUsers, queryFn: adminListUsers });
   const onError = () => toast.error(t("admin.actionFailed"));
@@ -63,9 +67,17 @@ export function AdminUsersPage() {
 
   return (
     <section aria-labelledby="users-title" className="space-y-3">
-      <h2 id="users-title" className="font-display text-lg font-semibold">
-        {t("admin.usersCount", { count: users?.total ?? 0 })}
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="users-title" className="font-display text-lg font-semibold">
+          {t("admin.usersCount", { count: users?.total ?? 0 })}
+        </h2>
+        <Button size="sm" className="h-11 sm:h-9" onClick={() => setCreating(true)}>
+          <UserPlus aria-hidden />
+          {t("admin.new.open")}
+        </Button>
+      </div>
+      {mode === "open" && <p className="text-sm text-muted-foreground">{t("admin.openModeAccounts")}</p>}
+      {users?.items.length === 0 && <p className="text-sm text-muted-foreground">{t("admin.noAccounts")}</p>}
       <ul className="divide-y rounded-lg border">
         {users?.items.map((u) => (
           <UserRow
@@ -78,6 +90,7 @@ export function AdminUsersPage() {
           />
         ))}
       </ul>
+      <CreateUserDialog open={creating} onOpenChange={setCreating} />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}

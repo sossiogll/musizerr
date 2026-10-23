@@ -6,7 +6,6 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
 
 from core import user_auth
 from db import user_service
@@ -14,6 +13,7 @@ from db.models import User
 from services import download_requests, refresh_tokens
 from services.capabilities import capabilities_for, viewer_mode
 
+from ._password import new_password_hash
 from .deps import ConfigDep, CurrentUserDep, OptionalUserDep, SessionDep
 
 _bearer_optional = HTTPBearer(auto_error=False)
@@ -72,7 +72,9 @@ def auth_status(config: ConfigDep, user: OptionalUserDep, session: SessionDep):
     mode = viewer_mode(config.auth_enabled, user)
     return {
         "auth_enabled": config.auth_enabled,
-        "registration_open": config.registration_open,
+        # Whether a visitor can create an account NOW: never with authentication off (the instance
+        # has one owner and no accounts), else the admin's setting.
+        "registration_open": config.registration_available,
         "mode": mode,
         "capabilities": capabilities_for(mode).as_dict(),
         "download_policy": None if mode == "guest" else download_requests.policy_status(session, user, config),
@@ -100,6 +102,13 @@ def _optional_admin(
     return None
 
 
+_TAKEN = {
+    "username": "Username already taken",
+    "email": "Email already registered",
+    "username or email": "Username or email already taken",
+}
+
+
 @router.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 def register(
     body: RegisterBody,
@@ -113,22 +122,12 @@ def register(
     if not config.registration_open and not caller:
         raise HTTPException(status_code=403, detail="Registration is closed — admin only")
 
-    if user_service.get_user_by_username(session, body.username):
-        raise HTTPException(status_code=409, detail="Username already taken")
-    if body.email and user_service.get_user_by_email(session, body.email):
-        raise HTTPException(status_code=409, detail="Email already registered")
-
-    hashed = user_auth.hash_password(body.password)
     try:
-        user = user_service.create_user(
-            session,
-            username=body.username,
-            password_hash=hashed,
-            email=body.email,
+        user = user_service.create_account(
+            session, username=body.username, password_hash=new_password_hash(body.password), email=body.email,
         )
-    except IntegrityError:  # the same username or email registered meanwhile
-        session.rollback()
-        raise HTTPException(status_code=409, detail="Username or email already taken") from None
+    except user_service.AccountExists as exists:
+        raise HTTPException(status_code=409, detail=_TAKEN[exists.field]) from None
     return UserPublic(
         id=user.id,
         username=user.username,

@@ -89,7 +89,7 @@ def test_turning_authentication_on_with_a_weak_secret_is_refused_and_nothing_is_
 
 
 @pytest.mark.parametrize("secret", ACCEPTED)
-def test_turning_authentication_on_with_a_strong_secret_is_accepted(secret, client, engine, monkeypatch):
+def test_turning_authentication_on_with_a_strong_secret_is_accepted(secret, client, engine, admin, monkeypatch):
     _set_secret(monkeypatch, secret)
 
     resp = _patch(client, auth_enabled=True)

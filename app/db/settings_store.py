@@ -117,10 +117,11 @@ class SettingsRepository:
     # Scrittura
     # ------------------------------------------------------------------
 
-    def set_system(self, key: str, value: Any, *, secret: bool | None = None) -> None:
+    def set_system(self, key: str, value: Any, *, secret: bool | None = None, commit: bool = True) -> None:
         """``secret``: the declaration of a key a provider declared (the schema's ``secret``); left
-        out, the catalog decides."""
-        self._upsert(key, SCOPE_SYSTEM, None, value, secret)
+        out, the catalog decides. ``commit=False``: the write joins the caller's transaction, which
+        the caller commits (the switch of authentication, with the adoption of the owner's data)."""
+        self._upsert(key, SCOPE_SYSTEM, None, value, secret, commit)
 
     def set_user(self, key: str, user_id: str, value: Any, *, secret: bool | None = None) -> None:
         self._upsert(key, SCOPE_USER, user_id, value, secret)
@@ -171,7 +172,9 @@ class SettingsRepository:
         text = json.dumps(value)
         return json.dumps(secret_box.envelope(credential_cipher.seal(text))) if secret else text
 
-    def _upsert(self, key: str, scope: str, user_id: Optional[str], value: Any, secret: bool | None) -> None:
+    def _upsert(
+        self, key: str, scope: str, user_id: Optional[str], value: Any, secret: bool | None, commit: bool = True,
+    ) -> None:
         declared = _catalog_secret(key) if secret is None else secret
         upsert(
             self._session,
@@ -180,4 +183,5 @@ class SettingsRepository:
             where=NO_USER if user_id is None else None,
             update=("value", "updated_at"),
         )
-        self._session.commit()
+        if commit:
+            self._session.commit()

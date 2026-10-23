@@ -272,14 +272,17 @@ def test_two_users_keep_two_different_choices(engine, client_for):
     assert _rows(engine) == sorted([("user", alice, "true"), ("user", bob, "false")])
 
 
-def test_in_open_mode_nobody_owns_it_so_it_stays_off(engine, client_for):
+def test_in_open_mode_the_owner_chooses_it_for_the_instance_user(engine, client_for):
+    from db.models import SYSTEM_USER_ID
+    from tests.database import seed_system_user
+
+    seed_system_user(engine)  # what the application creates at start
     client = client_for(auth_enabled=False)
 
-    # Declared (the UI hides every scope='user' setting in this mode), never valued.
-    assert _schema_entry(client, {})["scope"] == "user"
-    assert KEY not in client.get("/settings/values").json()
-    assert client.patch("/settings", json={KEY: True}).status_code == 400
-    assert _rows(engine) == []
+    assert KEY not in client.get("/settings/values").json()  # never chosen: omitted
+    assert client.patch("/settings", json={KEY: True}).status_code == 200
+    assert client.get("/settings/values").json()[KEY] is True
+    assert _rows(engine) == [("user", SYSTEM_USER_ID, "true")]
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +369,41 @@ def test_without_an_own_account_the_system_account_is_never_used(engine, run_unl
     assert result["no_personal_account"] == 1
     assert result["providers"][0]["outcome"] == "no_personal_account"
     assert _links(engine, me) == ["origin"]
+
+
+def test_in_open_mode_the_owner_takes_the_like_back_with_the_connected_account(engine, run_unlike):
+    from db.models import SYSTEM_USER_ID
+    from tests.database import seed_system_user
+
+    seed_system_user(engine)
+    _choose(engine, SYSTEM_USER_ID, True)
+    library = _library(engine)
+    origin = _Origin()
+    _connect(engine, None, "origin", _token("token-instance"))  # connected from Administration > Providers
+    _liked_on(engine, SYSTEM_USER_ID, library, "origin", "o-1")
+
+    result = run_unlike(SYSTEM_USER_ID, library, origin)
+
+    assert origin.unliked == [("o-1", "Bearer token-instance")]
+    assert result["unliked"] == 1 and _links(engine, SYSTEM_USER_ID) == []
+    assert origin.fallback.used == 0
+
+
+def test_with_authentication_on_the_system_user_has_no_account_to_take_a_like_back_with(engine, run_unlike):
+    from db.models import SYSTEM_USER_ID
+    from tests.database import seed_system_user
+
+    seed_system_user(engine)
+    ConfigManager(engine=engine).update({"auth_enabled": True})
+    _choose(engine, SYSTEM_USER_ID, True)
+    library = _library(engine)
+    origin = _Origin()
+    _connect(engine, None, "origin", _token("token-instance"))
+    _liked_on(engine, SYSTEM_USER_ID, library, "origin", "o-1")
+
+    result = run_unlike(SYSTEM_USER_ID, library, origin)
+
+    assert origin.unliked == [] and result["no_personal_account"] == 1
 
 
 def test_a_disconnected_account_is_no_account(engine, run_unlike):

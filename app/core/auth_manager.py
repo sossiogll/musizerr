@@ -13,7 +13,7 @@ from musizerr_sdk.auth import AuthFlow, AuthSession
 if TYPE_CHECKING:
     from musizerr_sdk.interfaces import BaseProvider
 
-_APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
+_APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000").rstrip("/")
 
 
 class AuthError(Exception):
