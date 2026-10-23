@@ -53,8 +53,14 @@ SOCKET_NAME = "provider.sock"
 EGRESS_SOCKET_NAME = "egress.sock"
 
 # The variables of the image's environment a provider keeps; the rest is dropped.
-IMAGE_ENV_KEEP = ("PATH", "LANG", "LC_ALL", "TZ", "SSL_CERT_FILE", "SSL_CERT_DIR", "PYTHONPATH")
+IMAGE_ENV_KEEP = ("PATH", "LANG", "LC_ALL", "TZ", "SSL_CERT_FILE", "SSL_CERT_DIR", "PYTHONPATH", "MALLOC_ARENA_MAX")
 DEFAULT_PATH = "/usr/local/bin:/usr/bin:/bin"
+# glibc gives each thread that allocates an arena of its own, up to 8 per CPU, and reserves 64 MB of ADDRESS SPACE for
+# each. The sandbox's address space is limited (RLIMIT_AS, limits.memory_mb, 1024 MB by default), so on a 10-CPU host a
+# runner that serves one thread per concurrent call ran out of it at 14 threads ("can't start new thread") with next to no
+# memory in use. Two arenas are plenty for providers that wait for the network. A value chosen by the gateway, the same
+# for every provider; an image that declares MALLOC_ARENA_MAX keeps its own.
+MALLOC_ARENA_MAX = "2"
 PROBE_TIMEOUT_SECONDS = 20
 
 
@@ -148,6 +154,7 @@ class SandboxSpec:
 def sandbox_environment(image_env: Mapping[str, str]) -> dict[str, str]:
     env = {key: value for key, value in image_env.items() if key in IMAGE_ENV_KEEP}
     env.setdefault("PATH", DEFAULT_PATH)
+    env.setdefault("MALLOC_ARENA_MAX", MALLOC_ARENA_MAX)
     env.update({"HOME": "/tmp", "PYTHONUNBUFFERED": "1", "PYTHONDONTWRITEBYTECODE": "1"})
     return env
 

@@ -13,8 +13,8 @@
 # containers too; with 481 threads of them already there, `--nproc=512` made a runner of two threads fail with "can't start new
 # thread" at the first burst. It checks that, with a container holding 700 threads as the same uid next to the gateway:
 #   0. (the precondition) a process under `--nproc=512` in that uid cannot start a thread: the condition is really there;
-#   a. the provider (gateway/tests/fixtures/tasks-provider, `limits.processes` = 64) runs, its sandbox has no RLIMIT_NPROC of its
-#      own, and it starts its threads;
+#   a. the provider (gateway/tests/fixtures/tasks-provider, `limits.processes` = 100, the default memory limit) runs, its sandbox has no RLIMIT_NPROC of its
+#      own, and it starts its threads (64 of them, with the default memory limit and the default stacks);
 #   b. a provider that holds more tasks than its limit is stopped by the gateway (the kernel gave it every thread), with the
 #      reason in `list` and in the log, and is run again;
 #   c. in a gateway whose container has a small pids limit, a provider that cannot start a thread is reported ("process/thread
@@ -90,7 +90,7 @@ step "building the image and pushing it to the local registry"
 TASKS=$(scripts/build-provider-image.sh gateway/tests/fixtures/tasks-provider 127.0.0.1:$REGISTRY_PORT 2>/dev/null)
 echo "tasks $TASKS"
 ENTRY=$(installed_entry tasks "$TASKS" $P-tasks-provider:build)
-printf '%s' "$ENTRY" | grep -q '"processes":64' || die "the image does not declare limits.processes = 64: $ENTRY"
+printf '%s' "$ENTRY" | grep -q '"processes":100' || die "the image does not declare limits.processes = 100: $ENTRY"
 
 step "0. another container holds 700 threads as uid 1000, the gateway's uid"
 docker run -d --name $P-hog --user 1000:1000 "$HOST_IMAGE" \
@@ -106,11 +106,12 @@ echo "{\"providers\": [$ENTRY]}" | push $P-provider-gateway-1 >/dev/null
 wait_until 180 "the provider to run" running
 host ${P}_provider_sockets ${P}_downloads shared-uid | tee "$TMP/a.txt"
 grep -q '^SHARED_UID_OK' "$TMP/a.txt" || die "the provider could not start its threads while another container held the uid's tasks"
+grep -q '^THREADS_OK' "$TMP/a.txt" || die "fewer than 64 threads fit in a sandbox with the default memory limit"
 
 step "b. a provider above its limit is stopped by the gateway, and the kernel did not stop it first"
 host ${P}_provider_sockets ${P}_downloads watchdog | tee "$TMP/b.txt"
 grep -q '^WATCHDOG_OK' "$TMP/b.txt" || die "the gateway did not stop the provider that held more tasks than its limit"
-$COMPOSE logs --no-color provider-gateway 2>&1 | grep -q "tasks: process/thread limit reached: the sandbox held .* over its limit of 64" || die "the log does not say why"
+$COMPOSE logs --no-color provider-gateway 2>&1 | grep -q "tasks: process/thread limit reached: the sandbox held .* over its limit of 100" || die "the log does not say why"
 
 step "c. in a gateway whose container has a pids limit of 70, a provider that cannot start a thread is reported with the numbers"
 docker run -d --name $P-gw-pids --network ${P}_default --user 1000:1000 --cap-drop ALL --pids-limit 70 \

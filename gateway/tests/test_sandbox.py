@@ -67,6 +67,14 @@ def test_the_environment_is_only_what_the_runner_needs():
     assert "SECRET" not in env
 
 
+def test_glibc_gets_two_malloc_arenas_unless_the_image_chose_otherwise():
+    """Each arena reserves 64 MB of the sandbox's limited address space: at the default 1024 MB a runner ran out of it at
+    14 threads on a 10-CPU host, with next to no memory in use."""
+    assert dict(pairs(build_command(spec(), 3), "--setenv"))["MALLOC_ARENA_MAX"] == "2"
+    own = spec(image_env={"PATH": "/opt/bin", "MALLOC_ARENA_MAX": "1"})
+    assert dict(pairs(build_command(own, 3), "--setenv"))["MALLOC_ARENA_MAX"] == "1"
+
+
 def test_the_rlimits_are_set_by_prlimit_around_bubblewrap():
     command = build_command(spec(limits=Limits(512, 256, 64)), 3)
 

@@ -2,7 +2,7 @@
 TEST FIXTURE. A lyrics provider that starts threads on request and returns what happened as JSON in
 ``Lyrics.plain`` (the title of the track is the command):
 
-- ``threads:<count>:<seconds>``  start ``count`` threads that live ``seconds`` seconds; reports how many started, the error
+- ``threads:<count>:<seconds>[:<stack KiB>]``  start ``count`` threads that live ``seconds`` seconds; reports how many started, the error
                                  that stopped it (``RuntimeError: can't start new thread``) and the threads it holds;
 - ``info``                       the uid, the RLIMIT_NPROC the sandbox runs under, the threads it holds and an id of its
                                  process (a restart is a new id).
@@ -25,7 +25,7 @@ from musizerr_sdk.models import Lyrics
 from musizerr_sdk.permissions import Permissions, ResourceLimits
 
 INSTANCE = uuid.uuid4().hex
-LIMIT = 64
+LIMIT = 100
 
 
 def held_threads() -> int:
@@ -36,9 +36,18 @@ def held_threads() -> int:
     return -1
 
 
+def hold(seconds: float) -> None:
+    """What a request handler does: allocate a little (which gives the thread a malloc arena of its own, unless glibc
+    is held to fewer) and wait for the network."""
+    data = [bytes(1000) for _ in range(50)]
+    time.sleep(seconds)
+    del data
+
+
 def report(**extra) -> dict:
     return {
         "instance": INSTANCE, "uid": os.getuid(), "nproc": list(resource.getrlimit(resource.RLIMIT_NPROC)),
+        "as": list(resource.getrlimit(resource.RLIMIT_AS)), "arena_max": os.environ.get("MALLOC_ARENA_MAX"),
         "threads": held_threads(), **extra,
     }
 
@@ -48,9 +57,9 @@ class TasksLyricsProvider(LyricsProvider):
     label = "Tasks (test fixture)"
     auth = AuthDefinition(flow=AuthFlow.NONE, account_model=AccountModel.NONE)
     provider_api_version = PROVIDER_API_VERSION
-    # 2048 MB of address space (the gateway's ceiling): a Python thread reserves about 11 MB of it here, so the default 1024 MB would stop
-    # the threads of the watchdog check before the number of tasks does.
-    permissions = Permissions(limits=ResourceLimits(processes=LIMIT, memory_mb=2048))
+    # The default memory limit (1024 MB of address space) on purpose: a runner serves one thread per concurrent call, and
+    # what a burst of them can reserve in it is part of what is tested.
+    permissions = Permissions(limits=ResourceLimits(processes=LIMIT))
 
     def validate_config(self, config: dict) -> bool:
         return True
@@ -61,14 +70,13 @@ class TasksLyricsProvider(LyricsProvider):
     def get_lyrics(self, track, session):
         command = track.title
         if command.startswith("threads:"):
-            _, count, seconds = command.split(":")
+            _, count, seconds, *stack = command.split(":")
             started, error = 0, None
-            # Small stacks: each thread reserves its stack in the sandbox's address space (limits.memory_mb), and this
-            # test is about the NUMBER of tasks, not about the memory they reserve.
-            threading.stack_size(128 * 1024)
+            # The stack of the new threads: the default (8 MB, reserved in the sandbox's address space) unless a size in KiB is given.
+            threading.stack_size(int(stack[0]) * 1024 if stack else 0)
             try:
                 for _ in range(int(count)):
-                    threading.Thread(target=time.sleep, args=(float(seconds),), daemon=True).start()
+                    threading.Thread(target=hold, args=(float(seconds),), daemon=True).start()
                     started += 1
             except RuntimeError as exc:
                 error = f"RuntimeError: {exc}"

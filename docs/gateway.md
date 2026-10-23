@@ -92,6 +92,12 @@ bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-sess
   "try"). No capability, `no_new_privs`, a non-root uid, a new session, and the process dies with the gateway.
 - The environment is empty except `PATH`, `HOME=/tmp`, `LANG`/`TZ` and certificate variables from the image,
   and the proxy variables. Nothing of the gateway's environment.
+- `MALLOC_ARENA_MAX=2`, the same for every provider, unless the image declares its own. glibc gives each thread that
+  allocates a malloc arena of its own (up to 8 per CPU) and reserves **64 MB of address space** for each; the sandbox's address
+  space is limited (`limits.memory_mb`, 1024 MB by default), so a runner, which serves one thread per concurrent call, ran out
+  of it at 14-18 threads (`can't start new thread`) with next to no memory in use. With two arenas the same sandbox
+  starts about 113 threads at the default 8 MB stacks (measured by `scripts/test-gateway-tasks-integration.sh`). The arenas are
+  address space, not memory: the limit on real memory is not raised.
 - Limits: address space and open files (`prlimit`, limits of each process) and processes and threads (counted
   by the gateway, [below](#processes-and-threads)) from the manifest, capped at the gateway's ceilings
   (`GATEWAY_MAX_MEMORY_MB`, `GATEWAY_MAX_OPEN_FILES`, `GATEWAY_MAX_PROCESSES`); defaults when the manifest asks for
