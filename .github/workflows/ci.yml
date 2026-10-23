@@ -127,3 +127,37 @@ jobs:
       # The root tsconfig.json analyses nothing (project references): check the app's own.
       - run: npx tsc -p tsconfig.app.json --noEmit
       - run: pnpm test
+
+  frontend-image:
+    name: frontend image (nginx proxy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Builds the production image, runs it against throwaway upstreams: the /api rewrite, the unbuffered progress stream,
+      # a backend that is recreated or renamed (BACKEND_URL), nginx -t.
+      - run: scripts/test-frontend-image.sh
+
+  compose:
+    name: compose files
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci
+      AUTH_SECRET: ci-secret-of-at-least-thirty-two-characters
+      CREDENTIALS_KEY: 3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ=
+    steps:
+      - uses: actions/checkout@v4
+      - name: the files render
+        run: |
+          docker compose -f docker-compose.yaml config -q
+          docker compose -f docker-compose.yaml -f docker-compose.build.yml config -q
+          docker compose -f docker-compose.dev.yml config -q
+      - name: the gateway is never privileged and is not left to AppArmor's default, in any compose file
+        run: |
+          for file in docker-compose.yaml docker-compose.dev.yml; do
+            docker compose -f "$file" config --format json | jq -e '.services["provider-gateway"] | (.privileged // false) == false and (.cap_drop | index("ALL")) != null and (.security_opt | index("apparmor=unconfined")) != null' > /dev/null \
+              || { echo "::error::$file: provider-gateway must keep cap_drop ALL, apparmor=unconfined and never be privileged"; exit 1; }
+          done
+      - name: the release assets are built
+        run: |
+          scripts/package-release-assets.sh "$RUNNER_TEMP/assets"
+          cd "$RUNNER_TEMP/assets" && docker compose config --format json | jq -e '.services["provider-gateway"].security_opt | index("seccomp=./musizerr-gateway.seccomp.json")' > /dev/null

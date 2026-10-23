@@ -196,6 +196,28 @@ describe("RoutinesPanel", () => {
     await screen.findByText("Sweep delegations");
     expect(screen.getByRole("button", { name: "Running" })).toBeDisabled();
   });
+
+  it("shows a finished one-time job as done with its last result, not as 'next run', and still lets it run", async () => {
+    const finished = "2026-10-03T10:00:00+00:00";
+    mockGetRoutines.mockResolvedValue([
+      routine({
+        key: "import_existing_library",
+        done: true,
+        next_run_at: null,
+        last_run: {
+          queued_at: finished, started_at: finished, finished_at: finished, wait_seconds: 0, duration_seconds: 42,
+          status: "ok", result: { status: "ok", state: "imported", indexed: 812 }, detail: null, error_code: null, progress: null,
+        },
+      }),
+    ]);
+
+    renderPanel();
+
+    await screen.findByText("Import the existing library");
+    expect(screen.getByText("Done: it does not run again by itself")).toBeInTheDocument();
+    expect(screen.getByText("812 audio files added to the library")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run now" })).toBeEnabled();
+  });
 });
 
 // Real answers of GET /system/routines (src/test/live-routines.ts), in

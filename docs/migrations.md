@@ -30,9 +30,12 @@ SQLite file of `DATA_DIR` (see `docs/postgresql.md`). Three cases:
 3. **Managed DB** — `alembic_version` is set. Just apply any new
    revisions on top.
 
-The init container (`docker-compose.yaml`) also calls `init_db()` via
-`scripts/library_scan.py`, so migrations get applied before the app and
-worker boot whichever happens to start first.
+The init container (`docker-compose.yaml`) calls `init_db()` via
+`scripts/init_db.py` and exits; the app, the workers and beat start only after
+it completed successfully (`depends_on: init: condition:
+service_completed_successfully`), so migrations get applied before any of them
+boots. (It no longer scans the library: that is the routine
+`import_existing_library`, [workers.md](workers.md).)
 
 ## Workflow for devs
 

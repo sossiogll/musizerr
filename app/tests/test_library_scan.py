@@ -17,7 +17,8 @@ from musizerr_sdk.interfaces import StorageStreamResult
 from db.models import LibraryEntry, TrackIdentifierRecord, TrackRecord
 from db.settings_store import SettingsRepository
 from db.track_store import find_or_create_track
-from services.library_scan import LIBRARY_SCANNED, scan_library_once
+from core.routines import LIBRARY_SCANNED
+from services.library_scan import import_existing_library, scan_library_once
 from tests.database import new_engine
 from tests.conftest import FakeAuthManager, FakeRegistry, FakeStorageProvider, make_track, write_flac
 
@@ -252,3 +253,72 @@ def test_a_library_scanned_with_the_workspace_inside_it_stays_intact(session, li
     assert None not in {e.track_id for e in _entries(session).values()}
     assert (library / "A" / "01 one.flac").exists()  # the library stays intact
     assert sorted(p.name for p in (library / ".musizerr-work").rglob("*") if p.is_file()) == ["part.flac"]
+
+
+# ------------------------------------------------------------------
+# The routine ``import_existing_library``: the scan is no step of the init container (which sees
+# no provider: the gateway starts them after the API told it which are installed), it waits for
+# the storage run after run
+# ------------------------------------------------------------------
+
+
+def _import(session, storage, tmp_path):
+    config = SimpleNamespace(storage_provider=storage.name if storage else None, workspace_dir=tmp_path / "work")
+    registry = FakeRegistry(storage=[storage] if storage else [])
+    return import_existing_library(session, registry, config, FakeAuthManager())
+
+
+def test_the_routine_waits_while_no_storage_provider_is_there_and_imports_when_one_comes(session, library, tmp_path, sent_tasks):
+    first = _import(session, None, tmp_path)
+
+    assert first["status"] == "ok" and first["state"] == "waiting" and "detail" in first
+    assert not _scanned(session) and _entries(session) == {}
+
+    second = _import(session, _LibraryStorage(library), tmp_path)
+
+    assert second == {"status": "ok", "state": "imported", "indexed": 2}
+    assert _scanned(session) and len(_entries(session)) == 2
+
+
+def test_a_run_after_the_import_is_a_rescan_that_adds_only_the_new_files(session, library, tmp_path, sent_tasks):
+    storage = _LibraryStorage(library)
+    _import(session, storage, tmp_path)
+    storage.streamed.clear()
+    write_flac(library / "A" / "03 three.flac", title="Three", artist="Artist")
+
+    again = _import(session, storage, tmp_path)
+
+    assert again == {"status": "ok", "state": "imported", "indexed": 1}
+    assert storage.streamed == ["A/03 three.flac"], "the files already indexed are not read again"
+    assert len(_entries(session)) == 3 and _scanned(session)
+
+
+def test_the_scan_itself_still_skips_a_library_already_scanned_unless_forced(session, library, tmp_path, sent_tasks):
+    storage = _LibraryStorage(library)
+    _scan(session, storage, tmp_path)
+    write_flac(library / "A" / "03 three.flac", title="Three", artist="Artist")
+
+    assert _scan(session, storage, tmp_path) is None
+    config = SimpleNamespace(storage_provider=storage.name, workspace_dir=tmp_path / "work")
+    assert scan_library_once(session, FakeRegistry(storage=[storage]), config, FakeAuthManager(), force=True) == 1
+
+
+def test_the_routine_keeps_looking_at_an_empty_storage(session, tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    result = _import(session, _LibraryStorage(empty), tmp_path)
+
+    assert result["state"] == "empty" and result["status"] == "ok"
+    assert not _scanned(session)
+
+
+def test_the_routine_does_not_fail_when_the_storage_stops_halfway(session, library, tmp_path):
+    class _Gone(_LibraryStorage):
+        def list_files(self, prefix, session):
+            raise ConnectionError("storage went away")
+
+    result = _import(session, _Gone(library), tmp_path)
+
+    assert result["status"] == "ok" and result["state"] == "waiting"
+    assert not _scanned(session)

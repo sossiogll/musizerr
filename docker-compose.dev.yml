@@ -13,29 +13,38 @@ x-credentials: &credentials
   CREDENTIALS_KEY: ${CREDENTIALS_KEY:?set CREDENTIALS_KEY in .env (docs/credentials.md)}
   CREDENTIALS_KEY_PREVIOUS: ${CREDENTIALS_KEY_PREVIOUS:-}
 
+# What a service waits for in development: the database and Redis answering and the migrations
+# done (init). The gateway is not waited for: it is built from the checkout and the application
+# works, and reconnects, without it.
 x-wait-for-database: &wait-for-database
+  init:
+    condition: service_completed_successfully
   postgres:
+    condition: service_healthy
+  redis:
     condition: service_healthy
 
 services:
 
   # ------------------------------------------------------------------
-  # Init — bind mount del codice per coerenza con gli altri container
+  # Init — applies the migrations and exits (the library import is the routine
+  # `import_existing_library`, run by a worker); bind mount del codice per coerenza con gli altri container
   # ------------------------------------------------------------------
   init:
     build:
       context: .
       target: development
-    command: python -m scripts.library_scan
+    command: python -m scripts.init_db
     restart: "no"
     volumes:
       - ./app:/app
       - ./sdk:/sdk
       - ./data:/data
-      - ${MUSIC_DIR:-./data/music}:/downloads
     environment:
       <<: [*database, *credentials]
-    depends_on: *wait-for-database
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # ------------------------------------------------------------------
   # API FastAPI — hot reload via uvicorn --reload
@@ -146,6 +155,9 @@ services:
   # Not privileged, no capability, no published port. What it does need, and why:
   #   - a seccomp profile: Docker's default plus the five syscalls bubblewrap
   #     builds a sandbox with (gateway/seccomp/musizerr-gateway.json);
+  #   - apparmor=unconfined: Docker's docker-default AppArmor profile denies the namespace calls
+  #     with EACCES ("Creating new namespace failed: Permission denied"); a no-op without AppArmor.
+  #     Never `privileged: true` instead (docs/gateway.md, Troubleshooting);
   #   - systempaths=unconfined: a sandbox mounts its own /proc, which the kernel
   #     refuses while the container's /proc has Docker's masked paths over it.
   # The sandboxed processes get a further seccomp filter of their own that takes
@@ -167,6 +179,7 @@ services:
     cap_drop: [ALL]
     security_opt:
       - seccomp=./gateway/seccomp/musizerr-gateway.json
+      - apparmor=unconfined
       - systempaths=unconfined
     volumes:
       - ./gateway:/gateway

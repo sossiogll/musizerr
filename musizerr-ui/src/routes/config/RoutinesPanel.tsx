@@ -451,6 +451,8 @@ function RoutineRow({ routine, t, tx, locale, onChanged }: RoutineRowProps) {
               <span className="text-xs font-medium text-warning" title={routine.next_run_at ? absoluteTime(routine.next_run_at, locale) : undefined}>
                 {t("routines.schedulerStaleShort")}
               </span>
+            ) : routine.done ? (
+              <span className="text-xs text-muted-foreground">{t("routines.done")}</span>
             ) : routine.next_run_at ? (
               <span className="text-xs" title={absoluteTime(routine.next_run_at, locale)}>
                 {relativeTime(routine.next_run_at, locale)}

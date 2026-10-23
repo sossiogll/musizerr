@@ -8,7 +8,9 @@ import pytest
 
 from musizerr_gateway import sandbox, sandbox_filter as f
 from musizerr_gateway.config import Ceilings
-from musizerr_gateway.sandbox import Limits, SandboxSpec, SandboxUnavailable, build_command, limits_for
+from musizerr_gateway.sandbox import (
+    Limits, SandboxSpec, SandboxUnavailable, build_command, explain_failure, limits_for,
+)
 from musizerr_sdk.permissions import Permissions, ResourceLimits
 
 
@@ -88,6 +90,72 @@ def test_without_bubblewrap_nothing_can_be_run(monkeypatch):
     with pytest.raises(SandboxUnavailable, match="not installed"):
         build_command(spec(), 3)
     with pytest.raises(SandboxUnavailable):
+        sandbox.probe()
+
+
+# ------------------------------------------------------------------
+# Why a sandbox cannot be made: bubblewrap's words, read as what the administrator should do
+# ------------------------------------------------------------------
+
+# (what bubblewrap prints, a word the hint must contain). The texts are bubblewrap's own.
+KNOWN_FAILURES = [
+    # EACCES on the namespace call: Docker's docker-default AppArmor profile.
+    ("bwrap: Creating new namespace failed: Permission denied", "apparmor=unconfined"),
+    # Ubuntu's kernel.apparmor_restrict_unprivileged_userns.
+    ("bwrap: setting up uid map: Permission denied", "apparmor=unconfined"),
+    # EPERM: the container's seccomp profile, or the sysctl.
+    ("bwrap: No permissions to create a new namespace", "unprivileged_userns_clone"),
+    ("bwrap: No permissions to creating new namespace, likely because the kernel does not allow non-privileged user namespaces.",
+     "musizerr-gateway.json"),
+    ("bwrap: Creating new namespace failed, likely because the kernel does not support user namespaces.", "max_user_namespaces"),
+    ("bwrap: Can't mount proc on /newroot/proc: Operation not permitted", "systempaths=unconfined"),
+    ("bwrap: pivot_root: Operation not permitted", "musizerr-gateway.json"),
+    ("bwrap: Can't mount tmpfs on /newroot/tmp: Operation not permitted", "musizerr-gateway.json"),
+]
+
+
+@pytest.mark.parametrize("text,expected", KNOWN_FAILURES)
+def test_a_known_bubblewrap_failure_says_what_to_do(text, expected):
+    reason = explain_failure(text)
+
+    assert reason.startswith(text), "bubblewrap's own words come first, unchanged"
+    assert "(hint: " in reason and expected in reason
+    assert "\n" not in reason, "the reason becomes one line of 'sandbox unavailable: <reason>'"
+
+
+def test_the_hints_never_suggest_a_privileged_container():
+    for text, _ in KNOWN_FAILURES:
+        advice = explain_failure(text).split("(hint: ", 1)[1].replace("never privileged", "").replace("unprivileged", "")
+        assert "privileged" not in advice
+
+
+def test_eacces_and_eperm_get_different_advice():
+    eacces = explain_failure("bwrap: Creating new namespace failed: Permission denied")
+    eperm = explain_failure("bwrap: No permissions to create a new namespace")
+
+    assert "AppArmor" in eacces and "seccomp" not in eacces
+    assert "seccomp" in eperm and "apparmor=unconfined" not in eperm
+
+
+def test_an_unknown_failure_is_reported_as_it_is_without_a_hint():
+    assert explain_failure("bwrap: execvp python: No such file or directory\nmore") == "bwrap: execvp python: No such file or directory"
+    assert explain_failure("") == ""
+
+
+def test_the_hint_is_found_in_any_line_of_the_error():
+    text = "bwrap: something first\nbwrap: Creating new namespace failed: Permission denied"
+
+    assert explain_failure(text).startswith("bwrap: something first (hint: EACCES")
+
+
+def test_the_probe_reports_the_hint(monkeypatch):
+    class Result:
+        returncode = 1
+        stderr = "bwrap: Creating new namespace failed: Permission denied\n"
+
+    monkeypatch.setattr(sandbox.subprocess, "run", lambda *args, **kwargs: Result())
+
+    with pytest.raises(SandboxUnavailable, match=r"Permission denied \(hint: EACCES: .*apparmor=unconfined"):
         sandbox.probe()
 
 

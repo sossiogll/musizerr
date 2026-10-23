@@ -57,6 +57,51 @@ class SandboxUnavailable(RuntimeError):
     """A sandbox cannot be made here; the message says why."""
 
 
+# What bubblewrap says when it cannot build a sandbox, read as a diagnosis: (words that must ALL appear in
+# the lowercased error text, what the administrator should do). The first row that matches wins, so the
+# specific ones come first. The text is bubblewrap's own (``bwrap.c``): EACCES on the namespace call reads
+# "Creating new namespace failed: Permission denied" and is an LSM (AppArmor) denial; EPERM reads "No
+# permissions to create a new namespace" and is seccomp or a sysctl. The hints are about the container's
+# configuration, never about loosening the sandbox: ``privileged`` is not one of them (docs/gateway.md).
+SANDBOX_HINTS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("creating new namespace failed", "permission denied"),
+     "EACCES: the container is confined by AppArmor (Docker's docker-default profile); add apparmor=unconfined to the "
+     "gateway's security_opt (never privileged)"),
+    (("uid map", "permission denied"),
+     "EACCES: an AppArmor policy denies the user namespace its uid map (on Ubuntu, kernel.apparmor_restrict_unprivileged_userns); "
+     "add apparmor=unconfined to the gateway's security_opt (never privileged)"),
+    (("no permissions to creat", "namespace"),
+     "EPERM: the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...), or "
+     "the kernel forbids unprivileged user namespaces (sysctl kernel.unprivileged_userns_clone=1 on Debian, user.max_user_namespaces > 0)"),
+    (("kernel does not support user namespaces",),
+     "EINVAL: the kernel has no user namespaces, or user.max_user_namespaces is 0 (sysctl user.max_user_namespaces=15000)"),
+    (("can't mount proc",),
+     "the container's /proc is masked: add systempaths=unconfined to the gateway's security_opt"),
+    (("pivot_root",),
+     "the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...)"),
+    (("can't mount", "operation not permitted"),
+     "the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...)"),
+    (("operation not permitted",),
+     "EPERM: the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...), or "
+     "the kernel forbids unprivileged user namespaces (kernel.unprivileged_userns_clone, user.max_user_namespaces)"),
+    (("permission denied",),
+     "EACCES: probably AppArmor; add apparmor=unconfined to the gateway's security_opt (never privileged)"),
+)
+
+
+def explain_failure(error_text: str) -> str:
+    """The first line of what bubblewrap said, followed by what to do about it when the text is a
+    known one (``SANDBOX_HINTS``). Always one line: it becomes ``sandbox unavailable: <reason>``."""
+    lines = [line.strip() for line in error_text.strip().splitlines() if line.strip()]
+    if not lines:
+        return ""
+    lowered = error_text.lower()
+    for words, hint in SANDBOX_HINTS:
+        if all(word in lowered for word in words):
+            return f"{lines[0]} (hint: {hint}; docs/gateway.md, Troubleshooting)"
+    return lines[0]
+
+
 @dataclass(frozen=True)
 class Limits:
     memory_mb: int
@@ -177,8 +222,7 @@ def probe(uid: int = 10001, gid: int = 10001) -> None:
         except OSError as exc:
             raise SandboxUnavailable(f"bubblewrap cannot be run: {exc}") from exc
     if result.returncode != 0:
-        detail = (result.stderr.strip().splitlines() or [f"exit status {result.returncode}"])[0]
-        raise SandboxUnavailable(detail)
+        raise SandboxUnavailable(explain_failure(result.stderr) or f"exit status {result.returncode}")
 
 
 def _granted_binds(binds: tuple[Bind, ...]) -> list[str]:
