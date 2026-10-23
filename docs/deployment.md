@@ -117,6 +117,44 @@ provider-gateway:
 `EACCES` ("Permission denied") means AppArmor or another security module said no; `EPERM` ("No permissions", "Operation
 not permitted") means seccomp or a sysctl (`kernel.unprivileged_userns_clone`, `user.max_user_namespaces`).
 
+## Processes and threads of the providers
+
+The gateway container carries one more option, `pids_limit`, also in `docker-compose.yaml`:
+
+```yaml
+provider-gateway:
+  user: "1000:1000"
+  pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}
+```
+
+It caps the processes and threads of the whole gateway container (the gateway and every provider's sandbox): the kernel counts
+them for this container alone, so however busy the rest of the host is, a provider can neither be starved of threads by it nor
+exhaust the host's process table. On top of it the gateway holds each sandbox to the `limits.processes` of its provider
+(default 512), and reports both with their numbers in `ctl list` and `ctl health` and in the log
+(`process/thread limit reached (RLIMIT_NPROC / pids)`). [gateway.md](gateway.md#processes-and-threads) has the details and why
+the gateway does not use `RLIMIT_NPROC`.
+
+**Upgrading from 1.2.0 or earlier.** Those versions started every sandbox with `--nproc=512`. The kernel counts that over
+**every process of the same uid on the host**, other containers included, and `user: "1000:1000"` is usually the main account of
+the machine: with a few hundred threads of a media server and other services already under uid 1000, a provider that held two
+threads failed with `can't start new thread` (the application saw `Connection reset by peer` from it) at the first burst of
+requests, and bubblewrap itself with `Resource temporarily unavailable`. Nothing you have has to change to keep running; to get
+the fix:
+
+1. Pull the new images and start them: `docker compose pull && docker compose up -d`. The sandboxes no longer get an
+   `RLIMIT_NPROC`, so the failure is gone with the new gateway image, whatever else runs as the uid.
+2. If you use the release's `docker-compose.yaml` as it is, download the new one (the compose file changed: it adds
+   `pids_limit`). If you keep your own compose file or an override, add `pids_limit: 4096` to the `provider-gateway` service.
+   It is recommended, not required: without it the gateway logs a warning at start (`the container has no pids limit`) and each
+   sandbox is still held to its `limits.processes` by the gateway's own count, but nothing stops a burst between two counts.
+3. **Keep `user: "1000:1000"`.** You do not have to change the user, and nothing has to be `chown`ed: the gateway's uid is the
+   owner of the files its providers write into your library (see [Folders](#folders)), and it is the one your media server
+   probably reads them as. If you had changed `user:` to get around the error, you can put it back; a different uid works as it
+   did, with the ownership consequences of [gateway.md](gateway.md#sockets-volumes-and-permissions).
+4. Remove any `ulimits: nproc:` on `provider-gateway`, any `GATEWAY_MAX_PROCESSES` you raised to get around the error, and a
+   `default-ulimits` `nproc` of the Docker daemon, if you set one: a limit of that kind counts over the whole uid and brings the
+   failure back. The pids limit does the job.
+
 ## The public URL
 
 Set `PUBLIC_URL` to the address **as the browser sees it**, without a trailing slash: `http://192.168.1.20:8080`,
@@ -232,6 +270,7 @@ it is given with *its* resolver.
 | `docker compose up` stops with `set POSTGRES_PASSWORD in .env` (or `AUTH_SECRET`, `CREDENTIALS_KEY`) | The variable is missing from `.env` ([2](#2-the-env-file)). |
 | `docker compose up` fails with `opening seccomp profile (...) failed ... no such file` | `musizerr-gateway.seccomp.json` is not next to the compose file (the path is relative to it), or `GATEWAY_SECCOMP_PROFILE` is wrong. |
 | `ctl health` says `sandbox unavailable: ...` | The hint at the end of the message; [gateway.md, Troubleshooting](gateway.md#troubleshooting). |
+| A provider fails with `can't start new thread` or `Connection reset by peer`, or `ctl health` mentions `Resource temporarily unavailable` | The numbers in the gateway's log and `ctl list` (`container`, `tasks`): [Processes and threads](#processes-and-threads-of-the-providers), [gateway.md](gateway.md#troubleshooting). |
 | The web app answers 502 | The API is not up: `docker compose logs app`. nginx finds it again by itself (a few seconds) when it comes back. |
 | `init` is `Exited (1)` and nothing else starts | `docker compose logs init`: usually `CREDENTIALS_KEY` invalid, or the database not reachable. |
 | The browser is sent to `localhost` after signing in at a service | `PUBLIC_URL` is not set ([The public URL](#the-public-url)). |

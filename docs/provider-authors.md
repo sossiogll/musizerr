@@ -69,7 +69,10 @@ the admin sees it before installing, and the gateway enforces it.
     setting names (a protocol that is not HTTP; use `musizerr_sdk.net`);
   - `filesystem_from_settings`: `FilesystemAccess("root_dir", "rw")`, a folder a
     setting names, inside what the instance allows;
-  - `limits`: memory, open files, processes, within the gateway's ceilings.
+  - `limits`: `memory_mb` (address space of each process, in which every thread reserves its stack: about 8 MB by default),
+    `open_files` (of each process) and `processes` (the processes and threads of the whole sandbox together, counted by the
+    gateway: a provider that stays above it is stopped and started again), within the gateway's ceilings. The defaults are
+    1024 MB, 1024 files and 512 tasks; a provider needs to declare them only when it needs more or fewer.
 
   An update that asks for more is shown to the admin as a difference before it
   is applied, and an image whose labels say otherwise than its catalog entry is
