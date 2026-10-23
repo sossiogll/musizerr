@@ -11,8 +11,24 @@ from .config import ConfigError, from_environment
 from .control import Control, ControlServer
 from .images import ImageStore
 from .supervisor import SandboxHealth, Supervisor
+from .tasks import read_pids_cgroup
 
 logger = logging.getLogger("musizerr_gateway")
+
+
+def _report_task_limits(ceiling: int) -> None:
+    """Say at start what bounds the processes and threads of the sandboxes, and warn when nothing does."""
+    cgroup = read_pids_cgroup()
+    if cgroup is None:
+        logger.info("the container's pids controller cannot be read; each sandbox is still held to its limits.processes (ceiling %d)", ceiling)
+    elif cgroup.limit is None:
+        logger.warning(
+            "the container has no pids limit (%d tasks now): set pids_limit on the gateway service so that a runaway provider "
+            "cannot exhaust the host's process table; each sandbox is held to its limits.processes (ceiling %d) by sampling only",
+            cgroup.current, ceiling,
+        )
+    else:
+        logger.info("container pids limit: %d (%d now); each sandbox is held to its limits.processes (ceiling %d)", cgroup.limit, cgroup.current, ceiling)
 
 
 def main() -> int:
@@ -32,6 +48,7 @@ def main() -> int:
     except PermissionError:
         pass
 
+    _report_task_limits(config.ceilings.processes)
     health = SandboxHealth(config.sandbox_uid, config.sandbox_gid)
     health.check()
     supervisor = Supervisor(config, ImageStore(config), health)

@@ -17,7 +17,11 @@ What the provider gets:
   and gid, no capability, ``no_new_privs``, a new session, and death with the gateway;
 - the seccomp filter of :mod:`sandbox_filter` and, with bubblewrap's own
   ``--disable-userns``, no further user namespaces;
-- the rlimits of its manifest within the ceilings of the gateway, set by ``prlimit``.
+- the rlimits of its manifest within the ceilings of the gateway, set by ``prlimit``: address space and open
+  files (limits of a process, so they mean the same everywhere). NOT the number of processes: the kernel's
+  ``RLIMIT_NPROC`` is counted over every process of the uid on the whole host, so it cannot be a limit of one
+  sandbox (``tasks.py`` says what bounds the tasks instead: the container's pids limit and the gateway's own
+  count of each sandbox, ``Limits.processes``).
 
 **Fail closed.** If bubblewrap cannot make the sandbox (not installed, no user
 namespaces, the container's seccomp profile or masked ``/proc`` in the way) the
@@ -40,6 +44,7 @@ from musizerr_sdk.permissions import Permissions
 from .config import Ceilings
 from .filesystem import Bind
 from .sandbox_filter import compile_program
+from .tasks import TASK_LIMIT_HINT, pressure_summary
 
 SANDBOX_WORKSPACE = "/workspace"
 SANDBOX_SOCKET_DIR = "/run/provider"
@@ -64,6 +69,8 @@ class SandboxUnavailable(RuntimeError):
 # permissions to create a new namespace" and is seccomp or a sysctl. The hints are about the container's
 # configuration, never about loosening the sandbox: ``privileged`` is not one of them (docs/gateway.md).
 SANDBOX_HINTS: tuple[tuple[tuple[str, ...], str], ...] = (
+    # EAGAIN on clone/unshare/fork: no task could be created (not a permission problem; the numbers are added by explain_failure).
+    (("resource temporarily unavailable",), TASK_LIMIT_HINT),
     (("creating new namespace failed", "permission denied"),
      "EACCES: the container is confined by AppArmor (Docker's docker-default profile); add apparmor=unconfined to the "
      "gateway's security_opt (never privileged)"),
@@ -98,15 +105,17 @@ def explain_failure(error_text: str) -> str:
     lowered = error_text.lower()
     for words, hint in SANDBOX_HINTS:
         if all(word in lowered for word in words):
+            if hint is TASK_LIMIT_HINT:
+                hint = f"{hint} [{pressure_summary()}]"
             return f"{lines[0]} (hint: {hint}; docs/gateway.md, Troubleshooting)"
     return lines[0]
 
 
 @dataclass(frozen=True)
 class Limits:
-    memory_mb: int
-    open_files: int
-    processes: int
+    memory_mb: int  # address space of each process (RLIMIT_AS)
+    open_files: int  # open files of each process (RLIMIT_NOFILE)
+    processes: int  # tasks (processes and threads) of the whole sandbox: counted by the gateway, not by the kernel (tasks.py)
 
 
 def limits_for(permissions: Permissions, ceilings: Ceilings) -> Limits:
@@ -170,7 +179,7 @@ def build_command(spec: SandboxSpec, seccomp_fd: int) -> list[str]:
     limits = spec.limits
     command = [
         prlimit_path(),
-        f"--as={limits.memory_mb * 1024 * 1024}", f"--nofile={limits.open_files}", f"--nproc={limits.processes}", "--core=0",
+        f"--as={limits.memory_mb * 1024 * 1024}", f"--nofile={limits.open_files}", "--core=0",
         "--",
         bwrap_path(), *_common_arguments(spec.uid, spec.gid),
         "--ro-bind", str(spec.rootfs), "/",
