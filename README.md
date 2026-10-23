@@ -78,7 +78,7 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
 More: [the deployment guide](docs/deployment.md), [PostgreSQL and moving from SQLite](docs/postgresql.md), [workers](docs/workers.md),
 [users and permissions](docs/permissions.md), [signing in through a provider](docs/provider-login.md),
 [playlists](docs/playlists.md), [sources and catalogs](docs/catalog.md), [the gateway](docs/gateway.md),
-[migrations](docs/migrations.md).
+[migrations](docs/migrations.md), [the push callback of delegated downloads](docs/delegation-webhook.md).
 
 ## Write a provider
 
