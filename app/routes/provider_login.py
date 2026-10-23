@@ -27,7 +27,7 @@ from .users_auth import TokenResponse, cookie_is_secure
 
 logger = logging.getLogger(__name__)
 
-_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 # Where the browser lands when the authorization ends: the page that exchanges
 # the one-time code for a session, or shows why there is none.
 _LANDING = "/login/provider"

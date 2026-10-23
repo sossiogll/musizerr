@@ -27,7 +27,7 @@ from .deps import AdminUserDep, ConfigDep, CurrentUserDep, RegistryDep, SessionD
 from .provider_login import finish_callback as finish_login_callback
 from .users_auth import LoginBody, login as account_login
 
-_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 router = APIRouter()
 
