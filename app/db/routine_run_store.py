@@ -140,6 +140,19 @@ def last_finished_run(
     ).first()
 
 
+def finished_runs(
+    session: Session, routine_key: str, statuses: tuple[str, ...] = (STATUS_OK, STATUS_ERROR), limit: int = 10,
+) -> list[RoutineRun]:
+    """Le ultime ``limit`` run concluse con uno degli ``statuses``, la più recente per prima."""
+    return list(session.exec(
+        select(RoutineRun)
+        .where(RoutineRun.routine_key == routine_key, RoutineRun.status.in_(statuses),
+               RoutineRun.finished_at.is_not(None))
+        .order_by(RoutineRun.finished_at.desc())
+        .limit(limit)
+    ).all())
+
+
 def last_started_at(session: Session, routine_key: str) -> Optional[datetime]:
     """L'avvio reale più recente del routine (None se non è mai partito)."""
     return as_utc(session.exec(

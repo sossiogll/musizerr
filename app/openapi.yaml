@@ -990,7 +990,7 @@ components:
 
     RoutineInfo:
       type: object
-      required: [key, task, enabled, interval_minutes, min_interval_minutes, queued, running, scheduler_stale]
+      required: [key, task, enabled, interval_minutes, min_interval_minutes, done, queued, running, scheduler_stale]
       properties:
         key:
           type: string
@@ -1015,7 +1015,12 @@ components:
         next_run_at:
           type: [string, "null"]
           format: date-time
-          description: The last real start plus the interval; null if it never started (due now).
+          description: The last real start plus the interval; null if it never started (due now), or if the routine is done.
+        done:
+          type: boolean
+          description: >
+            A one-time job (declared with a completion flag) that has finished: the scheduler no longer starts it
+            by itself and it has no next run; "run now" still runs it. Clearing its flag re-arms it.
         queued:
           type: boolean
           description: A run waits in the queue for a worker.
@@ -7356,7 +7361,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [current, commit, development, check_enabled, checked_at, last_check_failed, updates, latest]
+                required: [current, commit, development, check_enabled, checked_at, last_check_failed, release_info_unavailable, updates, latest]
                 properties:
                   current: {type: string}
                   commit: {type: string}
@@ -7366,6 +7371,14 @@ paths:
                   check_enabled: {type: boolean}
                   checked_at: {type: [string, "null"], format: date-time}
                   last_check_failed: {type: boolean}
+                  release_info_unavailable:
+                    type: [string, "null"]
+                    enum: [not_found, unauthorized, rate_limited, unreachable, upstream_error, null]
+                    description: >
+                      Why the releases could not be read at the last check that answered (the repository is
+                      private or renamed, a rate limit, GitHub or the network unreachable), or null. It is not a
+                      failure of the instance (`last_check_failed` stays false); the last answer that did read
+                      them stays shown.
                   latest: {type: [string, "null"]}
                   updates:
                     type: array
@@ -7923,7 +7936,18 @@ paths:
     post:
       operationId: registerDelegationWebhooks
       tags: [delegation]
-      summary: Register musizerr's webhook on every download provider that supports it (admin)
+      summary: Register musizerr's webhook on every download provider (admin)
+      description: >
+        Asks every download provider to register the push callback on its external system, one result each.
+        `state` is `registered`; `not_supported`, only when the provider does not implement
+        `register_push_endpoint` (its manifest says so); or `failed`, when the provider implements it but the
+        external system refused it (a validation error, because it cannot reach the callback address, a
+        rejected credential...), could not be reached, or the provider answered with neither an outcome nor
+        a reason. A failure carries the classified `error_code` (`download_provider_<kind>`: unreachable,
+        timeout, auth_failed, upstream_error, failed...) and the provider's own reason in `error_detail`
+        (this route is admin-only); `registration_not_confirmed` is a provider that answered nothing. The
+        callback token is never returned: it is hidden in anything the provider quotes. The callback address
+        must be reachable FROM the external system (see docs/delegation-webhook.md).
       responses:
         "200":
           description: One result per provider
@@ -7936,6 +7960,7 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [provider, label, ok, state, detail]
                       properties:
                         provider:
                           type: string
@@ -7943,8 +7968,26 @@ paths:
                           type: string
                         ok:
                           type: boolean
+                          description: The same as `state == registered`.
+                        state:
+                          type: string
+                          enum: [registered, not_supported, failed]
                         detail:
                           type: string
+                          description: >
+                            The provider's outcome word (created, updated...) when registered;
+                            `not_supported` or `failed` otherwise (read `state`, and `error_*` for a failure).
+                        error_code:
+                          type: string
+                          description: Only for `failed`.
+                        error_message:
+                          type: string
+                          description: Only for `failed`; a readable sentence, in English.
+                        error_detail:
+                          type: string
+                          description: Only for `failed`; the provider's own reason, with credentials hidden.
+        "400":
+          description: public_base_url is not configured
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

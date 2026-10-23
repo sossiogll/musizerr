@@ -46,11 +46,31 @@ RUN pnpm build
 
 # ------------------------------------------------------------------
 # Stage: production — nginx serve i file statici e proxia /api/
+#
+# The nginx configuration is a TEMPLATE the official image renders at every start (envsubst): only the
+# variables below are replaced, the `$host`-style variables of nginx are not. BACKEND_URL is where the API is
+# (scheme://host:port), DNS_RESOLVER the name server nginx asks for its address; the name is resolved again
+# every few seconds, so a recreated API container is found. docs/deployment.md.
 # ------------------------------------------------------------------
 FROM nginx:alpine AS production
 
+ENV BACKEND_URL=http://app:8000 \
+    DNS_RESOLVER=127.0.0.11 \
+    NGINX_ENVSUBST_FILTER="^(BACKEND_URL|DNS_RESOLVER)$"
+
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN rm -f /etc/nginx/conf.d/default.conf
+COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+# Sourced by the entrypoint before the templates are rendered (an executable .envsh is sourced, a .sh run), and the
+# IPv6 listener the official image would add to a default.conf that is not rendered yet when it looks.
+COPY nginx/15-backend-url.envsh /docker-entrypoint.d/15-backend-url.envsh
+COPY nginx/25-listen-on-ipv6.sh /docker-entrypoint.d/25-listen-on-ipv6.sh
+RUN chmod 755 /docker-entrypoint.d/15-backend-url.envsh /docker-entrypoint.d/25-listen-on-ipv6.sh
+
+# A template that does not render to a valid configuration fails the build, not the first start.
+RUN envsubst '${BACKEND_URL} ${DNS_RESOLVER}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf \
+    && nginx -t \
+    && rm /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

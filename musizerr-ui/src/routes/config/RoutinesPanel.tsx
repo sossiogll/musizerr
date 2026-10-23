@@ -62,6 +62,11 @@ type Translate = (key: string, fallback: string, vars?: Record<string, string | 
  * why it did nothing).
  */
 export function routineResultText(tx: Translate, key: string, result: Record<string, unknown>): string | null {
+  // A routine whose source could not be read (not an error of the instance): it says so, and why.
+  if (result.state === "unavailable" && typeof result.reason === "string") {
+    const why = tx(`about.releaseInfoReasons.${result.reason}`, result.reason);
+    return `${tx("about.releaseInfoUnavailable", "unavailable")} (${why})`;
+  }
   return sentence(tx, `routines.results.${key}`, result);
 }
 
@@ -451,6 +456,8 @@ function RoutineRow({ routine, t, tx, locale, onChanged }: RoutineRowProps) {
               <span className="text-xs font-medium text-warning" title={routine.next_run_at ? absoluteTime(routine.next_run_at, locale) : undefined}>
                 {t("routines.schedulerStaleShort")}
               </span>
+            ) : routine.done ? (
+              <span className="text-xs text-muted-foreground">{t("routines.done")}</span>
             ) : routine.next_run_at ? (
               <span className="text-xs" title={absoluteTime(routine.next_run_at, locale)}>
                 {relativeTime(routine.next_run_at, locale)}

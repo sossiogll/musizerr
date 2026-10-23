@@ -7,8 +7,10 @@ name: images
 # It is also the release (ADR-0007 §6): the pull requests merged into dev since the last release say what
 # this merge is, by their labels: breaking → MAJOR, feature → MINOR, fix → PATCH; chore alone → no
 # release. A release tags the commit vX.Y.Z (the first one 1.0.0), pushes the images as :X.Y.Z too, and
-# creates the GitHub release: notes by kind, the upgrade notes the pull requests wrote, the images, and
-# release.json (what an instance's update check reads). Run by hand, it rebuilds the images, no release.
+# creates the GitHub release: notes by kind, the upgrade notes the pull requests wrote, the images,
+# release.json (what an instance's update check reads) and the files to install without cloning the repository
+# (docker-compose.yaml, the gateway's seccomp profile, env.example: scripts/package-release-assets.sh,
+# docs/deployment.md). Run by hand, it rebuilds the images, no release.
 on:
   push:
     branches: [master]
@@ -225,11 +227,16 @@ jobs:
             done
             echo
             echo "Provider contract: $contract. To update: set \`MUSIZERR_VERSION=$VERSION\` in \`.env\`, then \`docker compose pull && docker compose up -d\`."
+            echo
+            echo "To install without cloning the repository, download \`docker-compose.yaml\`, \`musizerr-gateway.seccomp.json\` and \`env.example\` (below) into one folder: [deployment guide](https://github.com/$GITHUB_REPOSITORY/blob/v$VERSION/docs/deployment.md)."
           } > "$RUNNER_TEMP/notes.md"
           # What an instance's update check reads (ADR-0007 §5.1). The contract migrations join it with phase 3.
           manual=$([ -s "$notes/upgrade.md" ] && echo true || echo false)
           jq -n --arg version "$VERSION" --argjson contract "$contract" --argjson images "$images" --argjson manual "$manual" \
             '{version: $version, provider_contracts: [$contract], images: $images, manual_steps: $manual}' > "$RUNNER_TEMP/release.json"
           cat "$RUNNER_TEMP/release.json"
+          # The compose file and the seccomp profile it reads from the host, side by side (a profile cannot come from an image).
+          scripts/package-release-assets.sh "$RUNNER_TEMP/assets"
           gh release create "v$VERSION" --verify-tag --title "Musizerr $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md" "$RUNNER_TEMP/release.json"
+            --notes-file "$RUNNER_TEMP/notes.md" "$RUNNER_TEMP/release.json" \
+            "$RUNNER_TEMP/assets/docker-compose.yaml" "$RUNNER_TEMP/assets/musizerr-gateway.seccomp.json" "$RUNNER_TEMP/assets/env.example"

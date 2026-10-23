@@ -15,6 +15,7 @@ Provider-agnostico: ``task_name`` referenzia solo task interni.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, Mapping
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,19 @@ class RoutineDef:
     # The task reports its progress while it runs (phase, processed/total):
     # the run is handed a reporter (``services.routines.RunProgress``).
     reports_progress: bool = False
+    # A job that is done once, not periodic work: the key of a SYSTEM setting that is True when it has
+    # finished. From then on the tick never dispatches it by itself and the page shows it as completed;
+    # "Run now" still runs it (a forced repeat). What sets the flag back to anything else re-arms it.
+    done_when: str | None = None
 
+
+def is_done(routine: RoutineDef, system_settings: Mapping[str, Any]) -> bool:
+    """True when ``routine`` declares a completion flag and the flag is set."""
+    return routine.done_when is not None and system_settings.get(routine.done_when) is True
+
+
+# The system flag that says the library the storage already held was imported (services.library_scan).
+LIBRARY_SCANNED = "library_scanned"
 
 # The routine that brings the database in line with the sync providers'
 # libraries; the library scan and the likes sync start it.
@@ -52,6 +65,19 @@ SYNC_LIBRARY_INDEX = "sync_library_index"
 SYNC_PLAYLISTS = "sync_playlists"
 
 ROUTINES: tuple[RoutineDef, ...] = (
+    RoutineDef(
+        # The audio files the storage provider already holds become the library, once per installation
+        # (services.library_scan). It is a routine and not a step of the init container because the
+        # providers start only after the API told the gateway which are installed: it waits, run after
+        # run, until a storage provider answers, and does nothing at all once the library is imported.
+        # Its result is "waiting" until then. A one-time job: once the flag is set the tick leaves it alone
+        # and the page shows it as done; "Run now" scans again (new files only). Clearing the flag re-arms it.
+        key="import_existing_library",
+        task_name="workers.tasks.import_existing_library",
+        default_interval_minutes=5,
+        max_runtime_minutes=240,  # lists and reads the tags of the whole library
+        done_when=LIBRARY_SCANNED,
+    ),
     RoutineDef(
         key="sync_saved_tracks",
         task_name="workers.tasks.sync_all_users_saved_tracks",

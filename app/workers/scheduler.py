@@ -64,7 +64,7 @@ from db.settings_store import SettingsRepository
 from services.routines import RunProgress
 from services.worker_health import worker_alive
 
-from core.routines import ROUTINES, RoutineDef, enabled_setting_key, get_routine, interval_setting_key
+from core.routines import ROUTINES, RoutineDef, enabled_setting_key, get_routine, interval_setting_key, is_done
 
 from .celery_app import celery, queue_of
 
@@ -149,7 +149,7 @@ def tick() -> dict:
     # The routines another one follows first: a leader dispatched in this
     # tick already holds back its follower.
     for routine in sorted(ROUTINES, key=lambda r: r.follows is not None):
-        if not _enabled(routine, settings):
+        if not _enabled(routine, settings) or is_done(routine, settings):
             continue
         interval_minutes = int(settings.get(interval_setting_key(routine.key), routine.default_interval_minutes))
         if not _due(routine.key, interval_minutes):

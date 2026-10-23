@@ -9,8 +9,6 @@ import {
   patchSettings,
   startFullSyncVerify,
   getFullSyncVerifyStatus,
-  registerDelegationWebhooks,
-  type DelegationWebhookRegistrationResult,
   type SettingDef,
 } from "@/lib/api-client";
 import type { ProviderInfo, ProvidersResponse } from "@/types";
@@ -26,6 +24,7 @@ import { CreateAdministratorDialog, NO_ADMIN_ACCOUNT } from "./CreateAdministrat
 import { SettingControl } from "./SettingControl";
 import { ProviderOrderList } from "./ProviderOrderList";
 import { ProviderRefControl } from "./ProviderRefControl";
+import { RegisterWebhook } from "./RegisterWebhook";
 import {
   findProviderByName,
   isLockedUnavailable,
@@ -406,60 +405,6 @@ function FullSyncVerify() {
         </Button>
       </div>
       {status && <div className="mt-2 text-xs text-muted-foreground">{status}</div>}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------
-// Widget d'azione del gruppo "reconciliation" — invariato da AdvancedTab.tsx.
-// ------------------------------------------------------------------
-
-function RegisterWebhook() {
-  const { t } = useI18n();
-  const [results, setResults] = useState<DelegationWebhookRegistrationResult[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const run = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await registerDelegationWebhooks();
-      setResults(r);
-      if (r.some((x) => x.ok)) {
-        toast.success(t("settings.webhookRegistered"));
-      } else {
-        toast.error(t("settings.webhookNoneAccepted"));
-      }
-    } catch {
-      setResults(null);
-      setError(t("settings.webhookRegistrationFailed"));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="rounded-lg border border-dashed p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm">
-          <div className="font-medium">{t("settings.registerWebhookTitle")}</div>
-          <div className="text-xs text-muted-foreground">
-            {t("settings.registerWebhookDescription")}
-          </div>
-        </div>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={run}>
-          {busy ? t("settings.inProgress") : t("settings.register")}
-        </Button>
-      </div>
-      {error && <div className="mt-2 break-all text-xs text-muted-foreground">{error}</div>}
-      {results && (
-        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-          {results.map((r) => (
-            <li key={r.provider}>
-              {r.ok ? "✅" : "⚪"} {r.label}: {r.detail}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

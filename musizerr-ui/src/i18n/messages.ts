@@ -270,6 +270,8 @@ export const en = {
     register: "Register",
     webhookRegistered: "Webhook registration completed",
     webhookNoneAccepted: "No provider accepted the registration",
+    webhookNoneSupported: "No download provider has a push registration",
+    webhookNotSupported: "does not support push registration",
     webhookRegistrationFailed: "❌ Registration failed (check the configured public URL)",
     openModeTitle: "Sign-in is off",
     openModeBody: "Anyone who can reach this address can use and change everything, as an administrator. Turn authentication on in System to require an account.",
@@ -416,6 +418,7 @@ export const en = {
       sweep_workspaces: "Clean up workspaces",
       check_for_updates: "Check for updates",
       reconcile_library_files: "Reconcile library files",
+      import_existing_library: "Import the existing library",
       retry_transient_failures: "Retry temporary failures",
     },
     descriptions: {
@@ -437,6 +440,8 @@ export const en = {
         "Reads the releases of Musizerr on GitHub once a day and tells Administration when a newer version exists and what updating to it implies. It never updates anything: Musizerr is updated by hand.",
       reconcile_library_files:
         "Checks the library against the files the storage really holds: a moved file is found again, a vanished one no longer counts as in the library. Deletes nothing.",
+      import_existing_library:
+        "Adds the music the storage already holds to the library, once. It waits until a storage provider is installed and answering, so on a new installation it runs a few minutes after you set the storage up, and then it is done and does not run again by itself. \"Run now\" scans again and adds the files that are new.",
       retry_transient_failures:
         "Queues again, a few at a time, the tracks whose last download failed for a temporary error (network, provider down).",
     },
@@ -450,6 +455,7 @@ export const en = {
     saved: "Saved",
     lastRun: "Last run",
     nextRun: "Next run",
+    done: "Done: it does not run again by itself",
     neverRun: "Never run yet",
     statusOk: "OK",
     statusError: "Error",
@@ -508,6 +514,7 @@ export const en = {
       sweep_workspaces: "Removed {{removed}} leftover workspaces",
       check_for_updates: "Read the releases of {{repository}}",
       reconcile_library_files: "{{relocated}} files found again and {{missing_new}} newly missing among {{entries}} library files",
+      import_existing_library: "{{indexed}} audio files added to the library",
       retry_transient_failures: "Queued again {{queued}} of {{candidates}} failed downloads",
     },
     resultFields: {
@@ -918,6 +925,15 @@ export const en = {
     webVersion: "Web app",
     serverVersion: "Server",
     versionMismatch: "The web app and the server are different versions: reload the page; if it stays, restart Musizerr.",
+    releaseInfo: "Releases",
+    releaseInfoUnavailable: "Release information unavailable",
+    releaseInfoReasons: {
+      not_found: "the releases of the project are not public (or the repository was renamed)",
+      unauthorized: "GitHub refused the request",
+      rate_limited: "GitHub is limiting requests, it will be asked again",
+      unreachable: "GitHub could not be reached from this server",
+      upstream_error: "GitHub answered with an error, it will be asked again",
+    },
   },
   updates: {
     title: "Musizerr {{version}} is available",
@@ -965,6 +981,7 @@ export const en = {
   },
   error_codes: {
     database_busy: "The server is busy, try again in a moment.",
+    registration_not_confirmed: "The provider did not confirm the registration and gave no reason.",
     invalid_source_url: "That is not the address of a catalog (http or https, without a password in it).",
     invalid_credential: "The token must be printable text on one line.",
     credential_requires_https: "A token is only sent to an https address.",
@@ -1712,6 +1729,8 @@ export const it: Translations<typeof en> = {
     register: "Registra",
     webhookRegistered: "Registrazione webhook completata",
     webhookNoneAccepted: "Nessun provider ha accettato la registrazione",
+    webhookNoneSupported: "Nessun provider di download ha la registrazione push",
+    webhookNotSupported: "non supporta la registrazione push",
     webhookRegistrationFailed: "❌ Registrazione fallita (verifica l'URL pubblico configurato)",
     openModeTitle: "L'accesso è disattivato",
     openModeBody: "Chiunque raggiunga questo indirizzo può usare e modificare tutto, come amministratore. Attiva l'autenticazione in Sistema per richiedere un account.",
@@ -1855,6 +1874,7 @@ export const it: Translations<typeof en> = {
       sweep_workspaces: "Pulizia cartelle di lavoro",
       check_for_updates: "Controllo aggiornamenti",
       reconcile_library_files: "Riconcilia i file della libreria",
+      import_existing_library: "Importa la libreria esistente",
       retry_transient_failures: "Riprova i fallimenti temporanei",
     },
     descriptions: {
@@ -1875,6 +1895,8 @@ export const it: Translations<typeof en> = {
         "Legge una volta al giorno le release di Musizerr su GitHub e avvisa in Amministrazione quando esiste una versione più nuova e cosa comporta aggiornare. Non aggiorna mai nulla: Musizerr si aggiorna a mano.",
       reconcile_library_files:
         "Confronta la libreria con i file che lo storage contiene davvero: un file spostato si ritrova, uno sparito non conta più come in libreria. Non cancella nulla.",
+      import_existing_library:
+        "Aggiunge una volta alla libreria la musica che lo storage contiene già. Aspetta che un provider di storage sia installato e risponda: su un'installazione nuova parte pochi minuti dopo aver configurato lo storage, poi è completata e non riparte da sola. \"Esegui ora\" scansiona di nuovo e aggiunge i file nuovi.",
       retry_transient_failures:
         "Rimette in coda, poche per volta, le tracce il cui ultimo download è fallito per un errore temporaneo (rete, provider irraggiungibile).",
     },
@@ -1888,6 +1910,7 @@ export const it: Translations<typeof en> = {
     saved: "Salvato",
     lastRun: "Ultima esecuzione",
     nextRun: "Prossima esecuzione",
+    done: "Completato: non riparte da solo",
     neverRun: "Mai eseguita",
     statusOk: "OK",
     statusError: "Errore",
@@ -1946,6 +1969,7 @@ export const it: Translations<typeof en> = {
       sweep_workspaces: "Rimosse {{removed}} cartelle di lavoro rimaste",
       check_for_updates: "Lette le release di {{repository}}",
       reconcile_library_files: "{{relocated}} file ritrovati e {{missing_new}} nuovi mancanti su {{entries}} file della libreria",
+      import_existing_library: "{{indexed}} file audio aggiunti alla libreria",
       retry_transient_failures: "Rimessi in coda {{queued}} download falliti su {{candidates}}",
     },
     resultFields: {
@@ -2354,6 +2378,15 @@ export const it: Translations<typeof en> = {
     webVersion: "App web",
     serverVersion: "Server",
     versionMismatch: "L'app web e il server hanno versioni diverse: ricarica la pagina; se resta così, riavvia Musizerr.",
+    releaseInfo: "Release",
+    releaseInfoUnavailable: "Informazioni sulle release non disponibili",
+    releaseInfoReasons: {
+      not_found: "le release del progetto non sono pubbliche (o il repository è stato rinominato)",
+      unauthorized: "GitHub ha rifiutato la richiesta",
+      rate_limited: "GitHub sta limitando le richieste, verrà interrogato di nuovo",
+      unreachable: "GitHub non è raggiungibile da questo server",
+      upstream_error: "GitHub ha risposto con un errore, verrà interrogato di nuovo",
+    },
   },
   updates: {
     title: "È disponibile Musizerr {{version}}",
@@ -2401,6 +2434,7 @@ export const it: Translations<typeof en> = {
   },
   error_codes: {
     database_busy: "Il server è occupato, riprova tra un momento.",
+    registration_not_confirmed: "Il provider non ha confermato la registrazione e non ne ha detto il motivo.",
     invalid_source_url: "Questo non è l'indirizzo di un catalogo (http o https, senza password dentro).",
     invalid_credential: "Il token deve essere testo stampabile su una riga.",
     credential_requires_https: "Un token viene inviato solo a un indirizzo https.",

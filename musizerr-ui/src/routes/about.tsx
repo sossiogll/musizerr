@@ -70,6 +70,15 @@ function VersionSection() {
             </dd>
           </>
         )}
+        {data?.release_info_unavailable && (
+          <>
+            <dt className="text-muted-foreground">{t("about.releaseInfo")}</dt>
+            <dd>
+              {t("about.releaseInfoUnavailable")}
+              <span className="text-muted-foreground"> ({t(`about.releaseInfoReasons.${data.release_info_unavailable}`)})</span>
+            </dd>
+          </>
+        )}
       </dl>
       {differs && <p role="status" className="text-sm text-warning">{t("about.versionMismatch")}</p>}
     </Section>
