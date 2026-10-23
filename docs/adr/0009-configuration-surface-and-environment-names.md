@@ -276,7 +276,7 @@ Every step is a pull request into `dev`.
   `MUSIZEER_REDIS_URL`).
 - **Prefix `MUSIZERR_` now, `MUSIZEER_` with the rename.** Zero typo risk, one alias cycle fewer if the rename never
   happens, and six names already use it. Rejected because the maintainer asked for `MUSIZEER_` now; kept as the answer to the first question
-  below if he changes his mind.
+  below if the maintainer changes their mind.
 - **Read the new names only in compose and translate to the old ones.** No code change in the application, but then an operator
   of Kubernetes or `docker run` gets nothing and the rename is invisible to the code. Rejected.
 - **A configuration file instead of variables.** A bigger change (a second format to document and secure). Not
@@ -304,7 +304,7 @@ Every step is a pull request into `dev`.
    dropped later, accept the prefix rather than renaming twice.
 2. **Standard names.** Keep `DATABASE_URL`, `REDIS_URL` (with the prefixed override), `POSTGRES_*`, `TZ`, `NGINX_*`? *Recommended:* yes.
 3. **Secrets that disagree.** Refuse to start when the old and the new name hold different secrets? *Recommended:* yes; it is
-   the only case where a silent choice can lock the owner out of his credentials.
+   the only case where a silent choice can lock the owner out of their credentials.
 4. **Compose passes both names for one MAJOR.** Needed for the one-minor rollback; the price is a slightly noisy compose file.
    *Recommended:* yes.
 5. **`APP_PORT` becomes `MUSIZEER_PORT`.** *Recommended:* yes (it is the variable that collides in Kubernetes).
