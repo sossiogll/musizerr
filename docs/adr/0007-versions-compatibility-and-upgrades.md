@@ -190,6 +190,9 @@ workers, the gateway, the web app) is always updated by hand.
    release tags of its own (§6).
 3. **Database guard** (§4): backup in `init`, `schema_info` and the start check, the `phase` of every
    migration and its test (the existing ones are classified once).
+   *Interactions (added 2026-10-24):* ADR-0008 (root folders) and ADR-0009 (environment names) are written as
+   expand in a MINOR and contract in a MAJOR; their expand steps are safe without this step, their contract steps
+   need it.
 4. **Releases** (§6): labels and their check, automatic releases with `release.json` (*done*); still to do: SDK
    tags, and the provider base image published once per SDK version, never pushed again under a published tag.
 5. **Updates** (§5.1): the check and its page in Administration, and the automatic updates of providers.
