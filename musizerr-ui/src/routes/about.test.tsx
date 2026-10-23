@@ -21,7 +21,7 @@ beforeEach(() => {
   getUpdates.mockClear();
   updates = {
     current: "dev", commit: "", development: true, check_enabled: true, checked_at: null,
-    last_check_failed: false, updates: [], latest: null,
+    last_check_failed: false, release_info_unavailable: null, updates: [], latest: null,
   };
 });
 
@@ -64,5 +64,24 @@ describe("AboutPage", () => {
     const section = (await screen.findByRole("heading", { name: "Version" })).parentElement!;
     expect(await within(section).findByText("Server")).toBeInTheDocument();
     expect(within(section).getByText(/1\.2\.0/)).toHaveTextContent("1.2.0 (abc1234)");
+  });
+
+  it("an admin is told when the release information is unavailable, and why", async () => {
+    mode = "admin";
+    updates = { ...updates, current: "1.2.0", development: false, release_info_unavailable: "not_found" };
+    renderAbout();
+    const section = (await screen.findByRole("heading", { name: "Version" })).parentElement!;
+    expect(await within(section).findByText(/Release information unavailable/)).toHaveTextContent(
+      "Release information unavailable (the releases of the project are not public",
+    );
+  });
+
+  it("says nothing about the releases when they could be read", async () => {
+    mode = "admin";
+    updates = { ...updates, current: "1.2.0", development: false };
+    renderAbout();
+    const section = (await screen.findByRole("heading", { name: "Version" })).parentElement!;
+    await within(section).findByText("Server");
+    expect(within(section).queryByText(/Release information unavailable/)).not.toBeInTheDocument();
   });
 });

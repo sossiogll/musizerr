@@ -14,6 +14,7 @@ vocabolario di eventi inventato) vivono in conftest.py.
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -269,6 +270,115 @@ def test_register_skips_provider_that_raises_without_aborting_loop(config, sessi
     by_name = {r["provider"]: r for r in data["results"]}
     assert by_name["boom"]["ok"] is False
     assert by_name["fakedelegating"]["ok"] is True
+
+
+class _Upstream(Exception):
+    """A failure of the external system the way an HTTP library shows it: a status on ``response``."""
+
+    def __init__(self, message: str, status: int) -> None:
+        super().__init__(message)
+        self.response = SimpleNamespace(status_code=status, headers={})
+
+
+class _RaisingProvider(FakeDownloadProvider):
+    """Implements ``register_push_endpoint`` and fails with whatever it is given."""
+
+    def __init__(self, name: str, error: Exception) -> None:
+        super().__init__(name)
+        self._error = error
+
+    def register_push_endpoint(self, callback_url, session):
+        raise self._error
+
+
+def _register(config, session, *providers):
+    cfg = config(public_base_url="http://musizerr.local")
+    data = register_delegation_webhooks(cfg, session, FakeRegistry(downloads=list(providers)), admin=object())
+    return cfg, {r["provider"]: r for r in data["results"]}
+
+
+def test_a_registered_provider_is_state_registered(config, session):
+    _, results = _register(config, session, FakeDelegatingDownloadProvider("fakedelegating"))
+
+    assert results["fakedelegating"]["state"] == "registered"
+    assert results["fakedelegating"]["ok"] is True
+    assert "error_code" not in results["fakedelegating"]
+
+
+def test_not_supported_is_only_a_provider_that_does_not_implement_the_method(config, session):
+    _, results = _register(config, session, FakeDownloadProvider("plain"))
+
+    assert results["plain"]["state"] == "not_supported"
+    assert results["plain"]["detail"] == "not_supported"
+    assert results["plain"]["ok"] is False
+    assert "error_code" not in results["plain"]
+
+
+def test_a_provider_that_implements_it_and_answers_nothing_is_not_reported_as_not_supported(config, session):
+    """The old behaviour of a provider that swallowed a refusal as ``None``: the admin must not read "not supported"."""
+    silent = FakeDelegatingDownloadProvider("silent", register_outcome=None)
+    _, results = _register(config, session, silent)
+
+    result = results["silent"]
+    assert result["state"] == "failed"
+    assert result["detail"] != "not_supported"
+    assert result["error_code"] == "registration_not_confirmed"
+    assert silent.registered_urls  # it was called: it implements the method
+
+
+@pytest.mark.parametrize("status, code", [
+    (400, "download_provider_failed"),
+    (401, "download_provider_auth_failed"),
+    (404, "download_provider_not_found"),
+    (500, "download_provider_upstream_error"),
+])
+def test_a_refusal_of_the_external_system_is_a_failure_with_its_classified_code_and_reason(config, session, status, code):
+    refused = _RaisingProvider("refusing", _Upstream("Url: Unable to send test message", status))
+    _, results = _register(config, session, refused)
+
+    result = results["refusing"]
+    assert result["state"] == "failed" and result["ok"] is False
+    assert result["error_code"] == code
+    assert result["error_message"].startswith("The download provider")
+    assert result["error_detail"] == "Url: Unable to send test message"
+
+
+def test_an_external_system_that_cannot_be_reached_is_unreachable(config, session):
+    down = _RaisingProvider("down", ConnectionError("[Errno -2] Name or service not known"))
+    _, results = _register(config, session, down)
+
+    assert results["down"]["state"] == "failed"
+    assert results["down"]["error_code"] == "download_provider_unreachable"
+    assert "Name or service not known" in results["down"]["error_detail"]
+
+
+def test_one_failing_provider_does_not_hide_the_others(config, session):
+    _, results = _register(
+        config, session,
+        _RaisingProvider("refusing", _Upstream("no", 400)),
+        FakeDelegatingDownloadProvider("fakedelegating"),
+        FakeDownloadProvider("plain"),
+    )
+
+    assert {name: r["state"] for name, r in results.items()} == {
+        "refusing": "failed", "fakedelegating": "registered", "plain": "not_supported",
+    }
+
+
+def test_the_callback_token_is_never_returned_even_when_the_provider_quotes_the_url(config, session):
+    cfg = config(public_base_url="http://musizerr.local")
+    token = cfg.delegation_webhook_token
+
+    class _Quoting(FakeDownloadProvider):
+        def register_push_endpoint(self, callback_url, session):
+            raise _Upstream(f"cannot reach {callback_url} (token {token} refused)", 400)
+
+    data = register_delegation_webhooks(cfg, session, FakeRegistry(downloads=[_Quoting("quoting")]), admin=object())
+
+    detail = data["results"][0]["error_detail"]
+    assert token not in detail
+    assert "token=***" in detail
+    assert token not in str(data)
 
 
 def test_register_generates_and_persists_token_when_absent(config, session):

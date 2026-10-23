@@ -795,6 +795,8 @@ export interface UpdatesInfo {
   check_enabled: boolean;
   checked_at: string | null;
   last_check_failed: boolean;
+  /** Why the releases could not be read at the last check that answered; not a failure of the instance. */
+  release_info_unavailable: "not_found" | "unauthorized" | "rate_limited" | "unreachable" | "upstream_error" | null;
   /** Newest first. */
   updates: AvailableUpdate[];
   latest: string | null;
@@ -803,11 +805,20 @@ export interface UpdatesInfo {
 /** GET /admin/updates: the version that runs and the newer releases of Musizerr (admin, ADR-0007). */
 export const getUpdates = () => http.get<UpdatesInfo>("/admin/updates").then((r) => r.data);
 
+/**
+ * One download provider's registration of the push callback (POST /delegation/register-webhook): registered,
+ * not supported (the provider does not implement it) or failed, with the classified `error_code` and the
+ * provider's own reason in `error_detail` (the route is admin-only).
+ */
 export interface DelegationWebhookRegistrationResult {
   provider: string;
   label: string;
   ok: boolean;
+  state: "registered" | "not_supported" | "failed";
   detail: string;
+  error_code?: string;
+  error_message?: string;
+  error_detail?: string;
 }
 
 export const registerDelegationWebhooks = () =>

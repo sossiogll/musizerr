@@ -844,7 +844,7 @@ CATALOG: tuple[SettingDef, ...] = (
            secret=True, required=False),
     _entry("public_base_url", "string", "", GROUP_RECONCILIATION,
            "URL pubblico musizerr",
-           "URL con cui i sistemi esterni raggiungono musizerr (es. http://100.x.y.z:8000), per auto-registrare i webhook.",
+           "URL con cui i sistemi esterni raggiungono musizerr (es. http://100.x.y.z:8000), per auto-registrare i webhook. Deve essere raggiungibile DA quel sistema, non dal browser: nella stessa rete Docker usa un URL interno (es. http://frontend).",
            required=False),
 ) + _download_request_settings() + _routine_settings()
 

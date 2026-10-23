@@ -7,6 +7,12 @@ the ``release.json`` it carries. Nothing about the instance is sent. The admin's
 (``GET /admin/updates``) reads that result and judges each release against what runs NOW (the providers
 installed may have changed since the check): a release that only needs its images pulled, or the reasons
 it needs care. Musizerr is always updated by hand; nothing here changes the instance.
+
+A release feed that cannot be read is not a failure of the instance: GitHub answering 404/401/403 (the
+repository is private or renamed), a rate limit, an outage or a network without access to GitHub give a run
+that ends ``ok`` with ``state: "unavailable"`` and a ``reason`` (``UNAVAILABLE_REASONS``), shown in
+Administration as "release information unavailable". Only an answer that is not what a release list is
+(malformed JSON, not a list) is an error.
 """
 from __future__ import annotations
 
@@ -19,7 +25,7 @@ from sqlmodel import Session, select
 from core.utc import utc_iso
 from core.versions import InstalledContract, assess_update, parse_version, update_kind
 from db.models import InstalledProvider
-from db.routine_run_store import STATUS_ERROR, STATUS_OK, last_finished_run, latest_run
+from db.routine_run_store import STATUS_ERROR, STATUS_OK, finished_runs, latest_run
 from services import app_version
 from services.routines import run_result
 
@@ -32,19 +38,68 @@ RELEASE_METADATA = "release.json"
 MAX_RELEASES = 5
 _META_FIELDS = ("provider_contracts", "min_upgrade_from", "contract_migrations", "manual_steps")
 _TIMEOUT = 15.0
+# How many finished runs back the view looks for the last one that read the feed.
+_RUNS_LOOKED_AT = 10
+
+# The ``state`` of a check's result: the feed was read, or it could not be (and why).
+STATE_CHECKED = "checked"
+STATE_UNAVAILABLE = "unavailable"
+REASON_NOT_FOUND = "not_found"            # 404: the repository is private (for now) or renamed
+REASON_UNAUTHORIZED = "unauthorized"      # 401/403 that is not a rate limit
+REASON_RATE_LIMITED = "rate_limited"      # 429, or 403 with the rate-limit headers
+REASON_UNREACHABLE = "unreachable"        # the network: no route to GitHub, DNS, a timeout
+REASON_UPSTREAM_ERROR = "upstream_error"  # GitHub answered 5xx
+UNAVAILABLE_REASONS = (
+    REASON_NOT_FOUND, REASON_UNAUTHORIZED, REASON_RATE_LIMITED, REASON_UNREACHABLE, REASON_UPSTREAM_ERROR,
+)
 
 
 class UpdateCheckError(RuntimeError):
     """GitHub could not be asked, or answered something else than a list of releases."""
 
 
+def unavailable_reason(response: httpx.Response) -> str | None:
+    """Why the answer of the releases API says "cannot read the feed right now", or None for an answer to read
+    (a list, or something that is not one and is an error)."""
+    status = response.status_code
+    if status == 429:
+        return REASON_RATE_LIMITED
+    if status == 403 and (response.headers.get("x-ratelimit-remaining") == "0" or "retry-after" in response.headers):
+        return REASON_RATE_LIMITED
+    if status in (401, 403):
+        return REASON_UNAUTHORIZED
+    if status == 404:
+        return REASON_NOT_FOUND
+    if status >= 500:
+        return REASON_UPSTREAM_ERROR
+    return None
+
+
+def _unavailable(current: str, reason: str) -> dict[str, Any]:
+    return {
+        "status": "ok", "state": STATE_UNAVAILABLE, "reason": reason,
+        "repository": REPOSITORY, "current": current, "releases": [],
+    }
+
+
 def check(current: str = app_version.VERSION, transport: httpx.BaseTransport | None = None) -> dict[str, Any]:
     """The result of the routine: the releases newer than ``current`` (newest first), each with its
-    metadata. A development build (no version) keeps the latest release only, for information."""
+    metadata. A development build (no version) keeps the latest release only, for information.
+
+    A feed that cannot be read (see the module docstring) is ``state: "unavailable"`` with its ``reason``
+    and no releases; an answer that is not a list of releases raises :class:`UpdateCheckError`."""
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "Musizerr"}
     with httpx.Client(transport=transport, timeout=_TIMEOUT, headers=headers, follow_redirects=True) as client:
         try:
             response = client.get(f"https://api.github.com/repos/{REPOSITORY}/releases", params={"per_page": 30})
+        except httpx.TransportError:
+            return _unavailable(current, REASON_UNREACHABLE)
+        except httpx.HTTPError as exc:
+            raise UpdateCheckError(f"the releases of {REPOSITORY} could not be read: {exc}") from exc
+        reason = unavailable_reason(response)
+        if reason is not None:
+            return _unavailable(current, reason)
+        try:
             response.raise_for_status()
             listed = response.json()
         except (httpx.HTTPError, ValueError) as exc:
@@ -63,6 +118,7 @@ def check(current: str = app_version.VERSION, transport: httpx.BaseTransport | N
             release["meta"] = _metadata(client, release.pop("_metadata_url"))
     return {
         "status": "ok",
+        "state": STATE_CHECKED,
         "repository": REPOSITORY,
         "current": current,
         "releases": [{key: value for key, value in r.items() if not key.startswith("_")} for r in newer],
@@ -104,10 +160,19 @@ def _metadata(client: httpx.Client, url: str | None) -> dict[str, Any] | None:
 def view(session: Session, *, check_enabled: bool, current: str = app_version.VERSION) -> dict[str, Any]:
     """What Administration shows: the version that runs, whether the check is on, when it last
     answered, and each newer release with what updating to it implies now. Reads only."""
-    # The last answer GitHub gave stays shown when a later check failed (last_check_failed says so).
-    ok_run = last_finished_run(session, ROUTINE, statuses=(STATUS_OK,))
+    # The last answer GitHub gave stays shown when a later check failed (last_check_failed says so) or could
+    # not read the feed (release_info_unavailable says why): the newest run that DID read it is the one shown.
     last = latest_run(session, ROUTINE)
-    result = run_result(ok_run.detail) if ok_run is not None else None
+    ok_run, result, unavailable = None, None, None
+    for run in finished_runs(session, ROUTINE, statuses=(STATUS_OK,), limit=_RUNS_LOOKED_AT):
+        candidate = run_result(run.detail)
+        if isinstance(candidate, dict) and candidate.get("state") == STATE_UNAVAILABLE:
+            if unavailable is None:
+                reason = candidate.get("reason")
+                unavailable = reason if reason in UNAVAILABLE_REASONS else REASON_UNREACHABLE
+            continue
+        ok_run, result = run, candidate
+        break
     running = parse_version(current)
     installed = [InstalledContract(row.name, row.provider_api_version)
                  for row in session.exec(select(InstalledProvider)).all()]
@@ -130,6 +195,8 @@ def view(session: Session, *, check_enabled: bool, current: str = app_version.VE
         "check_enabled": check_enabled,
         "checked_at": utc_iso(ok_run.finished_at) if ok_run is not None else None,
         "last_check_failed": bool(last is not None and last.status == STATUS_ERROR),
+        # Why the releases could not be read at the last check that answered (None: they could, or it never ran).
+        "release_info_unavailable": unavailable,
         "updates": updates,
         # The newest release the check saw (for a development build too, which has nothing to compare).
         "latest": next((r.get("version") for r in listed if isinstance(r, dict)), None),

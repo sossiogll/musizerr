@@ -340,6 +340,20 @@ describe("RoutinesPanel — real answers, Europe/Rome", () => {
     await screen.findByText("future_routine");
     expect(screen.getByText("removed 4 · checked 9")).toBeInTheDocument();
   });
+
+  it("a source that could not be read is an ok run that says so and why, not an error", async () => {
+    const base = live("sweep_workspaces");
+    mockGetRoutines.mockResolvedValue([
+      live("sweep_workspaces", {
+        key: "check_for_updates",
+        last_run: { ...base.last_run!, status: "ok", result: { status: "ok", state: "unavailable", reason: "not_found", releases: [] } },
+      }),
+    ]);
+
+    renderPanel();
+
+    expect(await screen.findByText(/Release information unavailable \(the releases of the project are not public/)).toBeInTheDocument();
+  });
 });
 
 describe("RoutinesPanel — the library index and the matching after it (real answers)", () => {
