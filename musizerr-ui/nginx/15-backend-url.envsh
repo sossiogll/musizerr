@@ -1,0 +1,17 @@
+# Sourced (an executable .envsh file is sourced by the official image's entrypoint, a .sh one is run) before it
+# renders the nginx template. BACKEND_URL must be an origin, scheme://host:port, because
+# nginx reaches it through a variable (default.conf.template). A trailing slash is dropped; a path, or no scheme,
+# stops the container with the reason instead of an error on every request.
+
+BACKEND_URL=${BACKEND_URL%/}
+
+case "$BACKEND_URL" in
+  http://*|https://*) ;;
+  *) echo "15-backend-url.envsh: BACKEND_URL ('$BACKEND_URL') must start with http:// or https:// (default http://app:8000)" >&2; exit 1 ;;
+esac
+
+case "${BACKEND_URL#*://}" in
+  ""|*/*) echo "15-backend-url.envsh: BACKEND_URL ('$BACKEND_URL') must be scheme://host:port with no path" >&2; exit 1 ;;
+esac
+
+export BACKEND_URL
