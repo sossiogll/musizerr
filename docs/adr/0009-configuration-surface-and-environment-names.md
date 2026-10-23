@@ -199,8 +199,8 @@ application and in the gateway, and a test compares the entries both declare (na
   the gateway, and a new `library` volume at `/library` in the gateway only; `WORKSPACE_DIR`, `GATEWAY_WORKSPACE_DIR` and
   `GATEWAY_FILESYSTEM_ROOTS` are gone. The developer compose mounts `MUSIZEER_DOWNLOADS_DIR` and `MUSIZEER_LIBRARY_DIR` the
   same way (its `MUSIC_DIR` single folder is replaced).
-- **The project name is pinned** (`name: musizeer`, ADR-0010), so container, network and volume names do not depend on the
-  folder the file lives in.
+- **The release compose pins its project name** (`name: musizeer`, ADR-0010), so container, network and volume names do not
+  depend on the folder the file lives in. A compose file that embeds the services in a shared file keeps its own name.
 - **`.env.example`** lists only the new names, grouped (required / address / database / images / advanced). `docs/deployment.md`
   gets the inventory above as its reference table, generated from the registry by a test that fails when the two differ.
 - **The frontend image** stops declaring `ENV BACKEND_URL=...`/`DNS_RESOLVER=...` (a default set by the image is
@@ -261,7 +261,7 @@ so each can be reviewed alone.
 - Seven variables that did nothing from `.env` now work.
 - No alias code exists: an old `.env` produces an error naming the new variable, and a missing required secret fails the
   start with that name.
-- The owner rewrites `.env` once (the `sed` of ADR-0010 §6 does most of it); the same step removes four lines.
+- The owner rewrites `.env` once (ADR-0010 §6 says how, for a dedicated `.env` and for one shared with other services); the same step removes four lines.
 - Documentation and scripts churn once, inside the rename.
 
 ## Questions for the maintainer

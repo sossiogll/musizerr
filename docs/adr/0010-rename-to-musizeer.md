@@ -67,7 +67,7 @@ several rows below. The new form is the old one with `musizeer` for `musizerr`, 
 | 10 | Redis keys and channels | `musizerr:progress`, `musizerr:providers`, `musizerr:provider-login:`, `musizerr:provider-slot:`, `musizerr:<scope>-errors:` and `-cooldown:`, `musizerr:worker:heartbeat:`, `musizerr:delegation-reconcile-lock:` | `musizeer:*` | 21 / 14. Transient data; the new stack has its own Redis volume, nothing to carry over |
 | 11 | Paths inside the containers | `/run/musizerr` (sockets, `gateway.sock`), `/var/lib/musizerr-gateway` (the layer cache), `.musizerr-work` (the working folder name), `/data/musizerr.db` (the SQLite file) | `/run/musizeer`, `/var/lib/musizeer-gateway`, `.musizeer-work`, `musizeer.db` | 27 / 16, 11 / 10, 22 / 15, 16 / 10. The working folder name is data of ADR-0008 (a setting value), not a fixed name any more |
 | 12 | Container and OS users, uid unchanged | OS user `musizerr` (uid 1000) in `Dockerfile` and `gateway/Dockerfile` | `musizeer`, **still uid 1000**, so the ownership of the volumes and of the folders the owner `chown`ed does not change | 7 / 2 |
-| 13 | Compose: container names `musizerr-app-1`..., the project name (there is no `name:` in the compose files, so it is the name of the folder: `musizerr`) and with it the network `musizerr_default` and the six named volumes (`data`, `downloads`, `redis_data`, `postgres_data`, `provider_sockets`, `gateway_state`), the dev and build compose files | `musizerr_<volume>` | `name: musizeer` pinned in the compose files, so volumes are `musizeer_<volume>` whatever the folder is called | 17 / 6 |
+| 13 | Compose: container names (`musizerr-app-1`... in the release compose; `container_name: musizerr-*` in a shared file), the project name (the release compose has no `name:`, so it is the folder's) and with it the network `musizerr_default`, and the six named volumes (`data`, `downloads`, `redis_data`, `postgres_data`, `provider_sockets`, `gateway_state`; the owner's shared file has `homeserver_musizerr_<volume>`), the dev and build compose files | `musizerr_<volume>` | in the **release compose** `name: musizeer` is pinned, so volumes are `musizeer_<volume>` whatever the folder is called. A **shared file keeps its own project name**: its volumes are renamed by declaring new volume keys `musizeer_<volume>` and its containers `musizeer-*` | 17 / 6 |
 | 14 | PostgreSQL defaults: user and database | `POSTGRES_USER`, `POSTGRES_DB` default `musizerr`; the same in `DATABASE_URL`, docs and `.env.example` | default `musizeer` | 33 / 18 |
 | 15 | Seccomp profile and release assets | `gateway/seccomp/musizerr-gateway.json`; the release asset `musizerr-gateway.seccomp.json`; `docker-compose.yaml` and `env.example` of the release | `gateway/seccomp/musizeer-gateway.json`, `musizeer-gateway.seccomp.json` | 38 / 16 (compose files, `scripts/package-release-assets.sh`, `.github/workflows/images.yml`, `ci.yml:163`, docs) |
 | 16 | Environment variables | `MUSIZERR_VERSION`, `MUSIZERR_IMAGES`, `MUSIZERR_COMMIT`, `MUSIZERR_UPDATE_REPOSITORY`, `VITE_MUSIZERR_VERSION` and every unprefixed one of ADR-0009 | `MUSIZEER_*`, `VITE_MUSIZEER_VERSION` | 38 / 16 for the six that already carry the name; the rest is the table of ADR-0009 |
@@ -147,8 +147,10 @@ attached to the library folder (ADR-0008 steps 5 and 6).
 - Rename the four repositories. GitHub redirects the old web, `git` and API addresses to the new ones, so local checkouts,
   open pull requests (#54 included), issues and stars keep working; `git remote set-url` is still advisable. The redirect
   lasts until someone creates a repository under the old name.
-- **The redirect does not cover GHCR.** Renaming a repository does not rename its packages, and `ghcr.io/sossiogll/musizerr`
-  does not become `ghcr.io/sossiogll/musizeer`. The new packages are created by the first push of the release (step 4).
+- **The redirect does not cover GHCR, and a container package cannot be renamed at all.** Renaming a repository does not
+  rename its packages, and GitHub offers no rename for a package, so `ghcr.io/sossiogll/musizerr` never becomes
+  `ghcr.io/sossiogll/musizeer`. **The new names are published as new packages**, created by the first push of the release
+  (step 4); **the old packages are deleted by the owner after the retention period** (question 5), never by a script.
   A new package is **private** (nothing sets its visibility): the owner makes the 16 packages public in the GitHub
   package settings, and checks that the repository is linked to each one (the `org.opencontainers.image.source` label
   names it). The old packages stay where they are and stay pullable until the owner deletes them, which is what keeps the
@@ -164,85 +166,120 @@ attached to the library folder (ADR-0008 steps 5 and 6).
 
 ### 6. The owner's server: step by step
 
-The install is one compose stack with PostgreSQL, the music is on bind mounts of `/mnt/hdd2` and `CREDENTIALS_KEY` is in
-`.env`. The compose files have no `name:`, so the project name is the folder's: the commands below assume the folder
-`~/musizerr` and the volumes `musizerr_*`; `docker volume ls` shows the real ones. **The credentials
-key does not change: sealed credentials stay readable** (the `enc:v1:` rows do not carry the name, and
-`MUSIZEER_CREDENTIALS_KEY` takes the same value). New compose names mean **new volumes**.
+**Two shapes of install.** The release compose file (`docker-compose.yaml`) runs the product alone in a folder of its own,
+and its project name is pinned to `musizeer` (row 13). The owner's server is the other shape: the product is **a block of
+services inside a shared compose file**, next to a media server, Lidarr and others, and the file keeps its own project
+name. The procedure is written for the shared file, because it is the harder case; with the release compose in a folder of
+its own it is the same steps on the whole file (and `down` is then harmless, because nothing else is in it).
+
+**Rules for the procedure.**
+
+- **Never stop, recreate or touch the other services of a shared file.** Every command names the services it acts on:
+  `docker compose stop <old services>`, `docker compose up -d <new services>`. Never a bare `docker compose up -d` (it
+  reconciles every service of the file), never `down`, never `--remove-orphans`.
+- **The `name: musizeer` pin belongs to the release compose only.** A shared file keeps its project name. Its volumes are
+  renamed by **declaring new volume keys** (`musizeer_data`, `musizeer_downloads`, ...), which Compose prefixes with the
+  project name like the old ones; its services and `container_name`s get the new names in the same way.
+- **Nothing assumes a folder or a project name.** Step 0 finds them.
+- The old block stays in the file, stopped, until the clean-up. It is the rollback.
+- **The credentials key does not change: sealed credentials stay readable** (the `enc:v1:` rows do not carry the name, and
+  `MUSIZEER_CREDENTIALS_KEY` takes the same value). New volume keys mean **new volumes**.
 
 **Recommended: move the database with `pg_dump` and restore it into the new database and user.** The alternative, copying
-the old `postgres_data` volume into the new one, keeps the PostgreSQL role and database called `musizerr` (they are created
-once, at the first start of an empty volume; changing `POSTGRES_USER` later does nothing), so the new stack would carry the
-old name for ever. A dump is also the backup that makes the rollback possible, and the migrations of this release run on
-the copy, never on the old volume.
+the old postgres volume into the new one, keeps the PostgreSQL role and database called `musizerr` (they are created once,
+at the first start of an empty volume; changing `POSTGRES_USER` later does nothing), so the new block would carry the old
+name for ever. A dump is also the backup that makes the rollback possible, and the migrations of this release run on the
+copy, never on the old volume.
 
-1. **Before the release is installed, with the old stack running** (note the old version for the rollback):
-   `docker compose images`, and copy `.env` and `docker-compose.override.yml` somewhere safe.
-2. **Stop the writers and take the dump.**
+**The owner's case as the worked example.** The compose file is `/home/sossiogll/docker/docker-compose.yml` with its `.env`
+beside it; the project is `homeserver`; the volumes are `homeserver_musizerr_data`, `homeserver_musizerr_downloads`,
+`homeserver_musizerr_gateway_state`, `homeserver_musizerr_postgres_data`, `homeserver_musizerr_provider_sockets` and
+`homeserver_musizerr_redis_data`, so the volume keys in the file are `musizerr_data`, `musizerr_downloads`... and the new
+ones are `musizeer_data`... giving `homeserver_musizeer_data`...; the containers are named `musizerr-*` by `container_name`.
+
+0. **Find your names.**
    ```sh
-   cd ~/musizerr
-   docker compose stop frontend app worker beat
-   docker compose exec -T postgres pg_dump -U musizerr -Fc musizerr > ~/musizerr-$(date +%F).dump
-   pg_restore --list ~/musizerr-$(date +%F).dump | head      # it reads: the dump is not empty
-   docker compose down                                        # no -v: the old volumes stay
+   cd <the folder of your compose file>
+   docker compose ls                                                   # your project name (homeserver)
+   docker compose ps --format '{{.Service}}  {{.Name}}' | grep -i musizerr   # the services and containers of the block
+   docker volume ls | grep musizerr                                    # its volumes (the six above)
    ```
-   Look inside the old `data` volume once (`docker run --rm -v musizerr_data:/d alpine ls -la /d`): with PostgreSQL it holds
-   nothing the database does not, so it is not copied.
-3. **Fetch the new files into a new folder** (the project name is pinned to `musizeer` by the compose file):
+   Write down the list of the old services (the init job, the application, the three workers or the worker service, beat, the
+   web app, Redis, PostgreSQL, the gateway) and the new names you will give them. The commands below use `<old …>` and `<new …>`
+   for these lists.
+1. **Prepare.** Copy the compose file and `.env` aside (`cp docker-compose.yml docker-compose.yml.pre-musizeer`, the same for
+   `.env`) and note the version the old block runs. Check that the release is published, that the 16 new packages are
+   public and that the catalogs are published.
+2. **Add the new block beside the old one** in the same file, from the release's `docker-compose.yaml` as the template: new
+   service keys and `container_name`s (`musizeer-*`), new volume keys (`musizeer_*`), the **same bind mounts as today** for
+   the music (staging at `/downloads` in the application, the workers, beat and the gateway; the library at `/library` in the
+   gateway only; ADR-0008), no `GATEWAY_FILESYSTEM_ROOTS` and no `WORKSPACE_DIR`, the new image names, and the seccomp
+   profile `musizeer-gateway.seccomp.json` from the release placed next to the file. Give the web app the port or the proxy
+   entry the old one had; the old one is stopped before the new one starts, so the same port is fine.
+   Check it without starting anything: `docker compose config -q`.
+3. **Add the new environment names to `.env`, keeping the old lines** (the old block, stopped, still refers to them). The
+   table is ADR-0009's. In a shared `.env` some old names (`PUBLIC_URL`, `DATA_DIR`, `APP_PORT`, `POSTGRES_*`) may belong to
+   other services: copy the values of the ones the Musizerr block used into their new names by hand (`MUSIZEER_AUTH_SECRET`,
+   `MUSIZEER_CREDENTIALS_KEY` **with the same value**, `MUSIZEER_ADMIN_BOOTSTRAP_*`, `MUSIZEER_PUBLIC_URL`, `MUSIZEER_PORT`,
+   `POSTGRES_PASSWORD` for the new PostgreSQL), and leave every other line alone. (A dedicated `.env` can be converted with one
+   `sed`: `sed -E 's/^(AUTH_SECRET|CREDENTIALS_KEY|CREDENTIALS_KEY_PREVIOUS|ADMIN_BOOTSTRAP_EMAIL|ADMIN_BOOTSTRAP_PASSWORD|PUBLIC_URL|APP_BASE_URL|FRONTEND_URL|DATA_DIR|PUBLIC_API_PREFIX|ALLOWED_ORIGINS|DB_[A-Z_]+|GATEWAY_[A-Z_]+)=/MUSIZEER_\1=/; s/^APP_PORT=/MUSIZEER_PORT=/; s/^MUSIZERR_/MUSIZEER_/'`
+   and the removed variables deleted.) Do not set `POSTGRES_USER` or `POSTGRES_DB` for the new block: its defaults are
+   `musizeer`.
+4. **Stop the old writers, dump the database, stop the rest of the old block.** Only the old services, by name:
    ```sh
-   mkdir ~/musizeer && cd ~/musizeer
-   BASE=https://github.com/sossiogll/musizeer/releases/latest/download
-   curl -fsSLO $BASE/docker-compose.yaml
-   curl -fsSLO $BASE/musizeer-gateway.seccomp.json
+   docker compose stop <old web app> <old application> <old workers> <old beat>
+   docker exec <old postgres container> pg_dump -U musizerr -Fc musizerr > ~/musizerr-$(date +%F).dump
+   pg_restore --list ~/musizerr-$(date +%F).dump | head          # it reads: the dump is not empty
+   docker compose stop <old gateway> <old redis> <old postgres>  # stop, not rm: the containers and volumes stay
    ```
-4. **Rewrite the environment with the new names** (ADR-0009 has the whole table). From the old file:
+   Look inside the old data volume once (`docker run --rm -v homeserver_musizerr_data:/d alpine ls -la /d`): with PostgreSQL it
+   holds nothing the database does not, so it is not copied.
+5. **Create the new database and restore it.**
    ```sh
-   sed -E 's/^(AUTH_SECRET|CREDENTIALS_KEY|CREDENTIALS_KEY_PREVIOUS|ADMIN_BOOTSTRAP_EMAIL|ADMIN_BOOTSTRAP_PASSWORD|PUBLIC_URL|APP_BASE_URL|FRONTEND_URL|DATA_DIR|PUBLIC_API_PREFIX|ALLOWED_ORIGINS|DB_[A-Z_]+|GATEWAY_[A-Z_]+)=/MUSIZEER_\1=/; s/^APP_PORT=/MUSIZEER_PORT=/; s/^MUSIZERR_/MUSIZEER_/' ~/musizerr/.env \
-     | grep -Ev '^(MUSIZEER_GATEWAY_WORKSPACE_DIR|MUSIZEER_GATEWAY_FILESYSTEM_ROOTS|WORKSPACE_DIR|POSTGRES_USER|POSTGRES_DB)=' > .env
+   docker compose up -d --no-deps <new postgres>
+   docker exec -i <new postgres container> pg_restore -U musizeer -d musizeer --no-owner --no-acl < ~/musizerr-YYYY-MM-DD.dump
    ```
-   Read the result: the three required values (`POSTGRES_PASSWORD`, `MUSIZEER_AUTH_SECRET`, `MUSIZEER_CREDENTIALS_KEY`) must
-   be there, the last one **unchanged**. `POSTGRES_USER` and `POSTGRES_DB` are dropped on purpose: the new defaults are
-   `musizeer`. Carry the override file of the mounts over, with the new layout of ADR-0008 (staging at `/downloads`
-   in the application, the workers, beat and the gateway; the library at `/library` in the gateway) and no
-   `GATEWAY_FILESYSTEM_ROOTS`.
-5. **Create the database and restore it.**
-   ```sh
-   docker compose up -d postgres
-   docker compose exec -T postgres pg_restore -U musizeer -d musizeer --no-owner --no-acl < ~/musizerr-YYYY-MM-DD.dump
-   ```
-6. **Start everything.** `docker compose pull && docker compose up -d`; `docker compose logs init` shows the migrations
-   (the `origin` value, the roots). A variable of the old table still in `.env` is reported by name (ADR-0009 §3).
-   `docker compose exec provider-gateway python -m musizeer_gateway.ctl health` must say `"available": true`.
+6. **Start the new block**, listing its services: `docker compose pull <new services>` then `docker compose up -d <new services>`.
+   `docker compose logs <new init>` shows the migrations (the `origin` value, the roots). A variable of the old table that
+   a new service still receives is reported by name (ADR-0009 §3). `docker exec <new gateway container> python -m
+   musizeer_gateway.ctl health` must say `"available": true`. If Lidarr (or another program) reaches the web app by its
+   old container or service name, change the setting `public_base_url` and register the webhook again (Administration,
+   delegation webhook); the same for a reverse proxy that names the old container.
 7. **Providers: add the new source and install again.** The installed rows point at images that no longer run. In
    Administration › Sources add the URL of the new catalog, remove the old source (this uninstalls its providers: **their
    settings and their credentials are stored by provider name and stay**), then install each provider from the new one
-   (or, from the shell, `docker compose exec app python -m scripts.provider_sources add-source <url>`, `uninstall <name>`
-   and `install <source> <name> --yes` for the twelve; removing the old source is a page action). The permissions are the same ones, the
-   admin sees and approves them as at any install. The gateway's state volume is new, so it pulls the images again.
-   `auto_update_providers` is not relied on (ADR-0007 §5.1 plans it; the code has no such setting yet).
+   (or, from the shell, `docker exec <new application container> python -m scripts.provider_sources add-source <url>`,
+   `uninstall <name>` and `install <source> <name> --yes` for the twelve; removing the old source is a page action). The
+   permissions are the same ones; the admin sees and approves them as at any install. The new gateway-state volume is
+   empty, so it pulls the images again. `auto_update_providers` is not relied on (ADR-0007 §5.1 plans it; the code has no
+   such setting yet).
 8. **Folders.** Administration › Root folders shows what the conversion made of the old values (ADR-0008): Downloads
    `/downloads`, Library `/library`, the working folder Downloads + `.musizeer-work`, local storage Library + empty path.
    Run the checks; map Lidarr's `/music` to the library when that step exists; run the full-sync verification for Navidrome.
 9. **Verify before anything is deleted.** Everyone signs in again (expected, row 18); the library page shows the same
    counts; a provider that needs an account still says "connected"; one download completes and appears in the library; a
    track streams; a delegated download is accepted by Lidarr and its webhook arrives; the full-sync verification passes; the
-   update notice at the top of Administration shows the new version.
-10. **Clean up only after a few weeks of use:** `docker volume rm` the old `musizerr_*` volumes, remove the old images, delete the old
-    GHCR packages and the old `~/musizerr` folder. Keep the dump.
+   update notice at the top of Administration shows the new version; the other services of the file were never restarted
+   (`docker compose ps` shows their uptime).
+10. **Clean up only after the retention period** (question 5): remove the old block and the old variables from the file and
+    `.env`, `docker compose rm <old services>`, `docker volume rm` the six old `homeserver_musizerr_*` volumes, remove the
+    old images, and delete the old GHCR packages (they cannot be renamed, so they are simply deleted by the owner; the new
+    ones are separate packages). Keep the dump.
 
 ### 7. Rollback
 
-Until step 10 the old stack is intact: its volumes were never written to (the dump only read them), its images are still
-published under the old names, its folder and `.env` are where they were.
+Until step 10 the old block is intact: its volumes were never written to (the dump only read them), its containers are
+stopped and not removed, its images are still published under the old names, and its lines are still in the file and
+`.env`.
 
-1. `cd ~/musizeer && docker compose down` (never run both stacks at the same time: same ports, same library, same
-   Navidrome, same delegate webhook).
-2. `cd ~/musizerr && docker compose up -d`.
+1. `docker compose stop <new services>` (never run both blocks at the same time: same ports, same library, same Navidrome,
+   same delegate webhook).
+2. `docker compose start <old services>`; if a delegate or a proxy was pointed at the new name in step 6, point it back.
 
-What is lost: whatever the new stack did meanwhile in the database (downloads, favorites, new accounts). The files it put
-in the library stay, and the library scan and reconciliation find them again. The new stack's volumes can stay for a
-second attempt. After step 10 the way back is the dump: restore it into a PostgreSQL of the old stack and run the old
-images, which only exist while the old GHCR packages are kept.
+What is lost: whatever the new block did meanwhile in the database (downloads, favorites, new accounts). The files it put
+in the library stay, and the library scan and reconciliation find them again. The new volumes can stay for a second
+attempt. After step 10 the way back is the dump: restore it into a PostgreSQL of the old block and run the old images,
+which only exist while the old GHCR packages are kept.
 
 ## Alternatives considered
 
@@ -268,7 +305,8 @@ images, which only exist while the old GHCR packages are kept.
   rebuilt following §6, which is also the first complete test of the deployment documentation.
 - Everyone signs in again once, and the browsers forget their local preferences once.
 - No alias code, deprecation notice or removal question is left behind (the removal question of ADR-0009 disappears).
-- The 16 GHCR packages are new: they start private and with no pull history.
+- The 16 GHCR packages are new (packages cannot be renamed): they start private and with no pull history, and the old
+  ones are deleted by the owner after the retention period.
 - ADR-0007's overlap machinery is not built; the next contract major will need it if there is a user base by then.
 - The database guard of ADR-0007 step 3 is not a prerequisite of this release: the migrations run on a restored copy, the
   old volume is the rollback. The guard stays necessary before any later contract migration on a live database.
@@ -279,11 +317,13 @@ images, which only exist while the old GHCR packages are kept.
    so.
 2. **Bundle the `folder` setting type into SDK 6.0.** *Recommended:* yes (§3): a second break would repeat this
    procedure.
-3. **Pin `name: musizeer` in the compose files** so that volumes and containers do not depend on the folder name.
-   *Recommended:* yes. The cost is that two stacks of the same compose file on one host need `-p`.
+3. **Pin `name: musizeer` in the release compose file** so that volumes and containers do not depend on the folder name. A
+   shared compose file keeps its own project name and renames its volumes with new volume keys (§6). *Recommended:* yes.
+   The cost is that two copies of the release compose on one host need `-p`.
 4. **PostgreSQL by dump and restore, not by copying the volume.** *Recommended:* yes (§6).
-5. **Keep the old GHCR packages and the old volumes for how long?** *Recommended:* at least two weeks of normal use of the
-   new stack, and the dump for good.
+5. **Keep the old GHCR packages and the old volumes for how long?** The old packages cannot be renamed, only deleted, by the
+   owner. *Recommended:* at least two weeks of normal use of the new block, then delete them and the old volumes; keep the
+   dump for good.
 6. **The wording of the licence notice** (`NOTICE.md`, the About page): the owner confirms the text of row 2 before the
    release. *Recommended:* the replacement above, nothing else.
 7. **Providers reinstalled by hand or by `scripts/provider_sources.py`.** The release notes can print the twelve commands.
