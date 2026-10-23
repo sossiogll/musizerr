@@ -1197,6 +1197,43 @@ components:
             `pending`: inactive until an admin activates it (PATCH /admin/users/{user_id} with
             `is_active: true`).
 
+    UserCreate:
+      type: object
+      description: A new account made by an administrator (POST /admin/users).
+      required: [username, password]
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: Surrounding spaces are trimmed; the synthetic user's id is not a valid username.
+        password:
+          type: string
+          maxLength: 1024
+          description: At least 8 characters (422 `password_too_short` otherwise), like every password that is set.
+        email:
+          type: [string, "null"]
+          maxLength: 320
+        role:
+          type: string
+          enum: [admin, user]
+          default: user
+
+    UserConflictResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: object
+          required: [error_code, error_message]
+          properties:
+            error_code:
+              type: string
+              enum: [username_taken, email_taken]
+            error_message:
+              type: string
+
     UserPatch:
       type: object
       properties:
@@ -2836,8 +2873,11 @@ components:
         `auth_secret_insecure`: authentication cannot be turned on
         (`auth_enabled: true`) while the server's `AUTH_SECRET` is missing,
         shorter than 32 characters or a placeholder; the batch is refused whole
-        and nothing is written. The message never contains the secret. Turning
-        authentication off is always allowed.
+        and nothing is written. The message never contains the secret. Code
+        `no_admin_account`: authentication cannot be turned on while no active
+        administrator account that can sign in exists. Code
+        `adoption_target_invalid`: `adopt_into` is not such an administrator.
+        Turning authentication off is always allowed.
       type: object
       required: [detail]
       properties:
@@ -2930,6 +2970,29 @@ components:
         default: 20
 
   responses:
+    WeakPassword:
+      description: >-
+        The password being set is shorter than 8 characters (the one rule of every path that sets a
+        password: registration, an account made or changed by an administrator). `detail.error_code`
+        `password_too_short`; the minimum is in `detail.min_length`. An existing password shorter than
+        that still signs in: the rule applies only when a password is set.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [detail]
+            properties:
+              detail:
+                type: object
+                required: [error_code, error_message, min_length]
+                properties:
+                  error_code:
+                    type: string
+                    enum: [password_too_short]
+                  error_message:
+                    type: string
+                  min_length:
+                    type: integer
     SourceRefused:
       description: >-
         A refusal with a stable code in `detail.error_code` (the operation lists them) and a
@@ -3032,6 +3095,10 @@ paths:
                     type: boolean
                   registration_open:
                     type: boolean
+                    description: >
+                      A visitor can create an account now: authentication is on and registration is open.
+                      Always false with authentication off (the instance has one owner and no accounts;
+                      /auth/account/register and /login answer 400).
                   mode:
                     type: string
                     enum: [open, guest, user, admin]
@@ -3077,6 +3144,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/WeakPassword"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -3336,6 +3405,45 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+    post:
+      operationId: createUser
+      tags: [admin]
+      summary: Create an account (admin only)
+      description: >
+        A new, active account with the given role. It works whether authentication is on or off:
+        with it off the accounts wait for it to be turned on (an administrator who can sign in is
+        what turning it on requires, see `auth_enabled` in PATCH /settings). The password is
+        hashed like every other. 409 `detail.error_code` `username_taken` or `email_taken`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreate"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPublic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The username or the email is already used
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserConflictResponse"
+        "422":
+          description: >-
+            Invalid body (empty username, malformed email), or a password shorter than 8 characters
+            (`detail.error_code` `password_too_short`, see the WeakPassword response).
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
   /admin/users/{user_id}:
     patch:
       operationId: updateUser
@@ -3366,6 +3474,9 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          description: >-
+            An unknown role, or a new password shorter than 8 characters (`password_too_short`).
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
     delete:
@@ -7145,9 +7256,25 @@ paths:
       description: >
         Body is a flat object of key to value. Unknown keys, values that fail
         validation and keys the user may not write reject the whole batch. With
-        auth disabled personal (scope user) settings have no owner and are refused
-        with 400. Turning `auth_enabled` on while `AUTH_SECRET` is weak is refused
-        with 400 and `detail.error_code` `auth_secret_insecure`.
+        auth disabled the instance's owner has personal (scope user) settings
+        like any account. Turning `auth_enabled` on is refused with 400 while
+        `AUTH_SECRET` is weak (`detail.error_code` `auth_secret_insecure`) and
+        while no active administrator account that can sign in exists
+        (`no_admin_account`). When it succeeds, the data of the open-mode owner
+        (favorites, likes, playlists, personal settings...) becomes the
+        administrator's IN THE SAME TRANSACTION as the switch: `adopt_into`
+        names the administrator (default: the oldest that can sign in; an id
+        that is not one is 400 `adoption_target_invalid`). Turning it off moves
+        nothing.
+      parameters:
+        - name: adopt_into
+          in: query
+          required: false
+          description: >-
+            The id of the administrator who takes the open-mode owner's data when this write turns
+            authentication on; ignored by any other write.
+          schema:
+            type: string
       requestBody:
         required: true
         content:

@@ -43,8 +43,10 @@ from core.settings_resolver import (
     split_provider_key,
     validate_value,
 )
+from db import user_service
 from db.models import User
 from db.settings_store import SettingsRepository
+from services import auth_transition
 from services.auth import auth_manager_for
 from services.credentials import shared_store, user_store
 
@@ -67,6 +69,16 @@ def personal_value(session: Session, user_id: str, key: str) -> Any:
     if setting is None or setting.scope != "user":
         raise ValueError(f"'{key}' is not a personal (scope='user') setting")
     return SettingsRepository(session).get_user(key, user_id, setting.default)
+
+
+class _GuardFacts:
+    """What a ``SettingDef.guard_on`` check may ask about the deployment (``core.settings_catalog.GuardFacts``)."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def has_usable_administrator(self) -> bool:
+        return user_service.has_usable_administrator(self._session)
 
 
 class SettingsWriteError(Exception):
@@ -303,18 +315,19 @@ class SettingsService:
     # POLICY: il server la applica, non solo la UI).
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _enforce_guards(coerced: dict[str, Any], schema_by_key: dict[str, SettingDef]) -> None:
+    def _enforce_guards(self, coerced: dict[str, Any], schema_by_key: dict[str, SettingDef]) -> None:
         """Rifiuta una scrittura che porta un'impostazione a un valore il cui
         ``guard_on`` dichiarato non passa (es. accendere l'autenticazione con un
-        segreto debole). Un solo punto per ogni scrittore: spegnere o portare
-        a un altro valore non chiama mai il controllo. Nulla è ancora scritto."""
+        segreto debole, o senza un amministratore che possa accedere). Un solo
+        punto per ogni scrittore: spegnere o portare a un altro valore non
+        chiama mai il controllo. Nulla è ancora scritto."""
+        facts = _GuardFacts(self._session)
         for key, value in coerced.items():
             guard = schema_by_key[key].guard_on
             if guard is None or value != guard[0]:
                 continue
             try:
-                guard[1]()
+                guard[1](facts)
             except SettingRefused as refused:
                 raise SettingsWriteError(400, f"{key}: {refused.message}", refused.error_code) from refused
 
@@ -421,13 +434,18 @@ class SettingsService:
 
     def write_values(
         self, raw_updates: dict[str, Any], user: User, *, include_providers: bool = True,
+        adopt_into: str | None = None,
     ) -> dict[str, Any]:
         """Applica ``raw_updates`` (chiave -> valore grezzo) come un'unica
         unità atomica: se una qualunque chiave è sconosciuta, vietata per il
         ruolo di ``user``, non coercibile o non valida, l'INTERA richiesta è
         rifiutata e NULLA viene scritto. Solo dopo che tutto è passato si
         persiste, instradando ogni chiave allo storage giusto in base alla
-        sua dichiarazione (mai al nome della chiave)."""
+        sua dichiarazione (mai al nome della chiave).
+
+        ``adopt_into``: l'amministratore che riceve i dati del proprietario
+        dell'istanza quando QUESTA scrittura accende l'autenticazione
+        (``services/auth_transition.py``); ignorato in ogni altro caso."""
         schema_by_key = {s.key: s for s in self.schema(include_providers=include_providers)}
 
         unknown = sorted(k for k in raw_updates if k not in schema_by_key)
@@ -504,7 +522,16 @@ class SettingsService:
             else:
                 app_level[key] = value
 
-        # Tutto convalidato: persisti.
+        # Tutto convalidato: persisti. Accendere l'autenticazione non è una
+        # scrittura come le altre: i dati del proprietario passano a un
+        # amministratore nella STESSA transazione (auth_transition), e se
+        # fallisce non è stato scritto nient'altro del batch.
+        if app_level.get(auth_transition.SETTING) is True:
+            del app_level[auth_transition.SETTING]
+            try:
+                auth_transition.turn_on(self._session, self._config, self._registry, administrator_id=adopt_into)
+            except auth_transition.TransitionRefused as refused:
+                raise SettingsWriteError(400, refused.message, refused.error_code) from refused
         repo = self._settings_repo()
         for key, value in provider_updates.items():
             repo.set_system(key, value, secret=schema_by_key[key].secret)

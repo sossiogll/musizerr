@@ -55,7 +55,11 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
    docker compose pull && docker compose up -d
    ```
 
-   The web app is on `APP_PORT` (default 80). The first start creates the admin from the bootstrap variables. To update, pull
+   The web app is on `APP_PORT` (default 80). The first start creates the admin from the bootstrap variables (only
+   while no account exists). A new install has authentication off: you are the one owner and there is nothing to
+   sign in to. Turn it on in Administration › System; the admin account is what lets you sign in afterwards, and if
+   you set no bootstrap variables the settings page asks you to create one at that moment (what you have in
+   Musizerr by then becomes that account's, [`docs/permissions.md`](docs/permissions.md)). To update, pull
    again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the database before the API and the workers
    start. The gateway container is never `privileged`: it needs the seccomp profile, `apparmor=unconfined` and
    `systempaths=unconfined`, which the compose file already sets ([why](docs/deployment.md#apparmor-and-seccomp)).

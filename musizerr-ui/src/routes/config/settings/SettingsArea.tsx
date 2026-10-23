@@ -18,7 +18,9 @@ import { Separator } from "@/components/ui/separator";
 import { useI18n } from "@/i18n";
 import type { ApiErrorBody } from "@/lib/api-errors";
 import { useErrorText } from "@/lib/error-text";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { CreateAdministratorDialog, NO_ADMIN_ACCOUNT } from "./CreateAdministratorDialog";
 import { SettingControl } from "./SettingControl";
 import { ProviderOrderList } from "./ProviderOrderList";
 import { ProviderRefControl } from "./ProviderRefControl";
@@ -58,6 +60,8 @@ export function SettingsArea({ area }: SettingsAreaProps) {
   const { data: values } = useQuery({ queryKey: ["settings-values"], queryFn: getSettingsValues });
   const { data: providersData } = useQuery({ queryKey: ["providers"], queryFn: getProviders });
   const [edits, setEdits] = useState<Record<string, unknown>>({});
+  // The batch the server refused for want of an administrator: the guided step takes it from here.
+  const [needsAdministrator, setNeedsAdministrator] = useState<Record<string, unknown> | null>(null);
 
   const mutation = useMutation({
     mutationFn: (updates: Record<string, unknown>) => patchSettings(updates),
@@ -68,14 +72,19 @@ export function SettingsArea({ area }: SettingsAreaProps) {
       queryClient.setQueryData(["settings-values"], data);
       setEdits({});
       toast.success(t("settings.saved"));
+      // A setting can change who the viewer is or what they may do (authentication on or off,
+      // the download policy): the status is asked again.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.viewer });
     },
-    onError: (err: Error & { response?: { data?: { detail?: string | ApiErrorBody } } }) => {
+    onError: (err: Error & { response?: { data?: { detail?: string | ApiErrorBody } } }, updates) => {
       // Il batch fallisce TUTTO insieme: mostriamo esattamente il dettaglio
       // del backend (quale chiave, quale motivo) invece di un messaggio
       // generico — l'utente deve poter capire cosa correggere. Un rifiuto con
       // codice stabile (es. auth_secret_insecure) arriva tradotto.
       const detail = err.response?.data?.detail;
-      if (detail && typeof detail === "object") {
+      if (detail && typeof detail === "object" && detail.error_code === NO_ADMIN_ACCOUNT) {
+        setNeedsAdministrator(updates);
+      } else if (detail && typeof detail === "object") {
         toast.error(errorText(detail.error_code, detail.error_message) || t("settings.saveFailed"));
       } else {
         toast.error(detail ?? t("settings.saveFailed"));
@@ -190,6 +199,11 @@ export function SettingsArea({ area }: SettingsAreaProps) {
           </Card>
         );
       })}
+      <CreateAdministratorDialog
+        open={needsAdministrator !== null}
+        updates={needsAdministrator ?? {}}
+        onClose={() => setNeedsAdministrator(null)}
+      />
     </div>
   );
 }

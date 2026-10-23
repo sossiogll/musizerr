@@ -32,6 +32,7 @@ _ORDER = ("admin", "stream", "user", "optional")
 EXPECTED: dict[tuple[str, str], str] = {
     # --- admin (routes/admin.py)
     ("GET", "/admin/users"): "admin",
+    ("POST", "/admin/users"): "admin",
     ("PATCH", "/admin/users/{user_id}"): "admin",
     ("DELETE", "/admin/users/{user_id}"): "admin",
     ("GET", "/admin/users/{user_id}/download-policy"): "admin",

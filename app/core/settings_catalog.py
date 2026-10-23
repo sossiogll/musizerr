@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Protocol
 
 from . import download_policy, provider_login, user_auth
 from musizerr_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK
@@ -118,13 +118,41 @@ class SettingRefused(Exception):
         super().__init__(message)
 
 
-def _strong_auth_secret() -> None:
+class GuardFacts(Protocol):
+    """What a ``guard_on`` check may ask about the deployment, answered by the host
+    (``services/settings.py``: ``SettingsService._guard_facts``): the catalogue is pure and reads
+    no database, so the facts come in as an argument."""
+
+    def has_usable_administrator(self) -> bool:
+        """An ACTIVE administrator account a person can sign in to (``db.user_service``)."""
+        ...
+
+
+def _strong_auth_secret(facts: GuardFacts) -> None:  # noqa: ARG001
     """Sessions are signed with ``AUTH_SECRET``: authentication cannot be turned on while it is
     missing, short or a placeholder (``user_auth.require_strong_secret``, the rule startup asks too)."""
     try:
         user_auth.require_strong_secret()
     except user_auth.InsecureAuthSecret as insecure:
         raise SettingRefused("auth_secret_insecure", str(insecure)) from insecure
+
+
+def _an_administrator_can_sign_in(facts: GuardFacts) -> None:
+    """With authentication on every admin route needs an administrator's session: turning it on
+    while none can sign in would lock the owner out of the app with no way back in but the
+    database. Create one first (Administration › Users, or the guided step of the settings page)."""
+    if not facts.has_usable_administrator():
+        raise SettingRefused(
+            "no_admin_account",
+            "Authentication cannot be turned on: no active administrator account exists to sign in with. "
+            "Create an administrator first.",
+        )
+
+
+def _authentication_may_turn_on(facts: GuardFacts) -> None:
+    """Both conditions of turning authentication on: sessions can be signed, and someone can sign in."""
+    _strong_auth_secret(facts)
+    _an_administrator_can_sign_in(facts)
 
 
 @dataclass(frozen=True)
@@ -185,7 +213,7 @@ class SettingDef:
     # passa prima dal controllo, che solleva ``SettingRefused`` se il
     # deployment non regge (es. accendere l'autenticazione con un segreto
     # debole). Portarla a un altro valore non lo chiama mai. Mai serializzato.
-    guard_on: tuple[Any, Callable[[], None]] | None = None
+    guard_on: tuple[Any, Callable[[GuardFacts], None]] | None = None
     # Valore servito da ConfigManager mentre lo store non è MAI stato letto
     # con successo da questa istanza (DB irraggiungibile, o app avviata prima
     # della migrazione) — finestra distinta dal "degrado dopo un successo"
@@ -776,7 +804,7 @@ CATALOG: tuple[SettingDef, ...] = (
     _entry("auth_enabled", "bool", False, GROUP_AUTH,
            "Autenticazione", "Richiedi login per accedere all'app.",
            fail_safe=True,
-           guard_on=(True, _strong_auth_secret),
+           guard_on=(True, _authentication_may_turn_on),
            confirm_on=(False, "Senza autenticazione chiunque raggiunga questo indirizzo "
                               "può usare e configurare tutto, come amministratore.")),
     # fail_safe esplicito benché uguale al default: documenta l'intento (se

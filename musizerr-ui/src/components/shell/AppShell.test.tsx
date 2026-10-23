@@ -170,6 +170,19 @@ describe("AppShell — one navigation, three forms", () => {
     expect(screen.queryByRole("button", { name: "Account and settings" })).not.toBeInTheDocument();
   });
 
+  it("with authentication off nothing offers to sign in, register or sign out: the account menu only leads to Settings and Administration", async () => {
+    renderShell("open");
+    await screen.findByText("page /");
+
+    expect(screen.queryByRole("link", { name: /Sign in|Register|Create account/ })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="/login"], a[href^="/register"]')).toBeNull();
+    const [avatar] = screen.getAllByRole("button", { name: "Account and settings" });
+    fireEvent.keyDown(avatar, { key: "Enter" });
+    await screen.findByRole("menuitem", { name: /Settings/ });
+    expect(screen.queryByRole("menuitem", { name: "Sign out" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Sign-in off").length).toBeGreaterThan(0); // who the menu is about: nobody, said as the mode
+  });
+
   it("a guest on XS, who has no account menu, still reaches About from the header", async () => {
     renderShell("guest");
     await screen.findByText("page /");

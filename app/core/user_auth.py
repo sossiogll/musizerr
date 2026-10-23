@@ -21,6 +21,8 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 MIN_SECRET_LENGTH = 32
+# The shortest password that can be SET, by registration or by an administrator (``hash_new_password``).
+MIN_PASSWORD_LENGTH = 8
 # The values that ship in examples and old compose files: public, so anyone can forge a token with them.
 PLACEHOLDER_SECRETS = frozenset({"change-me-in-production", "change-me", "secret"})
 
@@ -74,6 +76,24 @@ def _password_bytes(plain: str) -> bytes:
 
 def hash_password(plain: str) -> str:
     return bcrypt.hashpw(_password_bytes(plain), bcrypt.gensalt()).decode()
+
+
+class WeakPassword(ValueError):
+    """A password somebody is about to SET does not meet the rule (``MIN_PASSWORD_LENGTH``)."""
+
+    error_code = "password_too_short"
+
+    def __init__(self) -> None:
+        super().__init__(f"The password must have at least {MIN_PASSWORD_LENGTH} characters.")
+
+
+def hash_new_password(plain: str) -> str:
+    """The ONE way a password is set (registration, an account made or changed by an administrator,
+    the first administrator of a deployment): the rule, then the hash. It applies only when a password
+    is set: an account whose password is shorter keeps signing in (``verify_password`` asks nothing)."""
+    if len(plain) < MIN_PASSWORD_LENGTH:
+        raise WeakPassword()
+    return hash_password(plain)
 
 
 def verify_password(plain: str, hashed: str) -> bool:

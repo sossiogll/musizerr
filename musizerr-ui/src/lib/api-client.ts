@@ -305,6 +305,17 @@ export const getMe = () => http.get<User>("/auth/account/me").then((r) => r.data
 export const adminListUsers = () =>
   http.get<PaginatedResponse<User>>("/admin/users").then((r) => r.data);
 
+/** POST /admin/users: a new, active account (works with authentication on and off). */
+export interface NewAccountBody {
+  username: string;
+  password: string;
+  email?: string;
+  role: UserRole;
+}
+
+export const adminCreateUser = (body: NewAccountBody) =>
+  http.post<User>("/admin/users", body).then((r) => r.data);
+
 export const adminUpdateUser = (
   id: string,
   updates: { role?: UserRole; is_active?: boolean },
@@ -652,8 +663,14 @@ export const getSettingsSchema = () =>
 export const getSettingsValues = () =>
   http.get<Record<string, unknown>>("/settings/values").then((r) => r.data);
 
-export const patchSettings = (updates: Record<string, unknown>) =>
-  http.patch<Record<string, unknown>>("/settings", updates).then((r) => r.data);
+/**
+ * PATCH /settings. `adoptInto`: the administrator who takes the open-mode owner's data when this
+ * write turns authentication on (the server defaults to the oldest one that can sign in).
+ */
+export const patchSettings = (updates: Record<string, unknown>, options: { adoptInto?: string } = {}) =>
+  http
+    .patch<Record<string, unknown>>("/settings", updates, options.adoptInto ? { params: { adopt_into: options.adoptInto } } : undefined)
+    .then((r) => r.data);
 
 export type DownloadTone = "neutral" | "info" | "success" | "warning" | "danger";
 export type DownloadPhase = "queued" | "active" | "done" | "failed" | "review";

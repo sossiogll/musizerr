@@ -74,6 +74,12 @@ class ConfigManager:
         for key, value in updates.items():
             self._write_system(key, value)
 
+    def committed(self, updates: dict[str, Any]) -> None:
+        """``updates`` were written (and committed) by the caller in a transaction of its own
+        (``SettingsRepository.set_system(commit=False)``): this instance sees them at once."""
+        self._cache.update(updates)
+        self._cache_loaded_at = time.monotonic()
+
     def all(self) -> dict[str, Any]:
         self._maybe_refresh_cache()
         if not self._loaded:
@@ -170,7 +176,16 @@ class ConfigManager:
 
     @property
     def registration_open(self) -> bool:
+        """The ``registration_open`` setting as it was set. Whether a visitor can register right
+        now is ``registration_available``."""
         return bool(self.get("registration_open"))
+
+    @property
+    def registration_available(self) -> bool:
+        """A visitor can create an account: authentication is on AND registration is open. With
+        authentication off there are no accounts to create (the instance has one owner), whatever
+        the setting says."""
+        return self.auth_enabled and self.registration_open
 
     @property
     def provider_login_new_accounts(self) -> str:
