@@ -416,6 +416,7 @@ export const en = {
       sweep_workspaces: "Clean up workspaces",
       check_for_updates: "Check for updates",
       reconcile_library_files: "Reconcile library files",
+      import_existing_library: "Import the existing library",
       retry_transient_failures: "Retry temporary failures",
     },
     descriptions: {
@@ -437,6 +438,8 @@ export const en = {
         "Reads the releases of Musizerr on GitHub once a day and tells Administration when a newer version exists and what updating to it implies. It never updates anything: Musizerr is updated by hand.",
       reconcile_library_files:
         "Checks the library against the files the storage really holds: a moved file is found again, a vanished one no longer counts as in the library. Deletes nothing.",
+      import_existing_library:
+        "Adds the music the storage already holds to the library, once. It waits until a storage provider is installed and answering, so on a new installation it starts a few minutes after you set the storage up, and then does nothing.",
       retry_transient_failures:
         "Queues again, a few at a time, the tracks whose last download failed for a temporary error (network, provider down).",
     },
@@ -508,6 +511,7 @@ export const en = {
       sweep_workspaces: "Removed {{removed}} leftover workspaces",
       check_for_updates: "Read the releases of {{repository}}",
       reconcile_library_files: "{{relocated}} files found again and {{missing_new}} newly missing among {{entries}} library files",
+      import_existing_library: "{{indexed}} audio files added to the library",
       retry_transient_failures: "Queued again {{queued}} of {{candidates}} failed downloads",
     },
     resultFields: {
@@ -1828,6 +1832,7 @@ export const it: Translations<typeof en> = {
       sweep_workspaces: "Pulizia cartelle di lavoro",
       check_for_updates: "Controllo aggiornamenti",
       reconcile_library_files: "Riconcilia i file della libreria",
+      import_existing_library: "Importa la libreria esistente",
       retry_transient_failures: "Riprova i fallimenti temporanei",
     },
     descriptions: {
@@ -1848,6 +1853,8 @@ export const it: Translations<typeof en> = {
         "Legge una volta al giorno le release di Musizerr su GitHub e avvisa in Amministrazione quando esiste una versione più nuova e cosa comporta aggiornare. Non aggiorna mai nulla: Musizerr si aggiorna a mano.",
       reconcile_library_files:
         "Confronta la libreria con i file che lo storage contiene davvero: un file spostato si ritrova, uno sparito non conta più come in libreria. Non cancella nulla.",
+      import_existing_library:
+        "Aggiunge una volta alla libreria la musica che lo storage contiene già. Aspetta che un provider di storage sia installato e risponda: su un'installazione nuova parte pochi minuti dopo aver configurato lo storage, poi non fa più nulla.",
       retry_transient_failures:
         "Rimette in coda, poche per volta, le tracce il cui ultimo download è fallito per un errore temporaneo (rete, provider irraggiungibile).",
     },
@@ -1919,6 +1926,7 @@ export const it: Translations<typeof en> = {
       sweep_workspaces: "Rimosse {{removed}} cartelle di lavoro rimaste",
       check_for_updates: "Lette le release di {{repository}}",
       reconcile_library_files: "{{relocated}} file ritrovati e {{missing_new}} nuovi mancanti su {{entries}} file della libreria",
+      import_existing_library: "{{indexed}} file audio aggiunti alla libreria",
       retry_transient_failures: "Rimessi in coda {{queued}} download falliti su {{candidates}}",
     },
     resultFields: {

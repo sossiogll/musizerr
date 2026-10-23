@@ -8,7 +8,7 @@ wait.
 | Queue | Worker service | Concurrency | What runs there |
 |---|---|---|---|
 | `downloads` | `worker` | `max_concurrent_downloads` (read at start) | `download_task` (resolve, download, store) |
-| `jobs` | `worker-jobs` | 2 | the library jobs a user starts ("Sincronizza i mi piace", "Scarica i mi piace mancanti"), the full-sync check, the library index routine (`sync_library_index`) |
+| `jobs` | `worker-jobs` | 2 | the library jobs a user starts ("Sincronizza i mi piace", "Scarica i mi piace mancanti"), the full-sync check, the library index routine (`sync_library_index`), the import of the existing library (`import_existing_library`) |
 | `maintenance` | `worker-maintenance` | 2 | the scheduler tick, the other routines (the like matching among them), the reconciliation chains (delegated downloads, likes), short tasks queued by the others (unlike, routine starts) |
 
 - The routes live in one place, `workers/celery_app.py` (`TASK_ROUTES`), by
@@ -46,7 +46,9 @@ never runs twice for the same period because of a backlog. "Run now" has no
 period.
 
 - **A run executes on the queue of its routine's task** (`TASK_ROUTES`; the
-  default, `maintenance`, for every routine but one). The library index
+  default, `maintenance`, for every routine but two). The import of the
+  existing library (`import_existing_library`) is routed to `jobs` too: it
+  reads the tags of every file the storage holds. The library index
   (`sync_library_index`, `workers.tasks.sync_library_index`) is routed to
   `jobs`: it lists the whole library of every sync provider and gives each
   file its record, which on a large library takes minutes the first time
@@ -54,6 +56,20 @@ period.
   On `maintenance` it would hold one of its two processes, and with another
   long routine (duplicates scan, file reconciliation) the tick would wait.
   On `jobs` it runs beside the users' likes syncs, which start it anyway.
+- **The existing library is imported by a routine, not by the init container**
+  (`import_existing_library`, every 5 minutes, `services/library_scan.py`). The
+  first scan used to run in `init`, which has no providers: the gateway runs a
+  provider only after the API told it which are installed (and `init` finishes
+  before the API starts), so the scan always saw an empty registry. Now each run
+  checks the one-time flag (`library_scanned`) and, if it is not set, scans the
+  library the configured storage provider holds. Its result says where it
+  stands: `waiting` (no storage provider installed, configured or answering yet:
+  it looks again at the next run, it is not an error), `empty` (the storage holds
+  no audio file yet, looks again), `imported` (with `indexed`, the files added)
+  and `already_imported` (nothing to do, and the storage is not even listed). A
+  new installation therefore imports its library a few minutes after the storage
+  provider is installed and configured; "Run now" does it at once, and
+  `docker compose exec app python -m scripts.library_scan` does it from a shell.
 - **A routine can follow another** (`RoutineDef.follows`): the end of every
   run of the leader, ok or failed, dispatches its enabled followers, and the
   tick does not start a follower while its leader is running, or queued with

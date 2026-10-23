@@ -53,6 +53,17 @@ SYNC_PLAYLISTS = "sync_playlists"
 
 ROUTINES: tuple[RoutineDef, ...] = (
     RoutineDef(
+        # The audio files the storage provider already holds become the library, once per installation
+        # (services.library_scan). It is a routine and not a step of the init container because the
+        # providers start only after the API told the gateway which are installed: it waits, run after
+        # run, until a storage provider answers, and does nothing at all once the library is imported.
+        # Its result is "waiting" until then.
+        key="import_existing_library",
+        task_name="workers.tasks.import_existing_library",
+        default_interval_minutes=5,
+        max_runtime_minutes=240,  # lists and reads the tags of the whole library
+    ),
+    RoutineDef(
         key="sync_saved_tracks",
         task_name="workers.tasks.sync_all_users_saved_tracks",
         default_interval_minutes=6 * 60,

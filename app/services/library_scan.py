@@ -3,6 +3,12 @@ Importazione della libreria esistente: indicizza ogni file audio che lo
 storage provider configurato contiene già, una volta sola per installazione
 (flag di sistema ``library_scanned``).
 
+Gira come routine (``import_existing_library``, :func:`import_existing_library`)
+e a mano (``scripts/library_scan.py``), mai all'avvio dell'init: i provider li
+avvia il gateway solo dopo che l'API gli ha detto quali sono installati, quindi
+un init che scansiona vede un registry vuoto. La routine riprova finché lo
+storage non risponde.
+
 Il provider elenca i propri file (``StorageProvider.list_files``) e rende
 ognuno in una cartella di lavoro (``stream``), da cui l'host legge i tag;
 l'identità della traccia è quella condivisa di ``db.track_store``.
@@ -32,6 +38,22 @@ logger = logging.getLogger(__name__)
 
 LIBRARY_SCANNED = "library_scanned"
 AUDIO_EXTENSIONS = frozenset({".mp3", ".flac", ".ogg", ".m4a", ".opus", ".wav"})
+
+
+def import_existing_library(session: Session, registry, config, auth_manager) -> dict:
+    """The routine ``import_existing_library``: runs the one-time library scan if it is still to
+    be done. The result says where it stands (``state``) and is a success in every case: a storage
+    that is not there yet (no provider installed, not configured, not answering) is "waiting", and the
+    routine looks again at its next run. ``detail`` is for the page when the result has no numbers."""
+    if SettingsRepository(session).get_system(LIBRARY_SCANNED) is True:
+        return {"status": "ok", "state": "already_imported", "detail": "The existing library was already imported."}
+    indexed = scan_library_once(session, registry, config, auth_manager)
+    if indexed is None:
+        return {"status": "ok", "state": "waiting",
+                "detail": "No storage provider answers yet: the library is imported once one does."}
+    if SettingsRepository(session).get_system(LIBRARY_SCANNED) is True:
+        return {"status": "ok", "state": "imported", "indexed": indexed}
+    return {"status": "ok", "state": "empty", "detail": "The library on the storage is empty: looking again at the next run."}
 
 
 def scan_library_once(session: Session, registry, config, auth_manager) -> int | None:

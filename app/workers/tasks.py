@@ -30,7 +30,7 @@ from db import library_job_store as job_store
 from services import library_jobs
 from services.credentials import has_own_account, own_store, shared_store
 from services import downloads as download_service
-from services import favorites, playlist_monitor, playlist_sync, routines, sync_index
+from services import favorites, library_scan, playlist_monitor, playlist_sync, routines, sync_index
 from services.download_requests import liked_elsewhere_spec, request_download
 from services.enrichment import cross_enrich_track
 from services.errors import public_error
@@ -710,6 +710,18 @@ def sync_library_index_task(progress=None) -> dict:
             session, registry, auth_manager_for(shared_store(session)), progress=progress,
         )
     return sync_index.index_result(reports)
+
+
+@celery.task(name="workers.tasks.import_existing_library")
+def import_existing_library_task() -> dict:
+    """Routine ``import_existing_library``: the first scan of the library the storage
+    provider already holds (``services.library_scan``). It waits (result ``state: waiting``)
+    until a storage provider answers and does nothing once the library is imported."""
+    registry = get_registry()
+    with Session(engine) as session:
+        return library_scan.import_existing_library(
+            session, registry, get_config(), auth_manager_for(shared_store(session)),
+        )
 
 
 @celery.task(name="workers.tasks.sync_playlists")

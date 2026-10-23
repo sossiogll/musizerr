@@ -40,7 +40,8 @@ celery = Celery(
 # - ``jobs``: i job di libreria chiesti da un utente ("Sincronizza i mi
 #   piace", "Scarica i mi piace mancanti"), le azioni admin che aspettano
 #   un esito (verifica full-sync) e l'aggiornamento della libreria dal sync
-#   provider (routine ``sync_library_index``, minuti su una libreria grande).
+#   provider (routine ``sync_library_index``, minuti su una libreria grande) e
+#   l'importazione della libreria esistente (routine ``import_existing_library``).
 # - ``maintenance``: il tick dello scheduler, i routine, le chain di
 #   riconciliazione (download delegati, like) e i task brevi accodati dagli
 #   altri (unlike, like matching). È la coda di default: un task senza una
@@ -64,6 +65,8 @@ TASK_ROUTES = {
     # routine's task, ``workers.scheduler.dispatch_routine``): listing and
     # indexing a large sync library takes minutes, never on the tick's worker.
     "workers.tasks.sync_library_index": {"queue": QUEUE_JOBS},
+    # The routine ``import_existing_library``: reads the tags of every file of an existing library.
+    "workers.tasks.import_existing_library": {"queue": QUEUE_JOBS},
 }
 
 celery.conf.update(
