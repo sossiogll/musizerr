@@ -41,13 +41,18 @@ logger = logging.getLogger(__name__)
 def open_mode(session: Session) -> bool:
     """Whether authentication is off, read from the settings table itself (the
     value the app and every worker share). Anything that keeps it from being
-    read is "authentication on": the answer that opens nothing."""
+    read is "authentication on": the answer that opens nothing.
+
+    The read runs in a SAVEPOINT: a failure undoes only the read (on
+    PostgreSQL it would otherwise abort the caller's whole transaction) and the
+    caller's pending work, which this helper does not own, is left as it is."""
     try:
-        return not bool(SettingsRepository(session).get_system("auth_enabled", catalog_defaults()["auth_enabled"]))
+        with session.begin_nested():
+            enabled = SettingsRepository(session).get_system("auth_enabled", catalog_defaults()["auth_enabled"])
     except Exception as exc:  # noqa: BLE001 — unreadable settings never open anything
         logger.warning("Could not read auth_enabled, treating authentication as on: %s", exc)
-        session.rollback()
         return False
+    return not bool(enabled)
 
 
 def _principal(session: Session, user_id: str | None, *, own_only: bool) -> CredentialStore:

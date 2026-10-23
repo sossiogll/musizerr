@@ -262,6 +262,27 @@ def test_a_setting_that_cannot_be_read_counts_as_authentication_on(session, monk
     assert user_store(session, SYSTEM).instance_owner is False
 
 
+def test_a_failing_read_of_the_setting_leaves_the_callers_pending_work_alone(session, engine, monkeypatch):
+    """``open_mode`` does not own the session: a job that wrote rows and then builds a store
+    must still be able to commit them when the read of the setting fails (on PostgreSQL a
+    failed statement would abort the whole transaction without a savepoint)."""
+    import sqlalchemy as sa
+
+    session.add(User(id="pending-user", username="pending-user", password_hash="x"))
+
+    def broken(self, key, default=None):
+        self._session.exec(sa.text("SELECT * FROM no_such_table"))
+
+    monkeypatch.setattr(SettingsRepository, "get_system", broken)
+
+    assert open_mode(session) is False
+    assert user_store(session, SYSTEM).instance_owner is False
+    session.commit()  # the pending write is still there, and still commits
+
+    with Session(engine) as check:
+        assert check.get(User, "pending-user") is not None
+
+
 def test_an_instance_never_configured_is_open(session):
     assert open_mode(session) is True
 
