@@ -220,14 +220,15 @@ describe("Settings › Account: also remove the like where it came from", () => 
     expect(await screen.findByText("None of the installed providers supports this yet.")).toBeInTheDocument();
   });
 
-  it("is not shown in open mode: nobody owns a personal setting there", async () => {
+  it("is shown in open mode too: the owner of the instance has personal settings, saved as their own", async () => {
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("open"), user: null, logout: vi.fn() });
 
     wrap(<AccountTab />);
 
-    await waitFor(() => expect(mockGetSettingsSchema).toHaveBeenCalled());
-    await waitFor(() => expect(mockGetProviders).toHaveBeenCalled());
-    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(screen.queryByText("Also remove the like where it came from")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("switch", { name: "Also remove the like where it came from" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mockPatchSettings).toHaveBeenCalledTimes(1));
+    expect(mockPatchSettings.mock.calls[0][0]).toEqual({ [KEY]: true });
   });
 });

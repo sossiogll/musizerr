@@ -54,7 +54,7 @@ const MATRIX: [Capability, Record<ViewerMode, boolean>][] = [
   ["search", { guest: false, user: true, admin: true, open: true }],
   ["admin", { guest: false, user: false, admin: true, open: true }],
   ["playlists", { guest: false, user: true, admin: true, open: true }],
-  ["settings_personal", { guest: false, user: true, admin: true, open: false }],
+  ["settings_personal", { guest: false, user: true, admin: true, open: true }],
   ["linked_accounts", { guest: false, user: true, admin: true, open: true }],
 ];
 

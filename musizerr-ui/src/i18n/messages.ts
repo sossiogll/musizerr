@@ -532,9 +532,6 @@ export const en = {
   },
   account: {
     deleteConfirm: "This permanently deletes your account. Continue?",
-    localPreferences: "Device preferences",
-    localPreferencesHint:
-      "No account is signed in on this deployment, so language and theme are remembered on this device only.",
     dangerZone: "Danger zone",
     dangerZoneHint: "Disconnects your personal provider accounts. Shared system accounts, if any, are unaffected.",
     removeAllAccounts: "Remove all my accounts",
@@ -983,6 +980,7 @@ export const en = {
     discography_too_large: "This artist has too many releases to download in one request.",
     account_required: "Sign in to sync your likes.",
     provider_not_connected: "Connect your account in Settings to sync your likes.",
+    no_library_provider: "No installed provider keeps a likes library to import. Install one in Administration.",
     job_failed: "The job failed.",
     library_sync_failed: "The likes sync failed.",
     sync_provider_empty_listing: "The music server listed no file: nothing was changed.",
@@ -1943,9 +1941,6 @@ export const it: Translations<typeof en> = {
   },
   account: {
     deleteConfirm: "Questo elimina definitivamente il tuo account. Continuare?",
-    localPreferences: "Preferenze del dispositivo",
-    localPreferencesHint:
-      "Nessun account è connesso su questo deployment: lingua e tema sono ricordati solo su questo dispositivo.",
     dangerZone: "Zona pericolosa",
     dangerZoneHint: "Scollega i tuoi account provider personali. Gli account di sistema condivisi, se presenti, non sono toccati.",
     removeAllAccounts: "Rimuovi tutti i miei account",
@@ -2392,6 +2387,7 @@ export const it: Translations<typeof en> = {
     discography_too_large: "Questo artista ha troppe uscite per scaricarle in una sola richiesta.",
     account_required: "Accedi per sincronizzare i tuoi like.",
     provider_not_connected: "Collega il tuo account in Impostazioni per sincronizzare i like.",
+    no_library_provider: "Nessun provider installato tiene una libreria di like da importare. Installane uno in Amministrazione.",
     job_failed: "Il lavoro non è riuscito.",
     library_sync_failed: "La sincronizzazione dei like non è riuscita.",
     sync_provider_empty_listing: "Il server musicale non ha elencato nessun file: non è cambiato nulla.",

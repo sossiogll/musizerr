@@ -57,7 +57,7 @@ export function viewerStatus(mode: ViewerMode, downloadPolicy: ViewerDownloadPol
       stream_full: signedIn,
       library: signedIn,
       playlists: signedIn,
-      settings_personal: mode === "user" || mode === "admin",
+      settings_personal: mode === "user" || mode === "admin" || mode === "open",
       linked_accounts: signedIn,
       admin: mode === "admin" || mode === "open",
     },
