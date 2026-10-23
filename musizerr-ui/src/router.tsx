@@ -4,6 +4,7 @@ import { NotFoundPage } from "./routes/not-found";
 import { RouteError } from "./components/RouteError";
 import type { SearchType } from "./types";
 import { parseDownloadsSearch } from "./routes/downloads-search";
+import { OpenModeRedirect } from "./components/OpenModeRedirect";
 import { RequireCapability } from "./components/RequireCapability";
 import { safeRedirect } from "./lib/safe-redirect";
 
@@ -139,7 +140,11 @@ const configSectionRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
-  component: LoginPage,
+  component: () => (
+    <OpenModeRedirect>
+      <LoginPage />
+    </OpenModeRedirect>
+  ),
   validateSearch: (search: Record<string, unknown>): { redirect?: string } =>
     typeof search.redirect === "string" ? { redirect: safeRedirect(search.redirect) } : {},
 });
@@ -148,7 +153,11 @@ const loginRoute = createRoute({
 const loginProviderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login/provider",
-  component: ProviderLoginReturnPage,
+  component: () => (
+    <OpenModeRedirect>
+      <ProviderLoginReturnPage />
+    </OpenModeRedirect>
+  ),
   validateSearch: (search: Record<string, unknown>): { code?: string; error?: string } => ({
     ...(typeof search.code === "string" ? { code: search.code } : {}),
     ...(typeof search.error === "string" ? { error: search.error } : {}),
@@ -158,7 +167,11 @@ const loginProviderRoute = createRoute({
 const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/register",
-  component: RegisterPage,
+  component: () => (
+    <OpenModeRedirect>
+      <RegisterPage />
+    </OpenModeRedirect>
+  ),
   validateSearch: (search: Record<string, unknown>): { redirect?: string } =>
     typeof search.redirect === "string" ? { redirect: safeRedirect(search.redirect) } : {},
 });

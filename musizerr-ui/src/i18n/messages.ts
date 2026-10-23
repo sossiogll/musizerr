@@ -608,6 +608,29 @@ export const en = {
     deleted: "Account deleted",
     actionFailed: "The change was not saved",
     loadFailed: "Could not load the accounts",
+    noAccounts: "No accounts yet.",
+    openModeAccounts: "Authentication is off, so nobody signs in yet. The accounts you create here can sign in once you turn authentication on (System).",
+    new: {
+      open: "New user",
+      title: "New user",
+      description: "Creates an active account. They can sign in with this username and password whenever authentication is on.",
+      role: "Role",
+      create: "Create account",
+      created: "Account {{name}} created",
+      failed: "The account could not be created",
+      usernameRequired: "Enter a username",
+      passwordShort: "The password is too short",
+      passwordHint: "At least {{count}} characters.",
+    },
+    guided: {
+      title: "Create the administrator account",
+      description:
+        "Authentication needs an administrator who can sign in. Create one now: authentication is turned on and you are signed in with it. Everything you have in Musizerr now (favorites, likes, playlists, your settings) becomes this account's.",
+      submit: "Create and turn on",
+      working: "Working…",
+      done: "Authentication is on. You are signed in as {{name}}.",
+      failed: "Authentication could not be turned on",
+    },
   },
   sources: {
     intro:
@@ -961,6 +984,12 @@ export const en = {
     catalog_not_found: "Nothing is published at that address (for a private catalog, the token may not be allowed to read it).",
     auth_secret_insecure:
       "Authentication can't be turned on: the server's AUTH_SECRET is missing, shorter than 32 characters or a placeholder. Set a long random value (openssl rand -hex 32) in .env and restart.",
+    no_admin_account:
+      "Authentication can't be turned on: no administrator account exists to sign in with. Create one first.",
+    adoption_target_invalid:
+      "The data of this instance can only go to an active administrator account that can sign in.",
+    username_taken: "That username is already taken.",
+    email_taken: "That email is already used by another account.",
     playlist_access_restricted: "The provider does not let this account read the playlist's tracks.",
     playlist_error: "The provider failed while reading the playlist's tracks.",
     playlist_not_found: "This playlist does not exist, or it is not yours.",
@@ -2017,6 +2046,29 @@ export const it: Translations<typeof en> = {
     deleted: "Account eliminato",
     actionFailed: "La modifica non è stata salvata",
     loadFailed: "Impossibile caricare gli account",
+    noAccounts: "Nessun account per ora.",
+    openModeAccounts: "L'autenticazione è disattivata, quindi per ora nessuno accede. Gli account che crei qui potranno accedere quando attiverai l'autenticazione (Sistema).",
+    new: {
+      open: "Nuovo utente",
+      title: "Nuovo utente",
+      description: "Crea un account attivo. Potrà accedere con questo nome utente e questa password ogni volta che l'autenticazione è attiva.",
+      role: "Ruolo",
+      create: "Crea account",
+      created: "Account {{name}} creato",
+      failed: "Non è stato possibile creare l'account",
+      usernameRequired: "Inserisci un nome utente",
+      passwordShort: "La password è troppo corta",
+      passwordHint: "Almeno {{count}} caratteri.",
+    },
+    guided: {
+      title: "Crea l'account amministratore",
+      description:
+        "L'autenticazione richiede un amministratore che possa accedere. Creane uno ora: l'autenticazione viene attivata e accedi con quell'account. Tutto ciò che hai ora in Musizerr (preferiti, mi piace, playlist, le tue impostazioni) diventa di questo account.",
+      submit: "Crea e attiva",
+      working: "Un momento…",
+      done: "L'autenticazione è attiva. Hai effettuato l'accesso come {{name}}.",
+      failed: "Non è stato possibile attivare l'autenticazione",
+    },
   },
   sources: {
     intro:
@@ -2368,6 +2420,12 @@ export const it: Translations<typeof en> = {
     catalog_not_found: "Non c'è nulla pubblicato a quell'indirizzo (per un catalogo privato, il token potrebbe non poterlo leggere).",
     auth_secret_insecure:
       "Non si può attivare l'autenticazione: AUTH_SECRET del server manca, è più corta di 32 caratteri o è un segnaposto. Imposta un valore lungo e casuale (openssl rand -hex 32) in .env e riavvia.",
+    no_admin_account:
+      "Non si può attivare l'autenticazione: non esiste nessun account amministratore con cui accedere. Creane prima uno.",
+    adoption_target_invalid:
+      "I dati di questa istanza possono passare solo a un account amministratore attivo che possa accedere.",
+    username_taken: "Questo nome utente è già in uso.",
+    email_taken: "Questa email è già usata da un altro account.",
     playlist_access_restricted: "Il provider non consente a questo account di leggere i brani della playlist.",
     playlist_error: "Il provider ha dato errore leggendo i brani della playlist.",
     playlist_not_found: "Questa playlist non esiste, o non è tua.",
