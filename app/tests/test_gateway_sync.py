@@ -170,3 +170,25 @@ def test_without_a_gateway_the_api_starts_without_pushing(monkeypatch):
     monkeypatch.setattr(deps, "_config", None)
 
     deps.init_singletons()
+
+
+def test_the_watcher_says_once_that_the_host_and_the_gateway_name_different_workspace_folders(gateway, caplog):
+    client = GatewayClient(gateway.path)
+    folder = ["/data/work"]
+    watcher = provider_events.GatewayWatcher(Registry(), client, lambda: None, workspace_dir=lambda: folder[0])
+
+    watcher.check()
+    watcher.check()
+
+    messages = [r.getMessage() for r in caplog.records if "workspace" in r.getMessage()]
+    assert len(messages) == 1, "said once per pair of values, not every few seconds"
+    assert "/data/work" in messages[0] and "/downloads/.musizerr-work" in messages[0] and "WORKSPACE_DIR" in messages[0]
+
+    folder[0] = "/downloads/.musizerr-work/"  # the same folder, spelled with a trailing slash
+    caplog.clear()
+    watcher.check()
+    assert not [r for r in caplog.records if "workspace" in r.getMessage()]
+
+    folder[0] = "/data/work"  # a desync after a good time is said again
+    watcher.check()
+    assert len([r for r in caplog.records if "workspace" in r.getMessage()]) == 1

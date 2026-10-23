@@ -69,3 +69,14 @@ def test_get_def_roundtrip():
     for s in sc.CATALOG:
         assert sc.get_def(s.key) is s
     assert sc.get_def("__does_not_exist__") is None
+
+
+def test_the_default_workspace_folder_follows_the_variable_the_deployment_shares_with_the_gateway(monkeypatch):
+    monkeypatch.delenv("WORKSPACE_DIR", raising=False)
+    assert sc.default_workspace_dir() == "/downloads/.musizerr-work"
+
+    monkeypatch.setenv("WORKSPACE_DIR", "  /library/.work ")
+    assert sc.default_workspace_dir() == "/library/.work"
+
+    monkeypatch.setenv("WORKSPACE_DIR", "")
+    assert sc.default_workspace_dir() == "/downloads/.musizerr-work", "an empty variable is no variable"
