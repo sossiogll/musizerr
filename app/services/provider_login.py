@@ -42,7 +42,7 @@ from db.auth_store import CredentialStore
 from db.locks import xact_lock
 from db.models import User
 from services.auth import auth_manager_for
-from services.credentials import shared_store
+from services.credentials import shared_store, user_store
 from services.linked_accounts import credential_fields, unique_providers
 from services.provider_calls import provider_call
 from services.refresh_tokens import RefreshedSession, start_session
@@ -137,7 +137,7 @@ def save_linked_credentials(session: Session, user_id: str, provider, submitted:
     """Links a login account to the user (the viewer's own, ``PERSONAL``):
     asks the provider who it is when it can sign users in, and refuses an
     account another user already linked (``AlreadyLinked``)."""
-    store = CredentialStore(session, user_id=user_id)
+    store = user_store(session, user_id)
     external_id = None
     if rules.provider_can_login(provider):
         external_id = identify(provider, credentials_session(submitted)).external_id
@@ -258,7 +258,7 @@ def sign_in(
     session.add(user)
     session.flush()
     try:
-        _save(CredentialStore(session, user_id=user.id), provider, flow, data, external_id)  # commits the user too
+        _save(user_store(session, user.id), provider, flow, data, external_id)  # commits the user too
     except IntegrityError:
         session.rollback()
         owner_id = CredentialStore(session).linked_user_id(provider.name, external_id)
@@ -274,7 +274,7 @@ def _existing(session: Session, provider, owner_id: str, flow: AuthFlow, data: d
     if user is None:  # a foreign key keeps this from happening; refuse rather than guess
         raise LoginRefused(rules.ERROR_REFUSED, "The linked account has no user")
     _usable(user)
-    _save(CredentialStore(session, user_id=user.id), provider, flow, data, external_id)
+    _save(user_store(session, user.id), provider, flow, data, external_id)
     return SignedIn(user, created=False)
 
 

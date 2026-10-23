@@ -406,3 +406,33 @@ def test_the_secret_box_is_pure():
     }
     assert imported <= {"__future__", "base64", "binascii", "typing", "cryptography"}, imported
     assert "os" not in imported, "the keys come in as arguments: the environment is db/credential_cipher.py's"
+
+
+# ---------------------------------------------------------------------------
+# Regola 13 — gli account di un utente li instrada una regola sola
+# (``db/auth_store.CredentialStore``) e CHI e' il proprietario dell'istanza lo
+# decide un solo punto, ``services/credentials.py`` (solo con l'autenticazione
+# spenta l'utente di sistema ha come account personale quello condiviso). Nessun
+# altro modulo costruisce uno store per un utente (``user_id``, ``own_only``,
+# ``instance_owner``): usa ``user_store`` / ``own_store`` / ``shared_store``.
+# ---------------------------------------------------------------------------
+
+STORE_BUILDER = os.path.join("services", "credentials.py")
+PRINCIPAL_ARGUMENTS = {"user_id", "own_only", "instance_owner"}
+
+
+def test_only_services_credentials_builds_a_store_for_a_user():
+    offenders = []
+    for rel, tree in _application_sources():
+        if rel == STORE_BUILDER:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+            if name != "CredentialStore":
+                continue
+            if len(node.args) > 1 or any(keyword.arg in PRINCIPAL_ARGUMENTS for keyword in node.keywords):
+                offenders.append(Violation(rel, node.lineno, "CredentialStore(...) for a principal"))
+    _fail_on(offenders, "uno store di un utente va costruito con services.credentials (user_store/own_store)")

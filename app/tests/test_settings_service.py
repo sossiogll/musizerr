@@ -450,69 +450,49 @@ def test_enum_write_rejects_value_outside_declared_options(service, session, key
 
 # ---------------------------------------------------------------------------
 # Utente sintetico "no-login" (routes/deps.py::_SYSTEM_USER, restituito da
-# get_current_user per ogni richiesta quando `auth_enabled` è False): non ha
-# MAI una riga in `users`, quindi una chiave scope='user' (scelta puramente
-# personale — nessuna in `system_with_user_override`) non ha nessun
-# proprietario a cui essere attribuita in questa modalità.
+# get_current_user per ogni richiesta quando `auth_enabled` e' False): e' il
+# proprietario unico dell'istanza e la sua riga in `users` esiste
+# (`user_service.ensure_system_user`), quindi le sue scelte personali
+# (scope='user': lingua, tema, sfondo, unlike_on_origin_providers) si
+# salvano per ``SYSTEM_USER_ID`` come quelle di qualunque utente.
 # ---------------------------------------------------------------------------
 
 
 def _system_user() -> User:
     # Costruito senza toccare il DB (a differenza di `_make_user`): il servizio
-    # non lo legge mai da lì, è l'utente sintetico che le rotte consegnano senza
-    # login (la sua riga in `users` serve solo alle chiavi esterne delle altre
-    # tabelle, `user_service.ensure_system_user`).
+    # non lo legge mai da li', e' l'utente sintetico che le rotte consegnano senza
+    # login.
     return User(id=SYSTEM_USER_ID, username="system", password_hash="", role="admin", is_active=True)
 
 
-def test_synthetic_user_cannot_write_a_user_scoped_setting(service, session, config):
-    system_user = _system_user()
+def test_synthetic_user_writes_a_user_scoped_setting_as_its_own(service, session, config):
+    user_service.ensure_system_user(session)
 
-    with pytest.raises(SettingsWriteError) as exc_info:
-        service.write_values({"theme": "dark"}, system_user)
+    values = service.write_values({"theme": "dark", "language": "it"}, _system_user(), include_providers=False)
 
-    assert exc_info.value.status_code == 400
-    # Rifiutato prima di scrivere: nessuna riga orfana con user_id="__system__".
-    assert SettingsRepository(session).get_user("theme", SYSTEM_USER_ID) is None
-
-
-def test_synthetic_user_write_rejects_the_whole_batch_when_one_key_is_user_scoped(service, session, config):
-    # Stessa unità atomica delle altre rejection: un batch che mischia una
-    # chiave scope='user' con una lecita (system_with_user_override) va
-    # rifiutato TUTTO, niente scritto neppure per la chiave lecita.
-    system_user = _system_user()
-
-    with pytest.raises(SettingsWriteError):
-        service.write_values(
-            {"metadata_provider_priority": ["a"], "theme": "dark"}, system_user,
-        )
-
-    assert SettingsRepository(session).get_system("metadata_provider_priority") is None
+    assert (values["theme"], values["language"]) == ("dark", "it")
+    assert SettingsRepository(session).get_user("theme", SYSTEM_USER_ID) == "dark"
+    assert SettingsRepository(session).get_system("theme") is None  # never a global value
 
 
-def test_synthetic_user_effective_values_omit_every_user_scoped_setting(service, session):
-    system_user = _system_user()
+def test_synthetic_user_reads_back_only_what_it_chose(service, session):
+    user_service.ensure_system_user(session)
+    assert "theme" not in service.effective_values(_system_user(), include_providers=False)
+    SettingsRepository(session).set_user("theme", SYSTEM_USER_ID, "dark")
 
-    values = service.effective_values(system_user, include_providers=False)
+    values = service.effective_values(_system_user(), include_providers=False)
 
-    assert "language" not in values
-    assert "theme" not in values
-    # system_with_user_override resta leggibile normalmente (default globale).
+    assert values["theme"] == "dark"
+    assert "language" not in values  # never chosen: omitted, not substituted
     assert values["metadata_provider_priority"] == []
 
 
-def test_synthetic_user_never_sees_a_pre_existing_orphan_row(service, session):
-    # Difesa in profondità: anche se una riga scope='user' per
-    # user_id="__system__" esistesse già (es. scritta prima che questo
-    # controllo esistesse), non deve mai essere restituita — non ha comunque
-    # un proprietario reale.
-    user_service.ensure_system_user(session)  # PostgreSQL would refuse a row of nobody
-    SettingsRepository(session).set_user("theme", SYSTEM_USER_ID, "dark")
-    system_user = _system_user()
+def test_synthetic_user_does_not_see_another_users_choice(service, session):
+    user_service.ensure_system_user(session)
+    alice = _make_user(session, role="user")
+    SettingsRepository(session).set_user("theme", alice.id, "dark")
 
-    values = service.effective_values(system_user, include_providers=False)
-
-    assert "theme" not in values
+    assert "theme" not in service.effective_values(_system_user(), include_providers=False)
 
 
 def test_synthetic_user_can_still_edit_system_with_user_override_as_the_global_default(service, session, config):

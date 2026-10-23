@@ -24,7 +24,7 @@ from db import playlist_store as store
 from db.models import User
 from services import playlists, routines
 from services.auth import auth_manager_for
-from services.credentials import user_store
+from services.credentials import holds_accounts, user_store
 from services.errors import public_error
 
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ def _refresh_one(session: Session, registry, config, playlist):
     playlist_id, owner_id = playlist.id, playlist.user_id
     meta = registry.get_metadata_provider(playlist.source_provider)
     owner = session.get(User, owner_id)
-    if meta is None or owner is None or not owner.is_active:
+    if meta is None or not holds_accounts(session, owner):
         return None
     auth_manager = auth_manager_for(user_store(session, owner_id))
     try:

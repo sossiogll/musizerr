@@ -468,6 +468,7 @@ def test_the_periodic_sync_goes_through_the_idempotent_start(engine, events, ali
     from workers import tasks
 
     alice, bob = _user(engine, "alice"), _user(engine, "bob")
+    _authentication_on(engine)
     with Session(engine) as session:
         busy = store.create_run(session, alice.id, "library_sync")
     calls = []
@@ -481,6 +482,12 @@ def test_the_periodic_sync_goes_through_the_idempotent_start(engine, events, ali
     assert [c["user_id"] for c in calls] == [bob.id]
     with Session(engine) as session:
         assert store.active_run(session, alice.id, "library_sync").id == busy.id
+
+
+def _authentication_on(engine) -> None:
+    """The periodic sync acts for the active users; with authentication off it
+    acts for the instance itself (``tests/test_open_mode_accounts.py``)."""
+    ConfigManager(engine=engine).update({"auth_enabled": True})
 
 
 def _library_accounts(monkeypatch, connected: set[str]) -> None:
@@ -505,6 +512,7 @@ def test_the_periodic_sync_skips_a_user_with_no_connected_account(engine, events
     from workers import tasks
 
     alice, bob = _user(engine, "alice"), _user(engine, "bob")
+    _authentication_on(engine)
     calls = []
     monkeypatch.setattr(tasks, "engine", engine)
     _library_accounts(monkeypatch, {alice.id})

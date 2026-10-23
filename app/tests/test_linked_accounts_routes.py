@@ -250,6 +250,41 @@ def test_an_admins_own_connection_is_not_copied_to_the_shared_account(world):
     assert world.store().shared_credentials("mixedlogin") is None
 
 
+def test_in_open_mode_what_the_owner_connects_is_the_one_shared_connection(world, engine):
+    from tests.database import seed_system_user
+
+    seed_system_user(engine)
+    world.open_mode()
+
+    # From Settings > Linked accounts (their own)...
+    assert world.client.post("/auth/mixedlogin/credentials", json={"username": "owner", "password": "p"}).status_code == 200
+
+    # ...it is the instance's shared account, and both pages show it.
+    assert world.store().shared_credentials("mixedlogin").data["username"] == "owner"
+    linked = _by_name(world.client.get("/auth/linked-accounts").json()["accounts"])["mixedlogin"]
+    assert linked["personal"]["connected"] is True and linked["personal"]["username"] == "owner"
+    assert linked["shared"]["connected"] is True
+
+    # And connecting it from Administration > Providers (shared) is the same row.
+    assert world.client.post(
+        "/auth/mixedlogin/credentials?target=shared", json={"username": "admin-page", "password": "p"}).status_code == 200
+    again = _by_name(world.client.get("/auth/linked-accounts").json()["accounts"])["mixedlogin"]
+    assert again["personal"]["username"] == "admin-page"
+
+    # Disconnecting either removes the one connection.
+    assert world.client.delete("/auth/mixedlogin").status_code == 200
+    assert world.store().shared_credentials("mixedlogin") is None
+
+
+def test_with_authentication_on_an_admins_own_connection_is_still_not_the_shared_one(world):
+    admin = world.user("boss", "admin")
+
+    world.client.post("/auth/mixedlogin/credentials", json={"username": "mine", "password": "p"}, headers=admin)
+    linked = _by_name(world.client.get("/auth/linked-accounts", headers=admin).json()["accounts"])["mixedlogin"]
+
+    assert linked["personal"]["connected"] is True and linked["shared"]["connected"] is False
+
+
 def test_a_model_without_that_account_refuses_it(world):
     admin = world.user("boss", "admin")
     for name in ("solo", "house"):
