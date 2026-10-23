@@ -43,7 +43,7 @@ from core.settings_resolver import (
     split_provider_key,
     validate_value,
 )
-from db.models import SYSTEM_USER_ID, User
+from db.models import User
 from db.settings_store import SettingsRepository
 from services.auth import auth_manager_for
 from services.credentials import shared_store, user_store
@@ -57,32 +57,15 @@ _ADMIN_ROLE = "admin"
 _NO_USER_VALUE = object()
 
 
-def _is_synthetic_user(user: User) -> bool:
-    """True for the no-login synthetic system user (routes/deps.py::
-    get_current_user returns it for every request when `auth_enabled` is
-    False). It has no row in the `users` table, so a scope='user' setting —
-    a purely personal choice — has no owner to attribute it to here: writing
-    one would leave a `settings` row whose `user_id` references nobody, and
-    reading one back could resurrect such a row from before this check
-    existed. Checked on the `User` object itself (not `config.auth_enabled`)
-    because this module's own tests exercise scope='user' routing against
-    real per-user rows independently of that config flag — the two only
-    coincide in production, where every `User` this service ever sees comes
-    from `get_current_user`."""
-    return user.id == SYSTEM_USER_ID
-
-
 def personal_value(session: Session, user_id: str, key: str) -> Any:
     """The value of the scope='user' setting ``key`` for ``user_id``, for code
     acting on behalf of one user (a worker, a service): that user's own row,
     else the declared default — never anybody else's row, never a system one.
-    The synthetic no-login user owns no personal setting (see
-    ``_is_synthetic_user``): always the default."""
+    The instance's synthetic user (authentication off) is a user like any
+    other here: its own row, stored for ``SYSTEM_USER_ID``."""
     setting = get_def(key)
     if setting is None or setting.scope != "user":
         raise ValueError(f"'{key}' is not a personal (scope='user') setting")
-    if user_id == SYSTEM_USER_ID:
-        return setting.default
     return SettingsRepository(session).get_user(key, user_id, setting.default)
 
 
@@ -184,14 +167,6 @@ class SettingsService:
             # sovrascrivere una scelta reale già salvata. Il sentinel fa
             # sparire la chiave dal risultato di effective_values invece di
             # restituire un valore inventato.
-            #
-            # L'utente sintetico "no-login" (vedi _is_synthetic_user) non ha
-            # MAI una riga qui, a prescindere da cosa dice il DB: anche se una
-            # riga orfana esistesse (scritta prima di questo controllo), non
-            # ha un proprietario reale a cui attribuirla — trattata come "mai
-            # scelto", esattamente come se la riga non esistesse.
-            if _is_synthetic_user(user):
-                return _NO_USER_VALUE
             return self._settings_repo().get_user(setting.key, user.id, _NO_USER_VALUE)
 
         if setting.scope == "system_with_user_override":
@@ -464,20 +439,6 @@ class SettingsService:
             raise SettingsWriteError(
                 403, f"Admin role required for: {', '.join(forbidden)}",
             )
-
-        # L'utente sintetico "no-login" non ha una riga in `users`: una chiave
-        # scope='user' (scelta puramente personale — lingua/tema/auto-like)
-        # non ha nessuno a cui essere attribuita in questa modalità. Scriverla
-        # comunque lascerebbe una riga `settings` con uno `user_id` che non
-        # referenzia nessuno. A differenza di 'system_with_user_override'
-        # (es. metadata_provider_priority), qui non c'è un default globale
-        # verso cui deviare la scrittura: l'unica scelta corretta è rifiutare.
-        if _is_synthetic_user(user):
-            ownerless = sorted(k for k in raw_updates if schema_by_key[k].scope == "user")
-            if ownerless:
-                raise SettingsWriteError(
-                    400, f"No signed-in user to own: {', '.join(ownerless)}",
-                )
 
         coerced: dict[str, Any] = {}
         for key, raw in raw_updates.items():

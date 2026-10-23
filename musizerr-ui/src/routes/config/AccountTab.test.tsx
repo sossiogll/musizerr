@@ -8,11 +8,9 @@ import { AccountTab } from "./AccountTab";
 import type { ConfigSchemaResponse, SettingDef } from "@/lib/api-client";
 import type { ProvidersResponse, User } from "@/types";
 
-// AccountTab's own no-login-mode logic (LocalPreferences, excludeScope) is
-// exercised here against the REAL ThemeProvider/I18nProvider — the same
-// approach PreferencesSync.test.tsx uses — so a passing test genuinely
-// proves language/theme land in localStorage via the real contexts, not a
-// mock standing in for them. Only AuthContext and the API layer are mocked.
+// AccountTab is exercised here against the REAL ThemeProvider/I18nProvider —
+// the same approach PreferencesSync.test.tsx uses. Only AuthContext and the
+// API layer are mocked.
 const mockUseAuth = vi.fn();
 const mockGetSettingsSchema = vi.fn();
 const mockGetSettingsValues = vi.fn();
@@ -128,45 +126,32 @@ beforeEach(() => {
 });
 
 describe("AccountTab", () => {
-  it("auth disabled: no identity block, language/theme are local-only controls, ordering shown, owner-less settings hidden", async () => {
+  it("auth disabled: no identity block, but the owner's personal settings are the account's own, stored on the server", async () => {
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("open"), user: null, logout: vi.fn() });
+    mockGetSettingsValues.mockResolvedValue({ theme: "system", metadata_provider_priority: [] });
+    mockPatchSettings.mockResolvedValue({ theme: "dark", metadata_provider_priority: [] });
 
     renderTab();
 
-    // Local preferences card, labelled from the declared schema (not
-    // hardcoded here) even though it's rendered through LocalPreferences,
-    // not the generic SettingsArea.
+    // Language, theme and every other scope="user" setting render through the
+    // generic SettingsArea, labelled from the declared schema.
     await screen.findByText("Language");
     expect(screen.getByText("Theme")).toBeInTheDocument();
+    expect(screen.getByText("Personal flag")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Provider A")).toBeInTheDocument());
 
     // No identity block at all: no username, no sign-out, no danger zone.
     expect(screen.queryByText("alice")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
     expect(screen.queryByText("Danger zone")).not.toBeInTheDocument();
+    // The device-only card of the old open mode is gone.
+    expect(screen.queryByText("Device preferences")).not.toBeInTheDocument();
 
-    // metadata_provider_priority (system_with_user_override) still shows —
-    // it edits the global default in this mode, unlike a plain user-scoped
-    // setting.
-    await waitFor(() => expect(screen.getByText("Provider A")).toBeInTheDocument());
-    expect(screen.getByText("Provider B")).toBeInTheDocument();
-
-    // A plain scope="user" setting (owner-less here) must not appear —
-    // decided from `scope`, not a key list, so this generalizes to any
-    // future scope="user" setting without a frontend change.
-    expect(screen.queryByText("Personal flag")).not.toBeInTheDocument();
-
-    // Changing language/theme writes to ThemeContext/I18nContext
-    // (localStorage) directly — never a PATCH /settings call, since there is
-    // no account here to own that write (matches the backend's own refusal
-    // to write a scope='user' setting for the synthetic system user).
+    // A change is saved with PATCH /settings (the server keeps it for the instance's user).
     const selects = screen.getAllByRole("combobox");
-    fireEvent.change(selects[0], { target: { value: "it" } }); // Language, rendered first
-    await waitFor(() => expect(localStorage.getItem("musizerr-lang")).toBe("it"));
-
     fireEvent.change(selects[1], { target: { value: "dark" } }); // Theme, rendered second
-    await waitFor(() => expect(localStorage.getItem("musizerr-theme")).toBe("dark"));
-
-    expect(mockPatchSettings).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mockPatchSettings).toHaveBeenCalledWith({ theme: "dark" }));
   });
 
   it("signed in: identity block, danger zone, and account-scoped settings render exactly as before", async () => {
@@ -188,13 +173,11 @@ describe("AccountTab", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
     expect(screen.getByText("Danger zone")).toBeInTheDocument();
 
-    // A scope="user" setting IS shown for a real signed-in account — nothing
-    // hidden by `excludeScope` in this mode.
+    // A scope="user" setting IS shown for a real signed-in account.
     expect(await screen.findByText("Personal flag")).toBeInTheDocument();
     // The auto-like toggle is gone.
     expect(screen.queryByText(/auto-like|like automatically/i)).not.toBeInTheDocument();
-    // Language/theme also still render through the generic SettingsArea
-    // (settings-backed), not LocalPreferences.
+    // Language/theme render through the generic SettingsArea (settings-backed).
     expect(screen.getByText("Language")).toBeInTheDocument();
     expect(screen.getByText("Theme")).toBeInTheDocument();
     expect(screen.getByText("Provider A")).toBeInTheDocument();

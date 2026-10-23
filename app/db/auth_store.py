@@ -59,12 +59,23 @@ class CredentialStore:
     always the instance's (API key, OAuth client, app-only token, external
     utility accounts) is read and written as shared, whoever holds the store.
     WRITES never route: the caller names the ``AccountTarget``.
+
+    ``instance_owner``: the principal IS the instance (authentication off: the
+    synthetic user is the only person there is), so "my own account" and "the
+    instance's shared account" are the same account. Its personal account is
+    then the shared row: read there, written there (``AccountTarget.PERSONAL``
+    lands on the shared row), seen by an ``own_only`` store (the shared row is
+    its own account; an app-only token still is not). It is never set by a
+    caller that does not know the mode: ``services.credentials`` decides it, once.
     """
 
-    def __init__(self, session: Session, user_id: Optional[str] = None, *, own_only: bool = False) -> None:
+    def __init__(
+        self, session: Session, user_id: Optional[str] = None, *, own_only: bool = False, instance_owner: bool = False,
+    ) -> None:
         self._session = session
         self._user_id = user_id
         self._own_only = own_only
+        self._instance_owner = instance_owner and user_id is not None
 
     @property
     def session(self) -> Session:
@@ -74,6 +85,12 @@ class CredentialStore:
         `SettingsRepository`: la config di provider non passa da questa
         classe, dedicata ai soli segreti."""
         return self._session
+
+    @property
+    def instance_owner(self) -> bool:
+        """The principal is the instance itself (authentication off): its own
+        account is the shared one, and it has no sign-in of its own."""
+        return self._instance_owner
 
     @property
     def own_only(self) -> bool:
@@ -94,13 +111,13 @@ class CredentialStore:
         return self._candidates("credentials", provider, model)
 
     def own_oauth2_token(self, provider: str) -> StoredCredential | None:
-        return self._exact("oauth2_token", provider, self._user_id) if self._user_id else None
+        return self._exact("oauth2_token", provider, self._own_owner()) if self._user_id else None
 
     def shared_oauth2_token(self, provider: str) -> StoredCredential | None:
         return self._exact("oauth2_token", provider, None)
 
     def own_credentials(self, provider: str) -> StoredCredential | None:
-        return self._exact("credentials", provider, self._user_id) if self._user_id else None
+        return self._exact("credentials", provider, self._own_owner()) if self._user_id else None
 
     def shared_credentials(self, provider: str) -> StoredCredential | None:
         return self._exact("credentials", provider, None)
@@ -116,8 +133,9 @@ class CredentialStore:
         self._upsert("credentials", provider, data, self._owner(target), external_id)
 
     def own_external_id(self, provider: str) -> str | None:
-        """The id the provider gave the user's own account (OAuth2 or login), if it was asked."""
-        if self._user_id is None:
+        """The id the provider gave the user's own account (OAuth2 or login), if it was asked.
+        The instance has none: that id is what a person signs in with, and the shared account is nobody's."""
+        if self._user_id is None or self._instance_owner:
             return None
         row = self._session.exec(
             select(ProviderCredential.external_id).where(
@@ -144,8 +162,9 @@ class CredentialStore:
         self._delete("credentials", provider, self._owner(target))
 
     def delete_all_personal(self) -> int:
-        """Every account the user connected, in one statement; how many."""
-        if self._user_id is None:
+        """Every account the user connected, in one statement; how many. Never the instance's
+        shared accounts, even for the principal that is the instance (they are managed one by one)."""
+        if self._user_id is None or self._instance_owner:
             return 0
         removed = self._session.exec(delete(ProviderCredential).where(ProviderCredential.user_id == self._user_id))
         self._session.commit()
@@ -237,20 +256,25 @@ class CredentialStore:
     # Helpers interni
     # ------------------------------------------------------------------
 
+    def _own_owner(self) -> Optional[str]:
+        """The ``user_id`` of the row that holds the principal's own account: theirs, or None
+        (the shared row) when the principal is the instance. Only with a principal."""
+        return None if self._instance_owner else self._user_id
+
     def _owner(self, target: AccountTarget) -> Optional[str]:
         """The ``user_id`` a write for ``target`` goes to (None = shared)."""
         if target == AccountTarget.SHARED:
             return None
         if self._user_id is None:
             raise ValueError("a personal account needs a user")
-        return self._user_id
+        return self._own_owner()
 
     def _owners(self, model: AccountModel) -> list[Optional[str]]:
         """Whose rows a read for ``model`` looks at, in order (None = shared)."""
         owners: list[Optional[str]] = []
         if model.has_personal and self._user_id is not None:
-            owners.append(self._user_id)
-        if model.has_shared and not self._own_only:
+            owners.append(self._own_owner())
+        if model.has_shared and not self._own_only and None not in owners:
             owners.append(None)
         return owners
 
@@ -282,7 +306,11 @@ class CredentialStore:
     ) -> None:
         # ``INSERT ... ON CONFLICT``: two writers of the same credential (two
         # workers refreshing one token) leave one row. The id of the account on
-        # its provider is written when given and otherwise left as it is.
+        # its provider is written when given and otherwise left as it is; a
+        # shared row never carries one (it is what a person signs in with, and
+        # it is unique per provider: it would keep the person from linking it).
+        if user_id is None:
+            external_id = None
         upsert(
             self._session,
             ProviderCredential(

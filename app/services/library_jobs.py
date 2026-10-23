@@ -81,6 +81,7 @@ WORKER_LOST = "worker_lost"
 QUEUE_UNAVAILABLE = "queue_unavailable"
 ACCOUNT_REQUIRED = "account_required"
 PROVIDER_NOT_CONNECTED = "provider_not_connected"
+NO_LIBRARY_PROVIDER = "no_library_provider"
 JOB_FAILED = "job_failed"
 
 MESSAGES = {
@@ -89,6 +90,7 @@ MESSAGES = {
     QUEUE_UNAVAILABLE: "The job could not be queued.",
     ACCOUNT_REQUIRED: "This job needs a signed-in account.",
     PROVIDER_NOT_CONNECTED: "Connect your account in Settings to sync your library.",
+    NO_LIBRARY_PROVIDER: "No installed provider keeps a likes library to import.",
     JOB_FAILED: "The job failed.",
 }
 

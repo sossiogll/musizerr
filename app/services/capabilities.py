@@ -57,12 +57,16 @@ _BY_MODE: dict[str, Capabilities] = {
         stream_full=True, library=True, playlists=True,
         settings_personal=True, linked_accounts=True, admin=True,
     ),
-    # Con l'autenticazione disattivata tutti sono l'amministratore
-    # incorporato, che non ha un profilo: nessuna impostazione personale.
+    # Con l'autenticazione disattivata c'e' UNA persona, il proprietario
+    # dell'istanza (l'utente di sistema): ha tutto quello di un admin con
+    # un account, comprese le impostazioni personali (salvate per
+    # ``SYSTEM_USER_ID``). Cio' che ha senso solo con gli account (uscire,
+    # cambiare la propria password, gestire gli altri utenti) non esiste, ma
+    # non e' una capability: la UI lo toglie dal modo, non da qui.
     "open": Capabilities(
         search=True, download=True, download_plain=True, favorite=True,
         stream_full=True, library=True, playlists=True,
-        settings_personal=False, linked_accounts=True, admin=True,
+        settings_personal=True, linked_accounts=True, admin=True,
     ),
 }
 

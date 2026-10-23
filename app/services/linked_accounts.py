@@ -63,7 +63,11 @@ def personal_state(provider, own) -> dict | None:
         # Whether the user can sign in through this account (the provider says who it is
         # and it was linked since): null when the provider cannot sign anybody in, false
         # when it can and this account must be reconnected (linked before, or never identified).
-        "login": (connected and own.own_external_id(provider.name) is not None) if provider_can_login(provider) else None,
+        # The instance itself (authentication off) signs nobody in: null.
+        "login": (
+            (connected and own.own_external_id(provider.name) is not None)
+            if provider_can_login(provider) and not own.instance_owner else None
+        ),
     }
 
 

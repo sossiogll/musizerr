@@ -9,9 +9,64 @@ returns a synthetic admin (`__system__`), so every route that asks for a user ge
 one, and every admin gate opens. The frontend mirrors this through the
 capabilities GET /auth/account/status reports for mode `open` (see the
 permission matrix below). A deployment in this mode is a
-single-tenant appliance and nothing below applies.
+single-tenant appliance and the roles below do not apply, except for the one
+thing it still has: the instance's owner and its accounts (next section).
 
 Everything that follows describes `auth_enabled = true`.
+
+### Open mode: the instance is the one owner
+
+With authentication off there is ONE person, the synthetic user `__system__`
+(its row is not active: nobody signs in as it, and it is neither listed nor
+managed). For it "my own account" and "the instance's shared account" are the
+same thing, so its personal account IS the shared one. This is decided in one
+place, `services/credentials.py` (`_principal`, which sets
+`CredentialStore(instance_owner=True)`), and only while `auth_enabled` is off
+(read from the settings table; anything unreadable counts as on):
+
+- reading the synthetic user's own account reads the shared row, and an
+  `own_store` for it (importing its likes, propagating a favorite, the
+  playlists pushed to the sync provider) sees that row too; an app-only token
+  is still never seen through `own_store`;
+- a write to its `personal` target lands on the shared row, so Settings ›
+  Linked accounts and Administration › Providers show the same connection (a
+  shared row never carries an `external_id`: it is what a person signs in with,
+  and the instance signs nobody in);
+- with authentication ON the synthetic user is nobody: its store is a plain
+  one (no row of its own, nothing shared), and no user, whatever the role,
+  reaches the shared row through `own_store`;
+- the host's per-user jobs act for `services.credentials.account_holders` (the
+  active users; the synthetic user in open mode): the periodic likes sync
+  (`sync_all_users_saved_tracks`) and `holds_accounts` for the followed
+  playlists refresh. The synthetic user is never made active.
+- Migration 0042 moves the account rows an older version wrote under
+  `__system__` to the shared ones.
+
+In open mode the owner has the WHOLE experience of a signed-in admin
+(`services/capabilities.py`: the `open` capabilities equal the `admin` ones,
+`settings_personal` included; `tests/test_capabilities.py` pins it). Their
+personal settings (scope `user`: language, theme, the animated background,
+`unlike_on_origin_providers`, and any future one) are stored for
+`SYSTEM_USER_ID` like any user's, through the same `PATCH /settings`
+(`SettingsService` treats the synthetic user as a user: its row exists,
+`user_service.ensure_system_user`). Works end to end for it: favorites and the
+heart, pending likes and "favorite on arrival", removed favorites, the likes
+import (manual and periodic), "download the ones liked elsewhere", own,
+followed and mirrored playlists, download requests (never governed in open
+mode), Settings › Linked accounts and Administration › Providers (the same
+connections), the unlike on the origin provider. A likes sync that cannot
+import anything ends `failed` with a code the UI words
+(`provider_not_connected`: nothing connected; `no_library_provider`: no
+installed provider keeps a likes library), never "completed, 0 tracks".
+
+What still differs from an admin with an account, and why: there is no identity
+block, no sign-out and no password to change (there is no session or
+credential), no user management (there is only one person) and no sign-in
+through a linked account (the instance signs nobody in: `login` is null and a
+shared row never keeps an `external_id`); the per-user download policy does not
+apply (nobody is governed). Everything the owner owns is parented to
+`__system__`, so it can be moved to a real account later. Tests:
+`app/tests/test_open_mode_accounts.py`.
 
 ### `AUTH_SECRET`: the key that signs every session
 
@@ -99,7 +154,8 @@ set that default instead of their own value. `unlike_on_origin_providers`
 one: off until the user turns it on, read for the user who removes the
 favorite (`services.settings.personal_value`), and the task uses only that
 user's own connected account (`services.credentials.own_store`, no system
-fallback, no app-only token). In open mode no one owns it, so it stays off.
+fallback, no app-only token). In open mode the owner has it like any user (stored for
+`__system__`, off until they turn it on) and the shared account is theirs.
 Migration 0030 dropped the old global value; when it was on, each admin kept
 it as their own choice. Tests: `app/tests/test_unlike_on_origin.py`.
 
@@ -121,7 +177,8 @@ A read goes to the user's own account first and then to the shared one, when
 the model has them. A guest, a host job and a script see only the shared
 accounts. What acts on a person's own data (importing their likes, taking one
 back, propagating a favorite) uses `own_store`: the user's own account only,
-whoever the user is: an admin's shared account is not their library.
+whoever the user is: an admin's shared account is not their library (open
+mode is the one exception, see "Open mode" above: there the instance is the user).
 
 A write names its target, `personal` or `shared` (`?target=` on
 `/auth/{provider}/{authorize-url,start,credentials,test}` and `DELETE
@@ -359,7 +416,7 @@ every route.
 | Own playlists: create, edit, follow a provider's, delete (`playlists`; private: another user's is a 404, `docs/playlists.md`) | no (401) | yes | yes | yes (the system user's) |
 | Full audio stream, download progress (`/progress`) | no (401) | yes (own downloads) | yes (all) | yes (all) |
 | Library sync of likes, "liked elsewhere" (`library`) | no (401) | yes | yes | yes |
-| Personal settings | no (401) | yes | yes | no (400: no profile) |
+| Personal settings | no (401) | yes | yes | yes (stored for the instance's user) |
 | Connect, test and disconnect their own provider accounts (`linked_accounts`) | no (401) | yes | yes | yes (the system user's) |
 | Connect, test and disconnect a shared (instance) account, the OAuth2 app, an API key | no (401) | no (403) | yes | yes |
 | Admin routes, credentials, routines | no (401) | no (403) | yes | yes |
@@ -382,8 +439,8 @@ every route.
 `background` is a `user` enum setting (`off`, `aurora`, `waves`, `spectrum`,
 `typography`), default `off`, in the Account group like `theme` and
 `language`; its UI is generated from the catalogue. Nothing server-side acts on
-it: it is only stored per user. In open mode there is no account to own it, so
-no background is drawn.
+it: it is only stored per user. In open mode it is the owner's, stored for the
+instance's user, and drawn like for any account.
 
 The frontend (`components/shell/AppBackground.tsx`) draws it only on a desktop
 (`BACKGROUND_DESKTOP_QUERY`: width >= 1024px, hover and a fine pointer, followed

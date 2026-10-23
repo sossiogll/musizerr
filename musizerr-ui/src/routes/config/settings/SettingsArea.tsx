@@ -40,21 +40,6 @@ interface SettingsAreaProps {
    * es. "account" | "providers" | "library" | "system", o una futura area
    * dichiarata più avanti: questo componente non ne conosce l'elenco. */
   area: string;
-  /**
-   * Quando "user", esclude dalla vista generica ogni impostazione la cui
-   * `scope` dichiarata è ESATTAMENTE "user" — una scelta puramente personale
-   * (lingua, tema) che in modalità no-login non ha nessun
-   * account a cui essere attribuita (vedi AccountTab, che in quel caso
-   * renderizza lingua/tema come controlli locali a parte, mai tramite
-   * questo componente). Deciso dal campo `scope` dichiarato nel catalogo,
-   * MAI da un elenco di chiavi: una futura impostazione scope="user" viene
-   * esclusa automaticamente, senza alcuna modifica qui. Non tocca
-   * "system_with_user_override" (es. metadata_provider_priority), che in
-   * modalità no-login edita comunque il default globale — resta visibile.
-   * Quando omesso (default), il comportamento è invariato per qualunque
-   * area, incluso "account" per un utente reale.
-   */
-  excludeScope?: "user";
 }
 
 /**
@@ -66,7 +51,7 @@ interface SettingsAreaProps {
  * duplicato) con un solo renderer generico, guidato interamente da
  * GET /settings/schema + GET /settings/values.
  */
-export function SettingsArea({ area, excludeScope }: SettingsAreaProps) {
+export function SettingsArea({ area }: SettingsAreaProps) {
   const { t, tx } = useI18n();
   const errorText = useErrorText();
   const queryClient = useQueryClient();
@@ -114,10 +99,9 @@ export function SettingsArea({ area, excludeScope }: SettingsAreaProps) {
         (s) =>
           s.area === area &&
           !isProviderNamespacedKey(s.key) &&
-          !s.hidden &&
-          (!excludeScope || s.scope !== excludeScope),
+          !s.hidden,
       ),
-    [schemaData, area, excludeScope],
+    [schemaData, area],
   );
 
   // Ordine di visualizzazione dei gruppi: il primo incontro nell'elenco

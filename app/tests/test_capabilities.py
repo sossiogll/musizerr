@@ -46,8 +46,12 @@ EXPECTED_CAPABILITIES = {
     "admin": dict(search=True, download=True, download_plain=True, favorite=True, stream_full=True,
                   library=True, playlists=True, settings_personal=True, linked_accounts=True, admin=True),
     "open": dict(search=True, download=True, download_plain=True, favorite=True, stream_full=True,
-                 library=True, playlists=True, settings_personal=False, linked_accounts=True, admin=True),
+                 library=True, playlists=True, settings_personal=True, linked_accounts=True, admin=True),
 }
+
+
+def test_open_mode_has_every_capability_of_an_admin():
+    assert EXPECTED_CAPABILITIES["open"] == EXPECTED_CAPABILITIES["admin"]
 
 
 def _user(engine, role: str, *, active: bool = True) -> User:

@@ -690,6 +690,7 @@ components:
           description: The user's own playlists (GET /playlists); on in open mode too (they belong to the instance).
         settings_personal:
           type: boolean
+          description: The viewer's own settings (scope user, PATCH /settings); on in open mode too (stored for the instance's synthetic user).
         linked_accounts:
           type: boolean
           description: Connect your own provider accounts (GET /auth/linked-accounts); on in open mode too.
@@ -881,7 +882,8 @@ components:
           type: [string, "null"]
           description: >
             worker_unavailable, worker_lost, queue_unavailable,
-            account_required, provider_not_connected, job_failed, or a
+            account_required, provider_not_connected, no_library_provider,
+            job_failed, or a
             provider error code (e.g. metadata_provider_unreachable).
           example: worker_unavailable
         error_message:

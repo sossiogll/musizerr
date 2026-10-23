@@ -70,20 +70,25 @@ describe("PreferencesSync", () => {
     expect(screen.getByTestId("probe").textContent).toBe("dark:it");
   });
 
-  it("auth disabled: treated like signed-out, never reads the (synthetic system user's) settings", async () => {
+  it("auth disabled: the owner of the instance syncs like any account, with the settings stored for the instance's user", async () => {
     localStorage.setItem("musizerr-theme", "light");
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("open"), user: null });
-    // Even if settings-values resolves with different values, it must not
-    // apply: auth-disabled deployments have no real per-device account to
-    // sync to.
     mockGetSettingsValues.mockResolvedValue({ theme: "dark", language: "it" });
 
     renderWithSync();
 
-    // Open mode has no personal settings: they are not even requested.
+    await waitFor(() => expect(screen.getByTestId("probe").textContent).toBe("dark:it"));
+    expect(mockPatchSettings).not.toHaveBeenCalled();
+  });
+
+  it("a guest never reads settings (they would be a 401)", async () => {
+    mockUseAuth.mockReturnValue({ authConfig: viewerStatus("guest"), user: null });
+    mockGetSettingsValues.mockResolvedValue({ theme: "dark", language: "it" });
+
+    renderWithSync();
+
     await new Promise((r) => setTimeout(r, 50));
     expect(mockGetSettingsValues).not.toHaveBeenCalled();
-    expect(screen.getByTestId("probe").textContent).toBe("light:en");
     expect(mockPatchSettings).not.toHaveBeenCalled();
   });
 
