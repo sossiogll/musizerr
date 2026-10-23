@@ -17,7 +17,11 @@ What the provider gets:
   and gid, no capability, ``no_new_privs``, a new session, and death with the gateway;
 - the seccomp filter of :mod:`sandbox_filter` and, with bubblewrap's own
   ``--disable-userns``, no further user namespaces;
-- the rlimits of its manifest within the ceilings of the gateway, set by ``prlimit``.
+- the rlimits of its manifest within the ceilings of the gateway, set by ``prlimit``: address space and open
+  files (limits of a process, so they mean the same everywhere). NOT the number of processes: the kernel's
+  ``RLIMIT_NPROC`` is counted over every process of the uid on the whole host, so it cannot be a limit of one
+  sandbox (``tasks.py`` says what bounds the tasks instead: the container's pids limit and the gateway's own
+  count of each sandbox, ``Limits.processes``).
 
 **Fail closed.** If bubblewrap cannot make the sandbox (not installed, no user
 namespaces, the container's seccomp profile or masked ``/proc`` in the way) the
@@ -40,6 +44,7 @@ from musizerr_sdk.permissions import Permissions
 from .config import Ceilings
 from .filesystem import Bind
 from .sandbox_filter import compile_program
+from .tasks import TASK_LIMIT_HINT, pressure_summary
 
 SANDBOX_WORKSPACE = "/workspace"
 SANDBOX_SOCKET_DIR = "/run/provider"
@@ -48,8 +53,14 @@ SOCKET_NAME = "provider.sock"
 EGRESS_SOCKET_NAME = "egress.sock"
 
 # The variables of the image's environment a provider keeps; the rest is dropped.
-IMAGE_ENV_KEEP = ("PATH", "LANG", "LC_ALL", "TZ", "SSL_CERT_FILE", "SSL_CERT_DIR", "PYTHONPATH")
+IMAGE_ENV_KEEP = ("PATH", "LANG", "LC_ALL", "TZ", "SSL_CERT_FILE", "SSL_CERT_DIR", "PYTHONPATH", "MALLOC_ARENA_MAX")
 DEFAULT_PATH = "/usr/local/bin:/usr/bin:/bin"
+# glibc gives each thread that allocates an arena of its own, up to 8 per CPU, and reserves 64 MB of ADDRESS SPACE for
+# each. The sandbox's address space is limited (RLIMIT_AS, limits.memory_mb, 1024 MB by default), so on a 10-CPU host a
+# runner that serves one thread per concurrent call ran out of it at 14 threads ("can't start new thread") with next to no
+# memory in use. Two arenas are plenty for providers that wait for the network. A value chosen by the gateway, the same
+# for every provider; an image that declares MALLOC_ARENA_MAX keeps its own.
+MALLOC_ARENA_MAX = "2"
 PROBE_TIMEOUT_SECONDS = 20
 
 
@@ -64,6 +75,8 @@ class SandboxUnavailable(RuntimeError):
 # permissions to create a new namespace" and is seccomp or a sysctl. The hints are about the container's
 # configuration, never about loosening the sandbox: ``privileged`` is not one of them (docs/gateway.md).
 SANDBOX_HINTS: tuple[tuple[tuple[str, ...], str], ...] = (
+    # EAGAIN on clone/unshare/fork: no task could be created (not a permission problem; the numbers are added by explain_failure).
+    (("resource temporarily unavailable",), TASK_LIMIT_HINT),
     (("creating new namespace failed", "permission denied"),
      "EACCES: the container is confined by AppArmor (Docker's docker-default profile); add apparmor=unconfined to the "
      "gateway's security_opt (never privileged)"),
@@ -98,15 +111,17 @@ def explain_failure(error_text: str) -> str:
     lowered = error_text.lower()
     for words, hint in SANDBOX_HINTS:
         if all(word in lowered for word in words):
+            if hint is TASK_LIMIT_HINT:
+                hint = f"{hint} [{pressure_summary()}]"
             return f"{lines[0]} (hint: {hint}; docs/gateway.md, Troubleshooting)"
     return lines[0]
 
 
 @dataclass(frozen=True)
 class Limits:
-    memory_mb: int
-    open_files: int
-    processes: int
+    memory_mb: int  # address space of each process (RLIMIT_AS)
+    open_files: int  # open files of each process (RLIMIT_NOFILE)
+    processes: int  # tasks (processes and threads) of the whole sandbox: counted by the gateway, not by the kernel (tasks.py)
 
 
 def limits_for(permissions: Permissions, ceilings: Ceilings) -> Limits:
@@ -139,6 +154,7 @@ class SandboxSpec:
 def sandbox_environment(image_env: Mapping[str, str]) -> dict[str, str]:
     env = {key: value for key, value in image_env.items() if key in IMAGE_ENV_KEEP}
     env.setdefault("PATH", DEFAULT_PATH)
+    env.setdefault("MALLOC_ARENA_MAX", MALLOC_ARENA_MAX)
     env.update({"HOME": "/tmp", "PYTHONUNBUFFERED": "1", "PYTHONDONTWRITEBYTECODE": "1"})
     return env
 
@@ -170,7 +186,7 @@ def build_command(spec: SandboxSpec, seccomp_fd: int) -> list[str]:
     limits = spec.limits
     command = [
         prlimit_path(),
-        f"--as={limits.memory_mb * 1024 * 1024}", f"--nofile={limits.open_files}", f"--nproc={limits.processes}", "--core=0",
+        f"--as={limits.memory_mb * 1024 * 1024}", f"--nofile={limits.open_files}", "--core=0",
         "--",
         bwrap_path(), *_common_arguments(spec.uid, spec.gid),
         "--ro-bind", str(spec.rootfs), "/",

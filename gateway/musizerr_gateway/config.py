@@ -15,7 +15,8 @@ class ConfigError(ValueError):
 @dataclass(frozen=True)
 class Ceilings:
     """The most any provider may be given, whatever its manifest asks, and what it
-    gets when it asks for nothing."""
+    gets when it asks for nothing. ``processes`` counts tasks (processes and threads) of ONE sandbox, as the
+    gateway counts them (``tasks.py``): it is not an ``RLIMIT_NPROC``, which the kernel counts for the whole uid."""
 
     memory_mb: int = 2048
     open_files: int = 4096

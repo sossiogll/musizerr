@@ -17,6 +17,11 @@ lived a while). Three states are final until something changes:
 ``generation`` changes whenever the set of RUNNING providers does, which is what the
 host watches to rebuild its registries.
 
+**Processes and threads.** The sandbox gets no ``RLIMIT_NPROC`` (the kernel counts it over the whole uid of the host,
+``tasks.py``). The gateway counts the tasks of each sandbox every few seconds and stops one that stays above its
+``limits.processes`` (it restarts with the usual pause and the reason says why); the container's pids limit is the
+hard cap. A provider that reports it could not create a thread is logged with the numbers.
+
 **Folders of the host** (``filesystem_from_settings``). The host grants the CURRENT values of the settings
 a provider names together with its egress (``ManagedProvider.grant``); each is judged by ``filesystem.py`` and
 bound into the sandbox at the same path. Mounts cannot change under a running process, so when the
@@ -43,6 +48,7 @@ from typing import Callable, Mapping
 
 from musizerr_sdk.labels import DeclaredManifest
 
+from . import tasks
 from .config import GatewayConfig
 from .egress import EgressPolicy, EgressServer
 from .filesystem import Bind, PathRefused, make_mountpoint, validate_grant
@@ -73,6 +79,12 @@ BACKOFF_START, BACKOFF_MAX = 1.0, 60.0
 STABLE_AFTER = 300.0
 SANDBOX_RECHECK = 30.0
 TAIL_LINES = 20
+# The tasks (processes and threads) of a sandbox are counted this often; a provider above its limit (limits.processes)
+# for this many samples in a row is stopped. One sample over is a burst, not a leak (tasks.py).
+TASK_CHECK_INTERVAL = 2.0
+TASK_STRIKES = 2
+# A provider that cannot create a thread says so on every attempt: the gateway logs it at most this often.
+EXHAUSTION_LOG_EVERY = 60.0
 # How long a grant that restarts the provider waits for the new process (the host waits for the reply).
 GRANT_RESTART_WAIT = 10.0
 
@@ -102,6 +114,16 @@ class SandboxHealth:
 
 
 @dataclass
+class TaskUsage:
+    """The tasks (processes and threads) a sandbox holds, as the gateway last counted them, against its limit."""
+
+    limit: int
+    memory_mb: int
+    current: int = 0
+    peak: int = 0
+
+
+@dataclass
 class ProviderStatus:
     entry: DesiredProvider
     state: str = PULLING
@@ -110,6 +132,11 @@ class ProviderStatus:
     started_at: float | None = None
     declared: DeclaredManifest | None = None
     policy: EgressPolicy | None = None
+    # The tasks of the running process against ``limits.processes``, and how often (and with what words) the
+    # provider reported that the kernel would not create one.
+    tasks: TaskUsage | None = None
+    task_failures: int = 0
+    task_failure: str = ""
     # The folders bound into the running process, and why a granted path is not (setting -> reason).
     binds: tuple[Bind, ...] = ()
     path_refusals: dict[str, str] = field(default_factory=dict)
@@ -148,6 +175,8 @@ class ManagedProvider:
         self._running_binds: tuple[Bind, ...] | None = None  # the binds of the process started last; None: none
         self._rebind = threading.Event()
         self._starts = 0
+        self._task_stop = ""  # why the process was stopped for holding too many tasks; empty: it was not
+        self._exhaustion_logged = float("-inf")
         self._tail: deque[str] = deque(maxlen=TAIL_LINES)
         self._thread = threading.Thread(target=self._run, name=f"provider-{entry.name}", daemon=True)
 
@@ -246,6 +275,8 @@ class ManagedProvider:
                 code, detail = None, f"could not be started: {exc}"
             else:
                 detail = f"exited with status {code}" + (f": {self._tail[-1]}" if self._tail else "")
+                if self._task_stop:
+                    detail = f"{self._task_stop} (exited with status {code})"
             if self._stop.is_set():
                 return
             if self._rebind.is_set():
@@ -304,6 +335,8 @@ class ManagedProvider:
             image_env=prepared.config.env,
             binds=binds,
         )
+        self._task_stop = ""
+        self.status.tasks = TaskUsage(spec.limits.processes, spec.limits.memory_mb)
         try:
             with seccomp_file() as fd:
                 process = subprocess.Popen(
@@ -319,6 +352,7 @@ class ManagedProvider:
             self._tail.clear()
             reader = threading.Thread(target=self._log_output, args=(process,), name=f"log-{entry.name}", daemon=True)
             reader.start()
+            threading.Thread(target=self._watch_tasks, args=(process, spec.limits.processes), name=f"tasks-{entry.name}", daemon=True).start()
             if not self._wait_ready(process):
                 if process.poll() is None:
                     self._terminate()
@@ -437,6 +471,52 @@ class ManagedProvider:
             if line:
                 self._tail.append(line)
                 logger.info("[%s] %s", self.name, line)
+                if tasks.is_exhaustion(line):
+                    self._note_exhaustion(line)
+
+    # ---- processes and threads ------------------------------------
+
+    def _watch_tasks(self, process: subprocess.Popen, limit: int) -> None:
+        """Count the tasks (processes and threads) of the sandbox every few seconds; stop the provider
+        when it stays above ``limits.processes``. The kernel's RLIMIT_NPROC cannot do this per sandbox
+        (it counts the whole uid of the host, ``tasks.py``); the container's pids limit is what stops a burst
+        between two samples."""
+        usage = self.status.tasks
+        assert usage is not None
+        strikes = 0
+        while not self._stop.wait(TASK_CHECK_INTERVAL):
+            if process.poll() is not None:
+                return
+            held = tasks.tasks_below(tasks.read_table(), process.pid)
+            usage.current, usage.peak = held, max(usage.peak, held)
+            strikes = strikes + 1 if held > limit else 0
+            if strikes < TASK_STRIKES:
+                continue
+            self._task_stop = (
+                f"process/thread limit reached: the sandbox held {held} processes and threads, over its limit of {limit} "
+                f"(limits.processes of its manifest, ceiling GATEWAY_MAX_PROCESSES)"
+            )
+            summary = tasks.pressure_summary(sandboxes={self.name: (held, limit, usage.memory_mb)})
+            logger.error("%s: %s; stopping it. %s", self.name, self._task_stop, summary)
+            self._terminate()
+            return
+
+    def _note_exhaustion(self, line: str) -> None:
+        """The provider says the kernel would not create a thread or a process: record it, and say what that
+        means with the numbers (at most once a minute in the log: a provider repeats it on every attempt)."""
+        status = self.status
+        status.task_failures += 1
+        usage = status.tasks
+        sandboxes = {self.name: (usage.current, usage.limit, usage.memory_mb)} if usage else None
+        status.task_failure = f"process/thread limit reached (RLIMIT_NPROC / pids): {line}"
+        now = time.monotonic()
+        if now - self._exhaustion_logged < EXHAUSTION_LOG_EVERY:
+            return
+        self._exhaustion_logged = now
+        logger.error(
+            "%s: process/thread limit reached (RLIMIT_NPROC / pids): the provider reported \"%s\" (%d so far). %s [%s]",
+            self.name, line, status.task_failures, tasks.TASK_LIMIT_HINT, tasks.pressure_summary(sandboxes=sandboxes),
+        )
 
     def _terminate(self) -> None:
         process = self._process

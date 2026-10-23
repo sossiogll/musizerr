@@ -67,12 +67,31 @@ def test_the_environment_is_only_what_the_runner_needs():
     assert "SECRET" not in env
 
 
+def test_glibc_gets_two_malloc_arenas_unless_the_image_chose_otherwise():
+    """Each arena reserves 64 MB of the sandbox's limited address space: at the default 1024 MB a runner ran out of it at
+    14 threads on a 10-CPU host, with next to no memory in use."""
+    assert dict(pairs(build_command(spec(), 3), "--setenv"))["MALLOC_ARENA_MAX"] == "2"
+    own = spec(image_env={"PATH": "/opt/bin", "MALLOC_ARENA_MAX": "1"})
+    assert dict(pairs(build_command(own, 3), "--setenv"))["MALLOC_ARENA_MAX"] == "1"
+
+
 def test_the_rlimits_are_set_by_prlimit_around_bubblewrap():
     command = build_command(spec(limits=Limits(512, 256, 64)), 3)
 
     assert command[0] == "/usr/bin/prlimit"
-    assert f"--as={512 * 1024 * 1024}" in command and "--nofile=256" in command and "--nproc=64" in command and "--core=0" in command
+    assert f"--as={512 * 1024 * 1024}" in command and "--nofile=256" in command and "--core=0" in command
     assert command.index("/usr/bin/bwrap") > command.index("--")
+
+
+@pytest.mark.parametrize("processes", [1, 64, 512, 1024])
+def test_no_rlimit_nproc_is_set_because_the_kernel_counts_it_over_the_whole_uid_of_the_host(processes):
+    """RLIMIT_NPROC is checked against every task of the real uid on the machine, other containers' included: with
+    --nproc=512 a runner of two threads could not start a third where uid 1000 already had 481 elsewhere. The
+    cap of a sandbox is counted by the gateway instead (tasks.py), and the container's pids limit is the hard one."""
+    command = build_command(spec(limits=Limits(512, 256, processes)), 3)
+
+    assert not [part for part in command if "nproc" in part.lower()]
+    assert str(processes) not in command[:command.index("--")], "the number of processes is not a prlimit argument"
 
 
 def test_the_limits_of_the_manifest_are_capped_at_the_ceilings_of_the_gateway():
@@ -140,6 +159,23 @@ def test_eacces_and_eperm_get_different_advice():
 def test_an_unknown_failure_is_reported_as_it_is_without_a_hint():
     assert explain_failure("bwrap: execvp python: No such file or directory\nmore") == "bwrap: execvp python: No such file or directory"
     assert explain_failure("") == ""
+
+
+@pytest.mark.parametrize("text", [
+    "bwrap: Creating new namespace failed: Resource temporarily unavailable",
+    "bwrap: fork: Resource temporarily unavailable",
+])
+def test_eagain_is_the_process_limit_not_a_permission_problem(text, monkeypatch):
+    monkeypatch.setattr(sandbox, "pressure_summary", lambda: "container pids: 2048 of 2048 (pids_limit)")
+
+    reason = explain_failure(text)
+
+    assert reason.startswith(text)
+    assert "EAGAIN" in reason and "pids_limit" in reason and "RLIMIT_NPROC" in reason
+    assert "limits.memory_mb" in reason, "a thread's stack is reserved in the address space the sandbox is limited to"
+    assert "[container pids: 2048 of 2048 (pids_limit)]" in reason, "the numbers are in the message"
+    assert "apparmor" not in reason.lower() and "seccomp" not in reason.lower(), "it is not the advice for a denied namespace"
+    assert "\n" not in reason
 
 
 def test_the_hint_is_found_in_any_line_of_the_error():

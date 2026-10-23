@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "musizerr-provider-tasks"
+version = "0.0.0"
+description = "TEST FIXTURE: a provider that starts threads on request and reports how many it got. Never published."
+requires-python = ">=3.12"
+dependencies = ["musizerr-sdk>=5.2"]
+
+[tool.setuptools.packages.find]
+include = ["tasks_provider*"]
