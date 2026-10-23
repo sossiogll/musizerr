@@ -50,7 +50,11 @@ You need Docker with Compose, on a kernel with user namespaces (the gateway's sa
    ```
 
    The web app is on port 80 (`APP_PORT` changes it). The first start creates the admin from the bootstrap
-   variables. To update, pull again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the
+   variables (only while no account exists). A new install has authentication off: you are the one owner and
+   there is nothing to sign in to. Turn it on in Administration › System; the admin account is what lets you
+   sign in afterwards, and if you set no bootstrap variables the settings page asks you to create one at that
+   moment (what you have in Musizerr by then becomes that account's,
+   [`docs/permissions.md`](docs/permissions.md)). To update, pull again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the
    database before the API and the workers start. The repository is needed for `docker-compose.yaml` and the
    gateway's seccomp profile (`gateway/seccomp/`), which Docker reads from the host.
 

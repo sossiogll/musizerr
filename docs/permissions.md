@@ -65,8 +65,95 @@ credential), no user management (there is only one person) and no sign-in
 through a linked account (the instance signs nobody in: `login` is null and a
 shared row never keeps an `external_id`); the per-user download policy does not
 apply (nobody is governed). Everything the owner owns is parented to
-`__system__`, so it can be moved to a real account later. Tests:
-`app/tests/test_open_mode_accounts.py`.
+`__system__`, and turning authentication on moves it to an administrator (next
+section). Tests: `app/tests/test_open_mode_accounts.py`.
+
+### The two modes, and going from one to the other
+
+The pages and controls of an account exist only where there are accounts. Everything below
+is the server's word (`GET /auth/account/status`: `mode`, `capabilities`, `registration_open`);
+the UI never derives it.
+
+| | Authentication **off** (`open`) | Authentication **on** |
+| --- | --- | --- |
+| Who is there | the instance's owner, the synthetic user `__system__` | accounts that sign in |
+| `registration_open` in the status | always `false` (the setting `registration_open` means nothing here) | the setting |
+| `POST /auth/account/register`, `/login`, `/refresh` | 400 "Authentication is disabled" | work as ever |
+| `/login`, `/register`, `/login/provider` in the UI | send the visitor Home, or back to where they came from (`?redirect=`, checked) | the pages |
+| Sign in / Register / Sign out in the header, menus and empty states | none (a guest is the only viewer who sees "Sign in") | per mode |
+| Administration › Users | lists the accounts created so far (never `__system__`) and creates new ones | the same |
+
+**Creating an account from Administration** (`POST /admin/users`, admin only, in either
+mode): a username (trimmed, 1-150 characters, the synthetic user's id is refused), a password
+(at least 8 characters, hashed as every other: `core.user_auth.hash_password`), an optional
+email and the role (`user` by default, or `admin`). The account is active at once. It goes
+through the same service as registration (`db.user_service.create_account`): a username or an
+email already used is a 409 with `detail.error_code` `username_taken` / `email_taken` (translated
+by the UI), also when a registration and a creation race (the unique constraints decide). With
+authentication off the accounts wait: they can sign in once it is turned on. Registration
+itself keeps no minimum for a password (unchanged).
+
+**Turning authentication ON** (`PATCH /settings {"auth_enabled": true}`, from the settings
+page or any writer):
+
+1. *It is refused* with 400 `no_admin_account` unless at least one **active administrator who can
+   sign in** exists (role `admin`, active, not waiting for approval, a password stored; the
+   synthetic user is never one). The check is the second half of the `guard_on` of the setting, after
+   the `AUTH_SECRET` rule (`auth_secret_insecure` comes first), so every writer passes through it
+   (`core.settings_catalog._authentication_may_turn_on`, `tests/test_auth_modes.py`). Without it
+   the owner of an open instance would turn the app off to themselves, with no account to sign in
+   with and no way back but the database. The first start can still create one from
+   `ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD` (only while no account exists).
+2. *The UI* turns that refusal into one guided step, "Create the administrator account": a username
+   and a password, then it creates the administrator (`POST /admin/users`), saves the batch that
+   was refused with `adopt_into` naming them, and signs them in, so the owner never sees a locked
+   app. A step that failed is not repeated on the next attempt.
+3. *The owner's data is adopted*, in the SAME transaction as the switch
+   (`services/auth_transition.py`, `db/adoption.py`; a failure at any point, the commit included,
+   leaves authentication off and every row where it was): what `__system__` owned becomes the
+   administrator's. The administrator is the one named by `?adopt_into=<id>` (400
+   `adoption_target_invalid` unless that account is an administrator who can sign in), else the
+   oldest who can. A second writer of the same switch waits for the first (`xact_lock`) and finds
+   it done.
+
+   What moves (`db.adoption.ADOPTED`, every foreign key to `users`): favorites, removed favorites,
+   saved likes with their per-provider rows, pending likes, playlists with their tracks and
+   their copies on the sync providers (`playlist_syncs`, the copies of deleted playlists
+   included, so the routine can still delete them), the personal settings (`settings` rows of
+   scope `user`), the downloads the owner requested (`downloads.requested_by`), the follows of
+   other people's downloads, the download requests (and the ones the owner decided), and the
+   library job runs that have finished. What does not (`NOT_ADOPTED`, each with its reason):
+   sessions and one-time sign-in codes (the synthetic user never signs in), an admin's download
+   policy override (nobody is governed in open mode, and an administrator never is), and the
+   credentials rows (below). A library job still queued or running stays with the job's worker.
+   `tests/test_adoption.py` fails for a foreign key to `users` that is in neither list, so a table
+   added later cannot be forgotten.
+
+   *Duplicates*: a row the administrator already has an equivalent of (the same favorite, the same
+   like, the same setting key, a followed playlist of the same source, the same pending target)
+   **stays with `__system__`**: the administrator's own wins, nothing is merged and nothing is
+   deleted. A pending download request that has a pending twin of the administrator's is cancelled
+   (one per target), then moves. Running it again moves nothing new.
+
+   *Accounts*: the shared accounts stay shared. The owner's own accounts were stored as the shared
+   row (open mode, above), which with authentication on nobody reads for a provider with
+   **personal accounts only** (`AccountModel.PERSONAL`): those rows (`oauth2_token`,
+   `credentials`) move to the administrator as they are, sealed, the administrator's existing
+   account of the same provider winning. A `personal_with_shared` account is **not** copied:
+   the shared account keeps serving everyone, the administrator included, and copying a token would put
+   one refresh token in two rows (a provider that rotates it would break one of them) and make a
+   personal account of an instance one. What the administrator loses is only what acts on a
+   *personal* account (the likes import, the playlists pushed to a sync provider): they connect
+   their own in Settings › Linked accounts, where the UI says so. The synthetic user is nobody
+   with authentication on (`services/credentials.py`).
+
+**Turning authentication OFF** is allowed only to an administrator (a system setting), always
+(no secret, no administrator needed) and **moves nothing back**: the administrator's data stays
+the administrator's, the accounts stay (they cannot sign in meanwhile), and open mode starts from
+what `__system__` still holds (the rows left by duplicates, a running job, anything written since).
+Turning it on again adopts what accumulated in the meantime, by the same rules, into the
+administrator then chosen. The personal-only accounts that moved are the administrator's: in
+open mode the owner connects them again.
 
 ### `AUTH_SECRET`: the key that signs every session
 
@@ -94,7 +181,8 @@ repository.
   `detail.error_code` `auth_secret_insecure` (translated by the UI), the whole
   batch is refused and nothing is written; the message never contains the
   secret. Turning authentication off is always allowed
-  (`tests/test_auth_enabled_guard.py`).
+  (`tests/test_auth_enabled_guard.py`). The same guard also needs an administrator
+  who can sign in (`no_admin_account`), see "The two modes" above.
 - **Generate one**: `openssl rand -hex 32` (64 hex characters), or
   `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`.
 - **Changing it signs everybody out**: tokens signed with the old value stop
@@ -420,6 +508,8 @@ every route.
 | Connect, test and disconnect their own provider accounts (`linked_accounts`) | no (401) | yes | yes | yes (the system user's) |
 | Connect, test and disconnect a shared (instance) account, the OAuth2 app, an API key | no (401) | no (403) | yes | yes |
 | Admin routes, credentials, routines | no (401) | no (403) | yes | yes |
+| Create an account (`POST /admin/users`) | no (401) | no (403) | yes | yes (the account waits for authentication to be turned on) |
+| Register by themselves (`POST /auth/account/register`) | when the setting is on | n/a | n/a | no (400; the status says `registration_open: false`) |
 | Raw error detail (`error_detail`), `/health` internals | no | no | yes | yes |
 
 ## Rules for new work
