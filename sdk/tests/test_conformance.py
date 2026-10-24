@@ -14,15 +14,18 @@ from musizeer_sdk.conformance import (
     CAPABILITIES_NEEDING_A_SCOPE,
     ConformanceError,
     check_config_schema,
+    check_folders,
     check_oauth2_capability_scopes,
     check_provider,
     config_schema_violations,
     declared_capabilities,
+    folder_violations,
     oauth2_capability_violations,
     provider_violations,
 )
 from musizeer_sdk.context import StaticProviderContext
-from musizeer_sdk.interfaces import MetadataProvider, SyncCandidate, SyncProvider
+from musizeer_sdk.interfaces import MetadataProvider, StorageProvider, SyncCandidate, SyncProvider
+from musizeer_sdk.permissions import FilesystemAccess, Permissions
 from musizeer_sdk.settings import ProviderSetting
 
 from sample_providers import Base, SampleMetadata
@@ -249,3 +252,138 @@ def test_check_provider_lists_every_violation_of_every_rule():
     text = str(error)
     assert text.startswith("provider 'messy' breaks 3 rule(s) of the contract:")
     assert all(f"  - {violation}" in text for violation in error.violations)
+
+
+# --- folders (ADR-0008) ---------------------------------------------------------------------
+
+
+def make_storage(*, schema=None, permissions=None, library=None, name="samplestore"):
+    """A storage provider with the given settings, granted folders and declared library folder."""
+
+    class Store(Base, StorageProvider):
+        def store(self, source, relative_dest, session):
+            return relative_dest
+
+        def exists(self, relative_path, session):
+            return True
+
+        def stream(self, relative_path, workspace, session):
+            raise NotImplementedError
+
+        def delete(self, relative_path, session):
+            return True
+
+    Store.name = name
+    if schema is not None:
+        Store.config_schema = lambda self: schema  # type: ignore[method-assign]
+    if permissions is not None:
+        Store.permissions = permissions  # type: ignore[attr-defined]
+    if library is not None:
+        Store.library_folder_setting = lambda self: library  # type: ignore[method-assign]
+    return Store(StaticProviderContext())
+
+
+GOOD_STORAGE_SETTINGS = [
+    setting("root_dir", "folder", label="Library folder", default="Music"),
+    setting("elsewhere", "folder", label="Anywhere", default=None, required=False),
+    setting("base", "folder", label="Base", default=""),
+]
+
+
+def test_a_storage_provider_that_declares_a_folder_setting_as_its_library_passes():
+    provider = make_storage(
+        schema=GOOD_STORAGE_SETTINGS, library="root_dir",
+        permissions=Permissions(filesystem_from_settings=(FilesystemAccess("root_dir", "rw"),)),
+    )
+
+    check_provider(provider)
+    check_folders(provider)
+
+    assert folder_violations(provider) == [] and provider.library_folder_setting() == "root_dir"
+
+
+def test_the_library_folder_setting_of_a_storage_provider_defaults_to_none():
+    assert make_storage().library_folder_setting() is None
+    assert folder_violations(make_storage()) == []
+
+
+@pytest.mark.parametrize("default", ["", "a", "a/b", "Music/Rock", "name with spaces/and.dots", "a\\b"])
+def test_a_relative_normalized_default_is_a_good_suggestion(default):
+    assert folder_violations(make_provider(schema=[setting("f", "folder", default=default)])) == []
+
+
+@pytest.mark.parametrize("default, expected", [
+    ("/music", "is absolute"),
+    ("../x", "'..' segment"),
+    ("a/../b", "'..' segment"),
+    ("a//b", "empty segment"),
+    ("a/", "empty segment"),
+    ("./a", "'.' segment"),
+    ("a\0b", "NUL"),
+    ("x" * 5000, "longer than 4096"),
+    (5, "is not text"),
+])
+def test_a_folder_default_that_is_not_a_relative_normalized_path_is_reported(default, expected):
+    provider = make_provider(schema=[setting("f", "folder", default=default)])
+
+    violations = folder_violations(provider)
+
+    assert len(violations) == 1 and expected in violations[0] and "setting 'f'" in violations[0], violations
+    with pytest.raises(ConformanceError, match="suggested path inside the root folder"):
+        check_folders(provider)
+    # the schema rule alone is not the one that catches an absolute default of a folder
+    assert provider_violations(provider) == config_schema_violations(provider) + violations
+
+
+def test_a_secret_folder_is_reported():
+    violations = folder_violations(make_provider(schema=[setting("f", "folder", secret=True)]))
+
+    assert len(violations) == 1 and "declared secret" in violations[0]
+
+
+def test_a_setting_granted_to_the_sandbox_that_is_not_a_folder_is_reported():
+    provider = make_storage(
+        schema=[setting("root_dir", "string", default="/library"), setting("ok", "folder")],
+        permissions=Permissions(filesystem_from_settings=(FilesystemAccess("root_dir", "rw"), FilesystemAccess("ok", "ro"))),
+    )
+
+    violations = folder_violations(provider)
+
+    assert len(violations) == 1
+    assert "filesystem_from_settings names 'root_dir', which is a string setting" in violations[0]
+
+
+def test_a_granted_setting_that_is_not_declared_is_reported():
+    provider = make_storage(schema=[], permissions=Permissions(filesystem_from_settings=(FilesystemAccess("ghost", "rw"),)))
+
+    violations = folder_violations(provider)
+
+    assert len(violations) == 1 and "'ghost'" in violations[0] and "no such setting" in violations[0]
+
+
+@pytest.mark.parametrize("schema, expected", [
+    ([setting("root_dir", "string")], "which is a string setting, not a folder"),
+    ([], "declares no setting for"),
+])
+def test_a_library_folder_setting_that_is_not_a_declared_folder_is_reported(schema, expected):
+    violations = folder_violations(make_storage(schema=schema, library="root_dir"))
+
+    assert len(violations) == 1 and "library_folder_setting() names 'root_dir'" in violations[0] and expected in violations[0]
+
+
+def test_every_violation_of_a_messy_storage_provider_is_listed_at_once():
+    provider = make_storage(
+        schema=[setting("root_dir", "folder", default="/abs", secret=True), setting("remote", "string")],
+        permissions=Permissions(filesystem_from_settings=(FilesystemAccess("remote", "rw"),)),
+        library="remote", name="messy-storage",
+    )
+
+    with pytest.raises(ConformanceError) as raised:
+        check_provider(provider)
+
+    assert len(raised.value.violations) == 4, raised.value.violations
+    assert str(raised.value).startswith("provider 'messy-storage' breaks 4 rule(s) of the contract:")
+
+
+def test_a_non_storage_provider_has_no_library_folder_to_check():
+    assert folder_violations(make_provider(schema=[setting("f", "folder")])) == []

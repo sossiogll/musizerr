@@ -537,6 +537,14 @@ class StorageProvider(BaseProvider, ABC):
     # their ranges itself).
     supports_stream_offset: bool = False
 
+    def library_folder_setting(self) -> str | None:
+        """The short key of the ``folder`` setting (``config_schema()``) that holds WHERE THE LIBRARY IS: the folder
+        the provider writes the final files into. Declared, never inferred (ADR-0008). The host reads it to know
+        whether the library is set up: while that setting holds no value the host never starts a download (the error
+        code ``library_folder_not_set``) and never calls ``store``. ``None``, the default, is a provider whose
+        library is not a folder of this machine (a remote store, an FTP path kept in a plain ``string`` setting)."""
+        return None
+
     @abstractmethod
     def store(self, source: WorkspaceFile, relative_dest: str, session: AuthSession) -> str:
         """
@@ -544,6 +552,22 @@ class StorageProvider(BaseProvider, ABC):
         ``relative_dest``. Può spostarlo: l'host non lo rilegge dopo.
         Ritorna il path relativo finale (potrebbe differire da relative_dest
         se il provider rinomina o aggiusta).
+
+        **The file MUST appear atomically, or not at all** (ADR-0008 §6): a reader of the library (a music server
+        that scans while the call runs) never sees a partial file under its final name. This holds whatever the
+        provider does to get the bytes there, and it is part of the contract of every storage provider. For a
+        provider that writes to a folder:
+
+        1. write the bytes to a hidden temporary name IN THE FINAL DIRECTORY (``.<name>.part``: not an audio
+           extension, so scanners ignore it);
+        2. flush it and ``fsync``;
+        3. ``rename`` it onto the final name (atomic inside one directory).
+
+        ``rename``/``link`` from the working folder to the library fail with ``EXDEV`` through the sandbox (they are
+        separate mounts): never fall back to a copy written directly under the final name (``shutil.move`` does). A
+        failed call removes the temporary file. A provider for a remote store uploads to a temporary name and renames,
+        or uses the service's own atomic upload. The host checks the stored size afterwards (``size``) before it
+        counts the file as landed.
         """
 
     @abstractmethod
