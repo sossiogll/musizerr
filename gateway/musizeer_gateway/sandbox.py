@@ -139,7 +139,9 @@ class SandboxSpec:
     rootfs: Path
     socket_dir: Path
     egress_dir: Path
-    workspace_dir: Path
+    # ``<working folder>/<provider>``, mounted as /workspace; None while the working folder is not set (or the gateway
+    # does not accept it): /workspace is then an empty private tmpfs, and the host makes no call that carries a file.
+    workspace_dir: Path | None
     command: tuple[str, ...]
     limits: Limits
     uid: int
@@ -194,7 +196,10 @@ def build_command(spec: SandboxSpec, seccomp_fd: int) -> list[str]:
         "--size", str(spec.tmp_mb * 1024 * 1024), "--tmpfs", "/tmp",
         "--bind", str(spec.socket_dir), SANDBOX_SOCKET_DIR,
         "--ro-bind", str(spec.egress_dir), SANDBOX_EGRESS_DIR,
-        "--bind", str(spec.workspace_dir), SANDBOX_WORKSPACE,
+        *(
+            ["--bind", str(spec.workspace_dir), SANDBOX_WORKSPACE] if spec.workspace_dir is not None
+            else ["--size", str(spec.tmp_mb * 1024 * 1024), "--tmpfs", SANDBOX_WORKSPACE]
+        ),
         *_granted_binds(spec.binds),
         "--seccomp", str(seccomp_fd),
         "--chdir", "/",

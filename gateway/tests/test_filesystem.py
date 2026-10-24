@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from musizeer_gateway.config import ConfigError, from_environment
 from musizeer_gateway.filesystem import Bind, PathRefused, check_root, inside, make_mountpoint, validate_grant
 
 
@@ -60,7 +59,7 @@ def test_a_link_that_stays_inside_the_root_is_bound_by_what_it_resolves_to(libra
     (None, "no path"), ("", "no path"), (5, "no path"), (["/a"], "no path"),
     ("music", "absolute"), ("./music", "absolute"), ("/", "absolute"),
     ("LIB/music/", "absolute"), ("LIB/music/../music", "absolute"), ("LIB//music", "absolute"), ("LIB/./music", "absolute"),
-    ("/etc", "inside a folder"), ("/", "absolute"), ("LIB/../outside", "absolute"),
+    ("/etc", "not inside a root folder"), ("/", "absolute"), ("LIB/../outside", "absolute"),
     ("LIB/missing", "cannot be read"),
 ])
 def test_a_path_that_is_not_a_plain_folder_inside_a_root_is_refused(library, value, message):
@@ -82,7 +81,7 @@ def test_the_name_of_a_root_is_not_enough_a_sibling_with_the_same_prefix_is_outs
     sibling = Path(str(library) + "-evil")
     sibling.mkdir()
 
-    with pytest.raises(PathRefused, match="inside a folder"):
+    with pytest.raises(PathRefused, match="not inside a root folder"):
         grant(str(sibling), library)
 
 
@@ -104,9 +103,16 @@ def test_a_link_to_the_root_of_the_host_is_refused(library):
         grant(str(library / "everything"), library)
 
 
-def test_without_roots_nothing_is_granted(library):
-    with pytest.raises(PathRefused, match="MUSIZEER_GATEWAY_FILESYSTEM_ROOTS is empty"):
+def test_without_accepted_roots_nothing_is_granted(library):
+    with pytest.raises(PathRefused, match="no accepted root folder"):
         validate_grant(str(library), "rw", [], (), str(library / ".work"), reserved=())
+
+
+def test_while_the_working_folder_is_not_set_no_folder_is_covered_or_forbidden_because_of_it(library):
+    bind = grant(str(library), library, workspace=None)
+
+    assert bind.dest == str(library) and bind.masks == ()
+    assert grant(str(library / ".work"), library, workspace=None).dest == str(library / ".work")
 
 
 def test_the_gateways_own_state_is_never_granted_nor_what_holds_it(library, tmp_path):
@@ -123,7 +129,7 @@ def test_the_workspace_directory_and_what_is_inside_it_are_not_granted(library):
     (library / ".work" / "other").mkdir()
 
     for path in (library / ".work", library / ".work" / "other"):
-        with pytest.raises(PathRefused, match="inside the workspace"):
+        with pytest.raises(PathRefused, match="inside the working folder"):
             grant(str(path), library)
 
 
@@ -181,24 +187,3 @@ def test_a_file_in_the_image_cannot_be_a_mount_point(tmp_path):
 
     with pytest.raises(PathRefused):
         make_mountpoint(rootfs, "/downloads/music")
-
-
-# ------------------------------------------------------------------
-# The configuration
-# ------------------------------------------------------------------
-
-
-def test_the_roots_come_from_the_environment():
-    assert from_environment({}).filesystem_roots == ()
-    config = from_environment({"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": "/downloads:/music/library: :/downloads"})
-    assert config.filesystem_roots == ("/downloads", "/music/library")
-
-
-@pytest.mark.parametrize("value", ["/", "relative", "/downloads/../etc", "/proc/1", "/var/lib/musizeer-gateway", "/var/lib/musizeer-gateway/x", "/var"])
-def test_a_root_that_could_expose_the_gateway_stops_it_from_starting(value):
-    with pytest.raises(ConfigError, match="MUSIZEER_GATEWAY_FILESYSTEM_ROOTS"):
-        from_environment({"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": value})
-
-
-def test_a_folder_next_to_the_roots_is_not_a_reason_to_refuse_them():
-    assert from_environment({"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": "/var/lib/other"}).filesystem_roots == ("/var/lib/other",)

@@ -22,11 +22,16 @@ host watches to rebuild its registries.
 ``limits.processes`` (it restarts with the usual pause and the reason says why); the container's pids limit is the
 hard cap. A provider that reports it could not create a thread is logged with the numbers.
 
-**Folders of the host** (``filesystem_from_settings``). The host grants the CURRENT values of the settings
-a provider names together with its egress (``ManagedProvider.grant``); each is judged by ``filesystem.py`` and
-bound into the sandbox at the same path. Mounts cannot change under a running process, so when the
-binds a grant leads to differ from the ones the process was started with, the process is restarted
-(no backoff, not counted as a crash) and the grant returns once the new one runs. Until a grant arrives a
+**Folders of the host** (ADR-0008). The root folders and the working folder come from the host with the desired set
+(``Supervisor.apply``) and are judged by ``roots.py`` every time they are asked about (a mount can appear or go away);
+nothing is configured in the environment. The working folder gives each sandbox ``<working folder>/<provider>`` as
+``/workspace`` (an empty private one while the working folder is not set or not accepted: the provider still runs, its
+calls that carry files fail cleanly and the host does not make them). The host also grants the CURRENT values of the
+``folder`` settings a provider names in ``filesystem_from_settings`` together with its egress (``ManagedProvider.grant``);
+each is judged by ``filesystem.py`` against the ACCEPTED roots and bound into the sandbox at the same path. Mounts cannot
+change under a running process, so when the binds a grant leads to (or the workspace) differ from the ones the process
+was started with, the process is restarted (no backoff, not counted as a crash) and the grant returns once the new one
+runs. A change of the roots or of the working folder does the same (``ManagedProvider.reconsider``). Until a grant arrives a
 provider runs WITHOUT the folder: its root is read-only, so a call that needs it fails cleanly and nothing
 else of the host is reachable. (Not starting it until the grant came would deadlock: the host
 only connects to, and so grants for, a provider that runs.) Every start judges the paths again, so a
@@ -55,6 +60,7 @@ from .filesystem import Bind, PathRefused, make_mountpoint, validate_grant
 from .images import ImageStore, PreparedImage
 from .desired import DesiredProvider
 from .oci import ImageError, RegistryError
+from .roots import DeclaredFolders, FolderState, Mount, evaluate, read_mountinfo
 from .sandbox import (
     EGRESS_SOCKET_NAME,
     SANDBOX_EGRESS_DIR,
@@ -156,8 +162,11 @@ class ManagedProvider:
     def __init__(
         self, entry: DesiredProvider, config: GatewayConfig, images: ImageStore, health: SandboxHealth,
         on_change: Callable[[], None], credential: str | None = None,
+        folders: Callable[[], FolderState] | None = None,
     ) -> None:
         self.status = ProviderStatus(entry)
+        # What the gateway accepts of the folders the host declared, asked for at every start and every grant.
+        self._folders = folders or (lambda: FolderState(DeclaredFolders()))
         # Held in memory for the pull only: dropped as soon as the image is unpacked.
         self._credential = credential
         self._credential_lock = threading.Lock()
@@ -173,6 +182,7 @@ class ManagedProvider:
         self._rootfs: Path | None = None  # the image's root filesystem: where the mount points are made
         self._bind_lock = threading.Lock()
         self._running_binds: tuple[Bind, ...] | None = None  # the binds of the process started last; None: none
+        self._running_workspace: Path | None = None  # its /workspace (None: an empty private one)
         self._rebind = threading.Event()
         self._starts = 0
         self._task_stop = ""  # why the process was stopped for holding too many tasks; empty: it was not
@@ -300,14 +310,10 @@ class ManagedProvider:
         config = self._config
         socket_dir = config.providers_dir / entry.name
         egress_dir = config.egress_dir / entry.name
-        workspace = config.workspace_dir / entry.name
         socket_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(socket_dir, 0o700)
         self.socket_path.unlink(missing_ok=True)
         egress_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        if not workspace.exists():
-            workspace.mkdir(parents=True, mode=0o711)
-            os.chmod(workspace, 0o711)
 
         policy = self.status.policy or EgressPolicy(
             entry.name, declared.permissions.egress, tcp=declared.permissions.tcp_from_settings,
@@ -316,8 +322,10 @@ class ManagedProvider:
         self._set(STARTING, "")
         with self._bind_lock:
             self._rebind.clear()  # this start uses what is granted now
-            binds, refused = self._resolve_paths(self._paths, prepared.rootfs)
-            self._running_binds = binds
+            state = self._folders()
+            workspace = self._workspace_for(state)
+            binds, refused = self._resolve_paths(self._paths, prepared.rootfs, state)
+            self._running_binds, self._running_workspace = binds, workspace
             self.status.binds, self.status.path_refusals = binds, refused
         for setting, reason in refused.items():
             logger.warning("%s: the folder of '%s' is not granted: %s", entry.name, setting, reason)
@@ -369,6 +377,7 @@ class ManagedProvider:
             self._process = None
             with self._bind_lock:
                 self._running_binds = None
+                self._running_workspace = None
                 self.status.binds = ()
             egress.shutdown()
             egress.server_close()
@@ -376,13 +385,32 @@ class ManagedProvider:
 
     # ---- what the host grants -------------------------------------
 
-    def _resolve_paths(self, values: Mapping[str, str], rootfs: Path | None = None) -> tuple[tuple[Bind, ...], dict[str, str]]:
+    def _workspace_for(self, state: FolderState) -> Path | None:
+        """``<working folder>/<provider>``, made if it is not there, when the working folder is accepted; ``None`` (an
+        empty private ``/workspace``) while it is not set or the gateway refuses it. A failure to make it is also ``None``:
+        the provider still runs and says what it can."""
+        if state.workspace is None:
+            return None
+        workspace = Path(state.workspace) / self.name
+        try:
+            if not workspace.is_dir():
+                workspace.mkdir(parents=True, exist_ok=True, mode=0o711)
+                os.chmod(workspace, 0o711)
+        except OSError as exc:
+            logger.warning("%s: the workspace %s cannot be made: %s", self.name, workspace, exc)
+            return None
+        return workspace
+
+    def _resolve_paths(
+        self, values: Mapping[str, str], rootfs: Path | None = None, state: FolderState | None = None,
+    ) -> tuple[tuple[Bind, ...], dict[str, str]]:
         """``(binds, refusals)`` for the folders the settings hold now. The mode of each is the one the
         VERIFIED image declares for that setting. With ``rootfs`` the mount points are made in the image's
         root filesystem too (a failure there refuses that folder)."""
         declared = self.status.declared
         modes = {a.setting: a.mode for a in declared.permissions.filesystem_from_settings} if declared else {}
         config = self._config
+        state = state or self._folders()
         binds: dict[str, Bind] = {}
         owners: dict[str, str] = {}
         refused: dict[str, str] = {}
@@ -393,7 +421,7 @@ class ManagedProvider:
                 continue
             try:
                 bind = validate_grant(
-                    values[setting], mode, config.filesystem_roots, (config.state_dir, config.run_dir), str(config.workspace_dir),
+                    values[setting], mode, state.accepted_roots, (config.state_dir, config.run_dir), state.workspace,
                 )
                 if bind.dest in binds:
                     raise PathRefused(f"already granted by the setting '{owners[bind.dest]}'")
@@ -420,13 +448,23 @@ class ManagedProvider:
         policy = self.status.policy
         assert policy is not None  # the caller (control) checked it
         count = policy.grant(targets, ttl, tcp)
-        wanted, refused = self._resolve_paths(paths or {}, self._rootfs)
         with self._bind_lock:
             self._paths = dict(paths or {})
+        restart = self.reconsider(wait)
+        return GrantReport(count, tuple(self.status.binds), dict(self.status.path_refusals), restart)
+
+    def reconsider(self, wait: float = 0.0) -> bool:
+        """The folders may have changed (a grant, the root folders or the working folder the host declared): judge the
+        granted paths and the workspace again and, when the mounts the running process has are not the ones it should have,
+        restart it (not a crash) and wait up to ``wait`` seconds for the new one. True if it restarted."""
+        state = self._folders()
+        wanted_workspace = Path(state.workspace) / self.name if state.workspace is not None else None
+        wanted, refused = self._resolve_paths(self._paths, self._rootfs, state)
+        with self._bind_lock:
             self.status.path_refusals = refused
             running = self._running_binds
             starts = self._starts
-            restart = running is not None and running != wanted
+            restart = running is not None and (running != wanted or self._running_workspace != wanted_workspace)
             if restart:
                 self._rebind.set()
         if restart:
@@ -437,7 +475,7 @@ class ManagedProvider:
                 if self._starts > starts and self.status.state == RUNNING:
                     break
                 time.sleep(0.05)
-        return GrantReport(count, tuple(self.status.binds), dict(self.status.path_refusals), restart)
+        return restart
 
     def _check_sandbox_failure(self) -> None:
         """A process that dies at once may have died because the sandbox could not be made."""
@@ -535,10 +573,18 @@ class ManagedProvider:
 class Supervisor:
     """Every desired provider, and the set of them kept in line with what the host pushed."""
 
-    def __init__(self, config: GatewayConfig, images: ImageStore, health: SandboxHealth) -> None:
+    def __init__(
+        self, config: GatewayConfig, images: ImageStore, health: SandboxHealth,
+        mounts: Callable[[], tuple[Mount, ...]] = read_mountinfo,
+    ) -> None:
         self._config = config
         self._images = images
         self.health = health
+        # The container's own mounts, read when asked (a volume can appear or go away): the rule that a root folder lies
+        # on a mounted volume (``roots.py``). A test gives a fake table.
+        self.mounts = mounts
+        # What the host declared (None: nothing yet, and so no root folder and no working folder).
+        self._declared = DeclaredFolders()
         self._providers: dict[str, ManagedProvider] = {}
         self._lock = threading.RLock()
         self.rejected: dict[str, str] = {}
@@ -556,16 +602,33 @@ class Supervisor:
         with self._generation_lock:
             self._generation += 1
 
+    @property
+    def declared_folders(self) -> DeclaredFolders:
+        return self._declared
+
+    @property
+    def own_folders(self) -> tuple[str, ...]:
+        """The gateway's own folders, which no root folder may overlap."""
+        return (str(self._config.state_dir), str(self._config.run_dir))
+
+    def folders(self) -> FolderState:
+        """What the gateway accepts of the declared folders right now (``roots.py``)."""
+        return evaluate(self._declared, self.mounts(), self.own_folders)
+
     def apply(
         self, entries: list[DesiredProvider], rejected: dict[str, str], credentials: dict[str, str] | None = None,
-        generation: str | None = None,
+        generation: str | None = None, folders: DeclaredFolders | None = None,
     ) -> None:
         """Make the running set match ``entries``: start the new, stop the removed, restart
-        the ones whose image changed. ``credentials`` (by name) are for pulling and go no further."""
+        the ones whose image changed. ``credentials`` (by name) are for pulling and go no further.
+        ``folders`` are the root folders and the working folder the host declares (``None``: unchanged); the providers
+        whose mounts they change are restarted."""
         credentials = credentials or {}
         with self._lock:
             self.rejected = dict(rejected)
             self.desired_generation = generation
+            if folders is not None:
+                self._declared = folders
             wanted = {entry.name: entry for entry in entries}
             for name in list(self._providers):
                 current = self._providers[name].status.entry
@@ -578,10 +641,15 @@ class Supervisor:
                 if name in self._providers:
                     self._providers[name].offer_credential(credentials.get(name))
                 else:
-                    managed = ManagedProvider(entry, self._config, self._images, self.health, self._changed, credentials.get(name))
+                    managed = ManagedProvider(
+                        entry, self._config, self._images, self.health, self._changed, credentials.get(name), self.folders,
+                    )
                     self._providers[name] = managed
                     managed.start()
                     self._changed()
+            if folders is not None:
+                for name in wanted:
+                    self._providers[name].reconsider()
 
     def providers(self) -> list[ManagedProvider]:
         with self._lock:

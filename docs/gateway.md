@@ -82,8 +82,8 @@ bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-sess
       --ro-bind <image rootfs> /  --proc /proc  --dev /dev  --size … --tmpfs /tmp
       --bind  <run>/providers/<name>   /run/provider      # its socket
       --ro-bind <state>/egress/<name>  /run/egress         # the egress proxy's socket, read-only
-      --bind  <workspace_dir>/<name>   /workspace          # its subtree of the workspace directory
-      [--bind|--ro-bind <resolved folder> <the same path> [--tmpfs <workspace directory inside it>]]  # granted by its settings
+      --bind  <working folder>/<name>  /workspace          # its subtree of the working folder (an empty --tmpfs while it is not set)
+      [--bind|--ro-bind <resolved folder> <the same path> [--tmpfs <working folder inside it>]]  # granted by its settings
       --seccomp <fd> --chdir / --setenv … -- <entry point of the image> --socket … --egress-socket …
 ```
 
@@ -260,21 +260,54 @@ nothing. `FTP` connects the data connection to the control socket's peer address
 host, so the (often private, NAT-confused) address in the `227` reply is never used. A server's data ports
 can be narrowed by declaring the range instead of `any`.
 
+### Root folders and the working folder (ADR-0008)
+
+**The environment holds no folder.** The administrator declares **root folders** (a label and an absolute path as the
+containers see it) and the **working folder** (a `folder` setting: a root plus a path inside it) in the interface; the host
+**pushes** them with the desired set of providers (`{"op": "install", ..., "roots": [{"id", "path"}], "workspace": "<resolved
+working folder>"}`), at start, after every change of a root, of the working folder or of a provider folder, and when the
+gateway restarted. Before the first push the gateway runs no provider, so there is no window in which it has a folder the host
+does not know. The bound on what can be declared is **what Docker mounted into this container**: mount only the music folders.
+`roots.py` judges each declared root, every time it is asked about (a mount can appear or go away), and **accepts** it only if:
+
+- it is absolute and normalized, is not `/`, and collides with none of `/proc`, `/dev`, `/tmp`, `/run`, `/workspace`;
+- it does not overlap the gateway's own folders (its state and run directories);
+- it exists, is a directory and is **writable** by the gateway;
+- it lies on a **mounted volume**: the longest entry of the gateway's own `/proc/self/mountinfo` that contains its
+  resolved path is neither `/` (the container's own file system: a root cannot be `/etc` or any other part of the image)
+  nor a kernel or memory file system (`tmpfs`, `proc`, `sysfs`, `devtmpfs`, `cgroup`...). An unreadable table is no mount at all, so
+  nothing is accepted;
+- no other root has the same path. One root may lie inside another.
+
+A root that fails is **not used** and `list` says why. The **working folder** is accepted only if it lies inside an accepted
+root and no link on the way leads out of it (it need not exist yet: the gateway makes `<working folder>/<provider>`). While it
+is not set, or refused, the providers still run (search and metadata do not need it) with an empty private `/workspace`, and the
+host makes no call that carries a file.
+
+`list` reports `roots` (`id`, `path`, `state` `accepted`/`refused`, `reason`, `device`, `mount_id`, `mount_point`, `fs_type`,
+`writable`, `free_bytes`), `workspace` (what the host declared, its `state` `unset`/`accepted`/`refused` and the `reason`) and
+`workspace_root` (the accepted working folder, null otherwise). Two read-only operations serve the interface:
+
+- `{"op": "inspect", "path": "/library"}`: what the gateway sees there (`exists`, `directory`, `writable`, `mounted`, `device`,
+  `mount_id`, `mount_point`, `fs_type`, `free_bytes`, `real_path`, `reason`). Nothing about its content.
+- `{"op": "browse", "path": "/library"}`: the folder picker. The subdirectories of a path inside a mounted volume (never files; a
+  link whose target is not a directory of the same volume is not listed; a path that leads out of its volume through a link, or
+  into the gateway's own folders, is refused), each with its `path`, and the `parent` (null at the mount point). Without a path it
+  lists the mounted volumes: the places a root can be declared in.
+
 ### Folders named by settings
 
-A provider that declares `filesystem_from_settings: [{"setting": "root_dir", "mode": "rw"}]` (local storage) gets
-the folder that setting holds, bound into its sandbox **at the same absolute path**, read-write or read-only as
-declared. The host sends the CURRENT value with the grant (`paths`), and the gateway accepts it only if:
+A provider that declares `filesystem_from_settings: [{"setting": "root_dir", "mode": "rw"}]` (local storage) names a **`folder`
+setting** (a root plus a path; the conformance rule of the SDK refuses anything else) and gets the folder that setting
+holds, bound into its sandbox **at the same absolute path**, read-write or read-only as declared. The host resolves the
+setting and sends the CURRENT absolute path with the grant (`paths`); the gateway accepts it only if:
 
 - it is absolute and normalized (no `..`, `//` or trailing `/`) and is not `/`;
-- it lies inside one of the roots of **`MUSIZEER_GATEWAY_FILESYSTEM_ROOTS`** (`:`-separated; empty: no folder is ever
-  granted; the compose files set `/downloads`, the library volume, unless `.env` says otherwise: several roots are
-  `MUSIZEER_GATEWAY_FILESYSTEM_ROOTS=/downloads:/library`, [deployment.md](deployment.md#folders)) **and so does what it resolves to**: a link inside the root
-  that leads out of it is refused. A root that is `/`, relative, inside or holding the gateway's own state or run
-  directory, or one of `/proc`, `/dev`, `/tmp`, `/run`, `/workspace` stops the gateway from starting;
-- it exists and is a directory, is not inside the workspace directory, and does not collide with what every sandbox
-  mounts itself. When it **holds** the workspace directory (the library root holds `.musizeer-work`), that
-  directory is covered by an empty `tmpfs`: another provider's files are not for this one;
+- it lies inside one of the **accepted root folders** (above; with no accepted root, no folder is ever granted) **and so does
+  what it resolves to**: a link inside the root that leads out of it is refused;
+- it exists and is a directory, is not inside the working folder, and does not collide with what every sandbox
+  mounts itself. When it **holds** the working folder (a root that also holds the downloads), that
+  folder is covered by an empty `tmpfs`: another provider's files are not for this one;
 - no other setting of the same provider already claimed it.
 
 The mode is the one the verified image declares; `ro` is a read-only bind (a write fails with `EROFS`). What is
@@ -288,7 +321,8 @@ grant again changes nothing. Until a grant arrives a provider runs **without** t
 and the path does not exist, so a call that needs it fails cleanly. Not starting it until the grant came would
 deadlock: the host connects to, and so grants for, only a provider that runs. Folders do not expire with the
 destinations (a mount lapsing would restart the provider every two minutes); they stay until a grant replaces
-them, and a restarted gateway forgets them until the host's next grant (every call that finds the grant older than 60 s, or changed, sends it again): for that time the provider runs without its folders.
+them. A change of the root folders or of the working folder judges them again and restarts the providers whose mounts it
+changes. A restarted gateway forgets everything until the host's next push and grant (every call that finds the grant older than 60 s, or changed, sends it again): for that time the provider runs without its folders.
 
 *Residual details.* The image's root filesystem needs a mount point at the path: the gateway makes empty
 directories there (never following a link of the image) and leaves them when a setting changes. Between the
@@ -378,10 +412,12 @@ out. `python -m musizeer_gateway.ctl [list|health|install|grant]` is a client (`
 
 | request | answer |
 |---|---|
-| `{"op": "list"}` | `epoch` (changes when the gateway restarts), `desired` (the identifier of the set the host last pushed, null before the first push), `generation` (changes when the set of running providers does), `workspace_root`, `sandbox` (`available`, `reason`), `rejected` (entries of the file that are unusable, with why), and per provider: `state` (`pulling`, `starting`, `running`, `restarting`, `refused`, `unavailable`, `failed`, `stopped`), `reason`, `restarts`, `socket` (relative to the run directory, when running), `declared` (name, roles, API version, permissions of its image), `egress` (`fixed`, wildcards included; `granted`; `tcp`, the hosts of `tcp_from_settings` with their ports; `refused`), `folders` (`granted`: path and mode of what is bound into the running process; `refused`: setting -> why its path is not), `tasks` (the processes and threads of its sandbox: `current`, `peak`, `limit` = its `limits.processes`) and `task_limit_hits` (`count` and `last` words of the times it reported that the kernel would not create a thread); and `container` (the gateway container's `pids` and `pids_limit`, null when there is none or it cannot be read) |
+| `{"op": "list"}` | `epoch` (changes when the gateway restarts), `desired` (the identifier of the set the host last pushed, null before the first push), `generation` (changes when the set of running providers does), `workspace_root` (the accepted working folder, null while it is not set or refused), `workspace` (declared path, `state`, `reason`), `roots` (what the gateway made of each declared root folder, see above), `sandbox` (`available`, `reason`), `rejected` (entries of the file that are unusable, with why), and per provider: `state` (`pulling`, `starting`, `running`, `restarting`, `refused`, `unavailable`, `failed`, `stopped`), `reason`, `restarts`, `socket` (relative to the run directory, when running), `declared` (name, roles, API version, permissions of its image), `egress` (`fixed`, wildcards included; `granted`; `tcp`, the hosts of `tcp_from_settings` with their ports; `refused`), `folders` (`granted`: path and mode of what is bound into the running process; `refused`: setting -> why its path is not), `tasks` (the processes and threads of its sandbox: `current`, `peak`, `limit` = its `limits.processes`) and `task_limit_hits` (`count` and `last` words of the times it reported that the kernel would not create a thread); and `container` (the gateway container's `pids` and `pids_limit`, null when there is none or it cannot be read) |
 | `{"op": "health"}` | `status`: `ok`, `degraded` (a provider is down) or `unavailable` (no sandbox can be made: nothing runs), the sandbox verdict, `container` (as in `list`) and the state of each provider |
 | `{"op": "egress", "provider", "targets": ["host:port"], "ttl", "tcp": {setting: [host]}, "paths": {setting: path}}` | the host's grant, see above: `granted` (destinations understood), `paths` (`granted`, `refused`), `restarted` (the process was restarted to change its mounts; the reply came after the new one ran) |
-| `{"op": "install", "providers": [...], "generation": "..."}` | the desired set, see above: `accepted` (names) and `rejected` (name: reason) |
+| `{"op": "install", "providers": [...], "generation": "...", "roots": [{"id", "path"}], "workspace": "..."}` | the desired set and the folders, see above: `accepted` (names), `rejected` (name: reason), `roots` (as in `list`) and `workspace` |
+| `{"op": "inspect", "path"}` | read-only: what is at the path, see [root folders](#root-folders-and-the-working-folder-adr-0008) |
+| `{"op": "browse", "path"}` | read-only: the subdirectories of a path in a mounted volume, or the volumes themselves without a path |
 
 ## Sockets, volumes and permissions
 
@@ -392,13 +428,12 @@ out. `python -m musizeer_gateway.ctl [list|health|install|grant]` is a client (`
   nobody else can read it. The gateway runs as 1000, the application's user in production (the `Dockerfile` creates
   `/run/musizeer` owned by it, so the volume is initialised right whoever starts first). In development the app
   runs as root, which reaches the sockets anyway.
-- The workspace directory (`workspace_dir`, default `/downloads/.musizeer-work`) must be the same path in the
-  gateway (`MUSIZEER_GATEWAY_WORKSPACE_DIR`) and the host, and lie inside a volume all of them mount. Compose sets both from
-  ONE variable, `MUSIZEER_WORKSPACE_DIR` (in `.env`): the gateway gets it as `MUSIZEER_GATEWAY_WORKSPACE_DIR`, the host as the default of its
-  `workspace_dir` setting. A value saved in the settings wins over that default, so changing the setting in the
-  interface without changing `MUSIZEER_WORKSPACE_DIR` desyncs them; the API compares its setting with the gateway's
-  `workspace_root` every few seconds and logs an error (once per pair of values) when they differ. A call's workspace is
-  `<workspace_dir>/<provider>/<random>`; the sandbox of `<provider>` sees `<workspace_dir>/<provider>` as
+- The working folder (the `workspace_dir` setting, a root plus a path, **no default**) is declared in the interface and pushed
+  to the gateway by the host (above): there is no variable for it, so the host and the gateway cannot disagree. It must lie in
+  a root folder mounted at the same path in the application, the workers and the gateway (the host checks its side, the gateway
+  reports its own); after every push the API compares `workspace_root` of `list` with its own value and logs a mismatch, as a
+  safety net. A call's workspace is
+  `<working folder>/<provider>/<random>`; the sandbox of `<provider>` sees `<working folder>/<provider>` as
   `/workspace` and nothing else. The provider folder is 0711 (crossed, not listed), the call folder 0777: the
   sandbox's uid is mapped to the gateway's uid, which may differ from the host's. A file that moves from one
   provider to another (downloaded by one, stored by another; a file held for a later upload) is **staged**

@@ -296,3 +296,11 @@ def test_binds_come_after_the_image_and_in_path_order_and_the_workspace_director
 
 def test_without_grants_nothing_but_the_providers_own_folders_is_mounted():
     assert len(pairs(build_command(spec(), 3), "--bind")) == 2
+
+
+def test_while_no_working_folder_is_set_workspace_is_an_empty_private_tmpfs_and_nothing_of_the_host():
+    command = build_command(spec(workspace_dir=None), 3)
+
+    assert pairs(command, "--bind") == [("/run/musizeer/providers/p", "/run/provider")]
+    assert ("/workspace",) in pairs(command, "--tmpfs"), "the provider's /workspace is its own memory, not a folder of the host"
+    assert not any("/downloads" in part for part in command)

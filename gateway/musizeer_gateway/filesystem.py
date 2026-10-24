@@ -1,18 +1,18 @@
 """
 Host paths a sandbox may be given (``filesystem_from_settings``).
 
-A provider that declares ``filesystem_from_settings`` names SETTINGS whose value is a folder of the
-host (local storage's root directory). Only the host knows the values, so it sends the CURRENT ones with
-the egress grant (``control.py``); the gateway decides here whether each may be bound into the sandbox.
-A path is bound ONLY if all of this holds:
+A provider that declares ``filesystem_from_settings`` names SETTINGS of type ``folder`` (the local storage's
+library folder). Only the host knows the values: it resolves each one (a root folder plus a path) and sends the CURRENT
+absolute paths with the egress grant (``control.py``); the gateway decides here whether each may be bound into the
+sandbox. A path is bound ONLY if all of this holds:
 
 - it is absolute and normalized (no ``..``, no ``//``, no trailing ``/``) and is not ``/``;
-- it lies inside one of the roots the operator configured (``MUSIZEER_GATEWAY_FILESYSTEM_ROOTS``) and so does
-  what it resolves to (a link inside the root that leads out of it is refused);
+- it lies inside one of the ACCEPTED ROOT FOLDERS the host declared (``roots.py``: there is no list in the environment)
+  and so does what it resolves to (a link inside the root that leads out of it is refused);
 - it exists and is a directory;
-- it is not, and does not hold, the gateway's own state or sockets, and it is not inside the workspace
-  directory (a folder that HOLDS the workspace directory, such as the library root, is bound with the
-  workspace directory covered by an empty ``tmpfs``: another provider's files are not for this one);
+- it is not, and does not hold, the gateway's own state or sockets, and it is not inside the working folder (a
+  folder that HOLDS the working folder, such as a root that also holds the downloads, is bound with the
+  working folder covered by an empty ``tmpfs``: another provider's files are not for this one);
 - it does not collide with what every sandbox mounts itself (``/proc``, ``/dev``, ``/tmp``, ``/run``,
   ``/workspace``).
 
@@ -62,10 +62,11 @@ def check_root(root: str) -> str:
 
 
 def validate_grant(
-    value: object, mode: str, roots: Iterable[str], forbidden: Iterable[str], workspace: str,
+    value: object, mode: str, roots: Iterable[str], forbidden: Iterable[str], workspace: str | None,
     reserved: Iterable[str] | None = None,
 ) -> Bind:
-    """The :class:`Bind` for the folder ``value`` names, or :class:`PathRefused`."""
+    """The :class:`Bind` for the folder ``value`` names, or :class:`PathRefused`. ``roots`` are the accepted root
+    folders; ``workspace`` the working folder, or ``None`` while it is not set."""
     if not isinstance(value, str) or not value:
         raise PathRefused("the setting holds no path")
     if len(value) > MAX_PATH or "\0" in value:
@@ -74,7 +75,7 @@ def validate_grant(
         raise PathRefused("not an absolute, normalized path (no '..', '//' or trailing '/', and not '/')")
     roots = tuple(roots)
     if not any(inside(value, root) for root in roots):
-        raise PathRefused("not inside a folder this gateway may grant" if roots else "this gateway grants no folder (MUSIZEER_GATEWAY_FILESYSTEM_ROOTS is empty)")
+        raise PathRefused("not inside a root folder the gateway accepted" if roots else "this gateway has no accepted root folder (declare one in Administration > Root folders)")
     for mounted in (RESERVED if reserved is None else reserved):
         if inside(value, mounted) or inside(mounted, value):
             raise PathRefused(f"collides with {mounted}, which every sandbox mounts itself")
@@ -87,17 +88,18 @@ def validate_grant(
     real = os.path.realpath(value)
     real_roots = [os.path.realpath(root) for root in roots if os.path.isdir(root)]
     if not any(inside(real, root) for root in real_roots):
-        raise PathRefused("a link in the path leads out of the folders this gateway may grant")
+        raise PathRefused("a link in the path leads out of the root folders the gateway accepted")
     for own in forbidden:
         own_real = os.path.realpath(own)
         if inside(real, own_real) or inside(own_real, real):
             raise PathRefused("it is, or holds, the gateway's own state")
-    workspace_real = os.path.realpath(workspace)
-    if inside(real, workspace_real):
-        raise PathRefused("it is inside the workspace directory")
     masks: tuple[str, ...] = ()
-    if inside(workspace_real, real):
-        masks = (posixpath.join(value, workspace_real[len(real):].lstrip("/")),)
+    if workspace is not None:
+        workspace_real = os.path.realpath(workspace)
+        if inside(real, workspace_real):
+            raise PathRefused("it is inside the working folder")
+        if inside(workspace_real, real):
+            masks = (posixpath.join(value, workspace_real[len(real):].lstrip("/")),)
     return Bind(source=real, dest=value, mode=mode, masks=masks)
 
 
