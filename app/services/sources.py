@@ -45,6 +45,7 @@ from core.utc import utc_iso
 from db.models import InstalledProvider, ProviderSource, _now
 from services.gateway_client import GatewayClient, GatewayUnreachable
 from services.gateway_sync import GatewaySync
+from services import provider_order
 from services.provider_events import announce_changed
 
 logger = logging.getLogger(__name__)
@@ -464,6 +465,9 @@ class SourceManager:
         )
         self.session.add(row)
         try:
+            self.session.flush()
+            # The new provider goes to the end of the stored default order, in the install's own transaction.
+            provider_order.sync_default(self.session, reinstalled=row.name)
             self.session.commit()
         except IntegrityError:  # installed meanwhile by another request
             self.session.rollback()
@@ -510,6 +514,8 @@ class SourceManager:
         row.permissions = json.dumps(permissions_to_dict(entry.permissions), sort_keys=True)
         row.approved_at, row.approved_by = _now(), approved_by
         self.session.add(row)
+        self.session.flush()
+        provider_order.sync_default(self.session)  # an update may add the role that makes it a metadata provider
         self.session.commit()
         self.session.refresh(row)
         self._providers_changed()

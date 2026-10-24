@@ -19,12 +19,10 @@ from routes.deps import (
     ConfigDep,
     SharedStoreDep,
     CurrentUserDep,
-    OptionalUserDep,
+    MetadataPriorityDep,
     RegistryDep,
     SessionDep,
-    resolve_metadata_priority,
 )
-from core.utils import provider_sort_key
 from services.auth import auth_manager_for
 from services.credentials import own_store, shared_store, user_store
 from services.linked_accounts import credential_fields, personal_state, shared_state
@@ -146,26 +144,26 @@ def patch_settings(
 
 
 @router.get("/providers/public")
-def list_public_providers(registry: RegistryDep, config: ConfigDep, session: SessionDep, user: OptionalUserDep):
+def list_public_providers(registry: RegistryDep, priority: MetadataPriorityDep):
     """Etichette dei provider, ordine di priorità dei metadati e capability
     opzionali che ciascun provider di metadati dichiara (es. per mostrare
     il nome del provider invece dell'id, o l'azione che solo alcuni sanno fare), per
     chiunque: nessuna credenziale, configurazione o stato. La priorità è
-    quella di chi guarda: la propria se ne ha una, altrimenti quella di
-    sistema. ``metadata`` elenca tutti i provider di metadati in quell'ordine
-    (quelli senza priorità in coda); ``metadata_capabilities`` le chiavi di
+    l'ordine EFFETTIVO di chi guarda (``services/provider_order``: la propria
+    lista se ne ha una, altrimenti quella di sistema, ristretta ai provider
+    registrati, con in coda quelli che la lista non nomina, per ordine di
+    installazione): ``metadata_priority`` e ``metadata`` li elencano tutti,
+    una volta sola; ``metadata_capabilities`` le chiavi di
     ``musizerr_sdk.capabilities`` che ognuno dichiara."""
     labels: dict[str, str] = {}
     for getter_name in PROVIDER_CATEGORY_GETTERS:
         for provider in getattr(registry, getter_name)():
             labels.setdefault(provider.name, provider.label)
     metadata = registry.all_metadata()
-    metadata_names = [p.name for p in metadata]
-    priority = resolve_metadata_priority(user, config, session) if user else config.metadata_provider_priority
     return {
         "providers": [{"id": name, "label": label} for name, label in labels.items()],
-        "metadata_priority": [name for name in priority if name in metadata_names],
-        "metadata": sorted(metadata_names, key=lambda name: provider_sort_key(name, priority)),
+        "metadata_priority": priority,
+        "metadata": list(priority),
         "metadata_capabilities": {p.name: metadata_capabilities(p) for p in metadata},
     }
 

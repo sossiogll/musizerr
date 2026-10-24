@@ -591,3 +591,78 @@ def test_a_catalog_that_keeps_the_digest_but_declares_other_permissions_is_an_up
     assert "extra.example:443" in json.loads(updated.permissions)["egress"]
     assert "extra.example:443" in world.gateway.pushes()[-1]["providers"][0]["permissions"]["egress"]
     assert world.manager().list_installed()[0]["update"] is None
+
+
+# ---- the order of the metadata providers --------------------------------------------------
+
+
+def _metadata_catalog(*names, lyrics=()):
+    digests = {"alpha": DIGEST_A, "beta": DIGEST_B, "gamma": DIGEST_C, "delta": DIGEST_A}
+    return catalog(
+        *(entry(n, digests[n], roles=["metadata"]) for n in names),
+        *(entry(n, digests[n], roles=["lyrics"]) for n in lyrics),
+    )
+
+
+def _stored_order(world):
+    from db.settings_store import SettingsRepository
+
+    world.session.expire_all()
+    return SettingsRepository(world.session).get_system("metadata_provider_priority")
+
+
+def test_installing_a_metadata_provider_appends_it_to_the_stored_default_order(world):
+    from db.settings_store import SettingsRepository
+
+    source = added(world, document=_metadata_catalog("alpha", "beta", "gamma", lyrics=("delta",)))
+
+    world.manager().install(source.id, "alpha", DIGEST_A)
+    assert _stored_order(world) == ["alpha"]
+    world.manager().install(source.id, "beta", DIGEST_B)
+    assert _stored_order(world) == ["alpha", "beta"]
+
+    # The admin reorders; the next install goes after what they chose.
+    SettingsRepository(world.session).set_system("metadata_provider_priority", ["beta", "alpha"])
+    world.manager().install(source.id, "gamma", DIGEST_C)
+    assert _stored_order(world) == ["beta", "alpha", "gamma"]
+
+    # Another role is not a metadata provider: the list is left alone.
+    world.manager().install(source.id, "delta", DIGEST_A)
+    assert _stored_order(world) == ["beta", "alpha", "gamma"]
+
+
+def test_an_install_on_a_server_whose_stored_order_is_still_empty_writes_the_whole_order(world):
+    from db.settings_store import SettingsRepository
+
+    source = added(world, document=_metadata_catalog("alpha", "beta", "gamma"))
+    world.manager().install(source.id, "alpha", DIGEST_A)
+    world.manager().install(source.id, "beta", DIGEST_B)
+    SettingsRepository(world.session).set_system("metadata_provider_priority", [])  # as before this fix
+
+    world.manager().install(source.id, "gamma", DIGEST_C)
+
+    assert _stored_order(world) == ["alpha", "beta", "gamma"]  # the new one is NOT first
+
+
+def test_uninstalling_leaves_the_stored_order_and_a_reinstall_goes_to_the_end(world):
+    source = added(world, document=_metadata_catalog("alpha", "beta"))
+    world.manager().install(source.id, "alpha", DIGEST_A)
+    world.manager().install(source.id, "beta", DIGEST_B)
+
+    world.manager().uninstall("alpha")
+    assert _stored_order(world) == ["alpha", "beta"]
+
+    world.manager().install(source.id, "alpha", DIGEST_A)
+    assert _stored_order(world) == ["beta", "alpha"]
+
+
+def test_an_update_that_adds_the_metadata_role_appends_the_provider(world):
+    source = added(world, document=_metadata_catalog("alpha", lyrics=("beta",)))
+    world.manager().install(source.id, "alpha", DIGEST_A)
+    world.manager().install(source.id, "beta", DIGEST_B)
+    assert _stored_order(world) == ["alpha"]
+    world.server.serve(URL, catalog(entry("alpha", DIGEST_A, roles=["metadata"]), entry("beta", DIGEST_C, roles=["metadata"])))
+
+    world.manager().update("beta", DIGEST_C)
+
+    assert _stored_order(world) == ["alpha", "beta"]

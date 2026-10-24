@@ -46,7 +46,7 @@ from core.settings_resolver import (
 from db import user_service
 from db.models import User
 from db.settings_store import SettingsRepository
-from services import auth_transition
+from services import auth_transition, provider_order
 from services.auth import auth_manager_for
 from services.credentials import shared_store, user_store
 
@@ -180,6 +180,11 @@ class SettingsService:
             # sparire la chiave dal risultato di effective_values invece di
             # restituire un valore inventato.
             return self._settings_repo().get_user(setting.key, user.id, _NO_USER_VALUE)
+
+        if setting.key == provider_order.METADATA_PRIORITY_KEY:
+            # The order of the metadata providers is never read raw: what is stored may be
+            # empty, partial or out of date. The UI sees (and so saves) the effective order.
+            return provider_order.effective_metadata_priority(self._registry, self._config, self._session, user.id)
 
         if setting.scope == "system_with_user_override":
             # Riga utente (repository) -> valore di sistema. Il livello
