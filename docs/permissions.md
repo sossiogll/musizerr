@@ -259,7 +259,7 @@ it as their own choice. Tests: `app/tests/test_unlike_on_origin.py`.
 ## Provider accounts
 
 Whose account a call to a provider uses is not a role rule: each provider
-declares an account model (`musizerr_sdk.auth.AccountModel`) and one routing rule
+declares an account model (`musizeer_sdk.auth.AccountModel`) and one routing rule
 (`db/auth_store.py::CredentialStore`) applies it, for a route, a worker and a
 script alike.
 
@@ -436,7 +436,7 @@ anonymous caller consumes the deployment's provider API quota.
   indexed column, so the extra `WHERE` is cheap — applied to the count query,
   the grouping query, and the per-track attempts query, so another user's
   attempt on a track a non-admin also tried is neither counted nor listed).
-  The frontend route `/downloads` (`musizerr-ui/src/router.tsx`) is now
+  The frontend route `/downloads` (`musizeer-ui/src/router.tsx`) is now
   wrapped in `RequireCapability`, matching `/config`, so an anonymous visitor is
   redirected to sign in instead of hitting a bare 401.
 - `POST /downloads/{track_id}/retry` follows the same rule as the four
@@ -456,7 +456,7 @@ anonymous caller consumes the deployment's provider API quota.
   token) and sets it; `StreamUserDep` accepts that cookie or, for API
   clients with no cookie, a regular bearer access token. `DELETE
   /auth/account/stream-session` and `POST /auth/account/logout` both clear
-  it. The frontend (`musizerr-ui/src/lib/api-client.ts`) calls the mint
+  it. The frontend (`musizeer-ui/src/lib/api-client.ts`) calls the mint
   endpoint after login and after every access-token refresh, over the same `/api`
   same-origin proxy the rest of the app uses, so the cookie rides along with
   the `<audio>` request. `GET /playback/{provider}/{provider_id}` follows the
@@ -485,7 +485,7 @@ anonymous caller consumes the deployment's provider API quota.
 ## The frontend reads capabilities, never rules
 
 The UI never re-derives a permission from `auth_enabled`, a role or a token.
-`useCapabilities()` (`musizerr-ui/src/hooks/useCapabilities.ts`) returns the
+`useCapabilities()` (`musizeer-ui/src/hooks/useCapabilities.ts`) returns the
 `mode` and `capabilities` of GET /auth/account/status, and
 `RequireCapability` guards routes with them: a guest is sent to sign in, a
 signed-in viewer without the capability is told why. While the viewer is

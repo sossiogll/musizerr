@@ -185,22 +185,22 @@ status: 0 done, 1 the restore failed, 2 refused (nothing was touched).
 
 By hand, without the script:
 
-- **PostgreSQL** (`postgres` service, user and database `musizerr`):
+- **PostgreSQL** (`postgres` service, user and database `musizeer`):
 
   ```sh
-  docker compose exec -T postgres psql -U musizerr -d musizerr -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+  docker compose exec -T postgres psql -U musizeer -d musizeer -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
   docker compose run --rm -T --no-deps init cat /data/backups/<file>.dump \
-    | docker compose exec -T postgres pg_restore -U musizerr -d musizerr --no-owner --no-acl --exit-on-error --single-transaction
+    | docker compose exec -T postgres pg_restore -U musizeer -d musizeer --no-owner --no-acl --exit-on-error --single-transaction
   ```
 
   (`DROP SCHEMA ... CASCADE` empties the database: the dump of an older schema does not
   name the tables a later migration added.)
-- **SQLite** (`DATA_DIR/musizerr.db`): stop the stack, then copy the backup over the
+- **SQLite** (`DATA_DIR/musizeer.db`): stop the stack, then copy the backup over the
   file and remove its `-wal` and `-shm` files:
 
   ```sh
   docker run --rm -v <data volume>:/data alpine sh -c \
-    'cp /data/backups/<file>.sqlite3 /data/musizerr.db && rm -f /data/musizerr.db-wal /data/musizerr.db-shm'
+    'cp /data/backups/<file>.sqlite3 /data/musizeer.db && rm -f /data/musizeer.db-wal /data/musizeer.db-shm'
   ```
 
 If a MAJOR release says in its notes that it has contract migrations, take a copy of
@@ -271,7 +271,7 @@ alembic stamp <rev>          # mark DB at <rev> without running anything
 
 `DATABASE_URL` says which database alembic touches; unset, `DATA_DIR`
 chooses the sqlite file (default `/data`, the Docker volume). For local
-one-offs, point it at `/tmp/musizerr_test` or similar. `alembic upgrade head`
+one-offs, point it at `/tmp/musizeer_test` or similar. `alembic upgrade head`
 by hand takes no backup and records nothing; `python -m scripts.init_db` does both.
 
 ## Pitfalls

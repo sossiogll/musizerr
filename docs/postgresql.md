@@ -1,15 +1,15 @@
 # PostgreSQL
 
-Musizerr keeps its data in **PostgreSQL**; **SQLite** still works for a small
+Musizeer keeps its data in **PostgreSQL**; **SQLite** still works for a small
 install. One variable chooses:
 
 | Variable | Meaning |
 |---|---|
-| `DATABASE_URL` | Where the data lives, e.g. `postgresql+psycopg://user:password@postgres:5432/musizerr` (`postgresql://` and `postgres://` work too). **Unset: SQLite**, the file `DATA_DIR/musizerr.db`, exactly as before. |
+| `DATABASE_URL` | Where the data lives, e.g. `postgresql+psycopg://user:password@postgres:5432/musizeer` (`postgresql://` and `postgres://` work too). **Unset: SQLite**, the file `DATA_DIR/musizeer.db`, exactly as before. |
 | `DB_BUSY_TIMEOUT_MS` | How long a write waits for a lock another writer holds before it fails with a retryable 503 `database_busy` (default 15000). SQLite busy timeout; PostgreSQL `lock_timeout`. |
 | `DB_STATEMENT_TIMEOUT_MS` | PostgreSQL: a query that runs longer is cancelled (default 120000, `0` never). |
 | `DB_POOL_SIZE`, `DB_MAX_OVERFLOW` | PostgreSQL connections per process (default 5 + 10). The API and every worker process have their own pool: the server's `max_connections` must cover the sum. |
-| `POSTGRES_PASSWORD` | **Required by the compose files**, never committed: write it in `.env` (see `.env.example`). It goes inside `DATABASE_URL`, so use letters and digits (`openssl rand -hex 24`). `POSTGRES_USER` and `POSTGRES_DB` default to `musizerr`. |
+| `POSTGRES_PASSWORD` | **Required by the compose files**, never committed: write it in `.env` (see `.env.example`). It goes inside `DATABASE_URL`, so use letters and digits (`openssl rand -hex 24`). `POSTGRES_USER` and `POSTGRES_DB` default to `musizeer`. |
 
 Both compose files (`docker-compose.yaml`, `docker-compose.dev.yml`) run a
 `postgres` service (official image, named volume `postgres_data`, healthcheck)
@@ -33,8 +33,8 @@ keeps every connected account readable (`docs/credentials.md`). The SQLite file 
 1. **Add `POSTGRES_PASSWORD`, `AUTH_SECRET` and `CREDENTIALS_KEY` to `.env`** (and update the code).
 2. **Stop the stack** so nothing writes during the copy:
    `docker compose -f docker-compose.dev.yml stop`.
-3. **Back up the SQLite database**: copy `data/musizerr.db` together with
-   `musizerr.db-wal` and `musizerr.db-shm` if they exist.
+3. **Back up the SQLite database**: copy `data/musizeer.db` together with
+   `musizeer.db-wal` and `musizeer.db-shm` if they exist.
 4. **Bring the SQLite database to the current schema** (the tool refuses a
    source that is behind, and says so). With `DATABASE_URL` emptied the
    command works on the SQLite file:
@@ -46,7 +46,7 @@ keeps every connected account readable (`docs/credentials.md`). The SQLite file 
    PostgreSQL):
    ```sh
    docker compose -f docker-compose.dev.yml run --rm app \
-     python -m scripts.migrate_sqlite_to_postgres --source /data/musizerr.db
+     python -m scripts.migrate_sqlite_to_postgres --source /data/musizeer.db
    ```
    `--target` defaults to the service's `DATABASE_URL`; `--json` prints the
    report for a machine.
@@ -56,10 +56,10 @@ keeps every connected account readable (`docs/credentials.md`). The SQLite file 
 6. **Apply**:
    ```sh
    docker compose -f docker-compose.dev.yml run --rm app \
-     python -m scripts.migrate_sqlite_to_postgres --source /data/musizerr.db --apply
+     python -m scripts.migrate_sqlite_to_postgres --source /data/musizeer.db --apply
    ```
 7. **Start on PostgreSQL**: `docker compose -f docker-compose.dev.yml up -d`.
-   Sign in and look around; `docker compose exec postgres psql -U musizerr`
+   Sign in and look around; `docker compose exec postgres psql -U musizeer`
    if in doubt.
 
 ### What the tool does and checks
@@ -115,7 +115,7 @@ reverse copy.
 - `init` dumps the database (`pg_dump`, custom format) into `/data/backups` before every
   migration, and keeps the last 5; [migrations.md](migrations.md#restoring-a-backup) restores one. That is a safety net
   for a migration, not a backup plan: back PostgreSQL up on a schedule too (`docker compose exec postgres pg_dump -U
-  musizerr musizerr > musizerr.sql`).
+  musizeer musizeer > musizeer.sql`).
 - The image carries `postgresql-client-17`, the major of the `postgres:17` the compose files run. If you run another
   major, `pg_dump` refuses a server newer than itself and `init` stops with that message; use a 17 server, or
   build the image with the matching client.

@@ -1,13 +1,13 @@
 # Signing in through a provider
 
-A user can sign in to Musizerr with an account they have linked on a provider
+A user can sign in to Musizeer with an account they have linked on a provider
 (an OAuth2 service, or a service with a login account). It is generic: a
 provider declares it, the host does the rest, and nothing outside `providers/`
 knows a provider by name.
 
 ## What a provider declares
 
-In `musizerr_sdk.interfaces`, on `BaseProvider`, both optional:
+In `musizeer_sdk.interfaces`, on `BaseProvider`, both optional:
 
 - `supports_login() -> bool`: the account can sign users in (default `False`).
   It only counts for a provider with accounts of a user's own
@@ -22,7 +22,7 @@ In `musizerr_sdk.interfaces`, on `BaseProvider`, both optional:
   refused). Raise when the service cannot be reached (the host answers 503).
 
 A login-capable provider carries the `login` capability in the `capabilities`
-of its personal account (`sdk/src/musizerr_sdk/capabilities.py`).
+of its personal account (`sdk/src/musizeer_sdk/capabilities.py`).
 
 ## The rule: the provider's id, and only it
 
@@ -59,7 +59,7 @@ session signs in whatever the policy says.
 
 - **OAuth2**: `GET /auth/account/login/{provider}/start` redirects to the
   provider. The state names the provider and carries the hash of a random nonce
-  that the response also sets in the HttpOnly cookie `musizerr_login_nonce`
+  that the response also sets in the HttpOnly cookie `musizeer_login_nonce`
   (SameSite=Lax). The callback is the one every OAuth2 provider already has
   (`/auth/{provider}/callback`, so no new redirect URI to register): its state
   says linking or sign-in, and a sign-in needs the state AND the cookie, so a

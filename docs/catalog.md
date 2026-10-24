@@ -22,7 +22,7 @@ pinned by digest. The database is the only source of truth for what is installed
   "providers": [
     {
       "name": "lrclib",
-      "image": "ghcr.io/owner/musizerr-provider-lrclib",
+      "image": "ghcr.io/owner/musizeer-provider-lrclib",
       "digest": "sha256:<64 lowercase hex digits>",
       "provider_api_version": 5,
       "roles": ["lyrics"],
@@ -45,7 +45,7 @@ pinned by digest. The database is the only source of truth for what is installed
 | `name` | the provider's name, how the host knows it: `[a-z][a-z0-9_-]{0,63}`. Unique in the catalog, and among the installed providers of the instance |
 | `image` | `registry/repository`, **no tag and no digest** (`registry.example:5000/team/x` is fine) |
 | `digest` | `sha256:` and 64 lowercase hex digits: the image is pulled by digest and by nothing else |
-| `provider_api_version` | the provider API version the image implements. An entry for another version than this Musizerr's is **listed but not installable** (`incompatible_provider`) |
+| `provider_api_version` | the provider API version the image implements. An entry for another version than this Musizeer's is **listed but not installable** (`incompatible_provider`) |
 | `roles` | a non-empty list of `metadata`, `download`, `lyrics`, `storage`, `sync`, `identification` |
 | `label`, `description` | what the admin reads (at most 100 and 1000 characters) |
 | `homepage` | optional, an http(s) URL |
@@ -58,7 +58,7 @@ field, an unknown field, a tag in `image`, a digest that is not a digest, an unk
 malformed permissions is **refused alone**, with the reason, and listed under `rejected`: the rest of the
 catalog is usable. A name listed twice keeps the first.
 
-The images must carry the labels `org.musizerr.provider.*` (see `scripts/build-provider-image.sh`):
+The images must carry the labels `org.musizeer.provider.*` (see `scripts/build-provider-image.sh`):
 the gateway refuses an image whose name, roles, API version or permissions are not exactly what the
 admin approved.
 
@@ -155,13 +155,13 @@ scripts/publish-provider-image.sh <provider-dir> <catalog-file> [catalog-name]
 ```
 
 `publish-provider-image.sh` builds the provider on the **published** base image (pulled first), has it print its labels,
-builds it with them for both platforms, pushes `ghcr.io/<owner>/musizerr-provider-<name>:<version>` (the version of the
+builds it with them for both platforms, pushes `ghcr.io/<owner>/musizeer-provider-<name>:<version>` (the version of the
 provider's `pyproject.toml`) and writes its entry in `<catalog-file>`, the same way as the development catalog below (the
 fields come from the labels). The providers repositories call it for every provider with `scripts/publish.sh`, which keeps
 their `catalog.json` at the root of the repository: that file, committed, is what a source points at
 (`https://raw.githubusercontent.com/<owner>/<repo>/<branch>/catalog.json`, with a token when the repository is private).
 
-Both build with a buildx builder of their own (`musizerr-publish`, the `docker-container` driver: the default driver cannot
+Both build with a buildx builder of their own (`musizeer-publish`, the `docker-container` driver: the default driver cannot
 push an image for several platforms), created when it is missing. `GHCR_NAMESPACE` changes where they publish (default
 `ghcr.io/sossiogll`). A package GHCR creates is **private**; the scripts never change a visibility. Each Dockerfile sets
 `org.opencontainers.image.source` to its repository; the scripts copy it, with the description and the license, into the annotations of the image's index, where GHCR reads them for a multi-platform image and links the package to the repository. `scripts/build-provider-image.sh` and
@@ -182,14 +182,14 @@ scripts/dev-catalog.sh [-c NAME] [-r HOST:PORT] <provider-dir>...
 `<provider-dir>` is a directory with a Dockerfile `FROM` the base image (see `scripts/build-provider-image.sh`); it may be
 anywhere on the machine, outside this repository included. For each one the script builds the image (the base image too,
 locally), has the provider print its labels, pushes it and writes its entry, **in `data/catalogs/NAME.json`** (default `registry`;
-created with `"name": "Musizerr development catalog"`, version 2, if it does not exist):
+created with `"name": "Musizeer development catalog"`, version 2, if it does not exist):
 
 | field of the entry | comes from |
 |---|---|
-| `name`, `roles`, `provider_api_version`, `permissions` | the `org.musizerr.provider.*` labels of the image: what the gateway checks, so the entry cannot disagree with the image |
-| `label` | `org.musizerr.provider.label` (the provider's own `label`) |
+| `name`, `roles`, `provider_api_version`, `permissions` | the `org.musizeer.provider.*` labels of the image: what the gateway checks, so the entry cannot disagree with the image |
+| `label` | `org.musizeer.provider.label` (the provider's own `label`) |
 | `description`, `homepage` | the standard `org.opencontainers.image.description` and `.url` labels, when the Dockerfile sets them (else an empty description, no homepage) |
-| `image`, `digest` | `oci-registry:5000/musizerr-provider-<name>` (`PROVIDER_INSTALL_REGISTRY` for another name) and the digest the registry returned |
+| `image`, `digest` | `oci-registry:5000/musizeer-provider-<name>` (`PROVIDER_INSTALL_REGISTRY` for another name) and the digest the registry returned |
 
 Running it again for the same provider rebuilds the image and **updates its entry in place** (a new digest is an update the
 admin approves); the entries of other providers in the file are kept, and a file that is not a version 2 catalog is
@@ -197,6 +197,6 @@ refused, not overwritten. The catalog is written by a throwaway `python:3.12-sli
 library only): nothing runs on the host but Docker. `DEV_CATALOG_DIR` changes the folder.
 
 ```sh
-scripts/dev-catalog.sh ../my-providers/some-provider ../musizerr-providers/lrclib
+scripts/dev-catalog.sh ../my-providers/some-provider ../musizeer-providers/lrclib
 docker compose -f docker-compose.dev.yml exec app python -m scripts.provider_sources add-source http://registry:9000/registry.json --insecure
 ```

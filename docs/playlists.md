@@ -1,8 +1,8 @@
 # Playlists
 
-A playlist lives in Musizerr, belongs to one user and is **private** (its owner
+A playlist lives in Musizeer, belongs to one user and is **private** (its owner
 sees it, nobody else: another user's playlist is a 404). A playlist is **hybrid**:
-kept by Musizerr, mirrored on the music server, and able to follow a playlist of
+kept by Musizeer, mirrored on the music server, and able to follow a playlist of
 a metadata provider.
 
 | Kind | What it is | Edited by |
@@ -100,7 +100,7 @@ A sync provider that keeps playlists declares it
 (`SyncProvider.supports_playlists()`) and implements `create_playlist(name,
 sync_ids, session)`, `update_playlist(remote_id, name, sync_ids, session)` (a
 replacement: the whole content) and `delete_playlist(remote_id, session)`, raising
-`musizerr_sdk.errors.RemotePlaylistGone` when the server no longer has it. The
+`musizeer_sdk.errors.RemotePlaylistGone` when the server no longer has it. The
 default is "not supported": a provider that does not implement them is never
 touched.
 
@@ -133,7 +133,7 @@ With `delete_tracks=true` the files that were downloaded for the playlist
 (`download_requested`) are deleted **in the background** (task
 `workers.maintenance.delete_playlist_tracks`, on `maintenance`), and only when,
 checked again by the task, no other playlist holds the track, no user has it as a
-favorite, and every file of it was downloaded by Musizerr for this user (never a
+favorite, and every file of it was downloaded by Musizeer for this user (never a
 file the library scan found, never one somebody else asked for). They go through
 the storage provider; the sync provider is told to rescan and the library index
 drops what it no longer lists. The answer says how many tracks were scheduled
@@ -142,7 +142,7 @@ drops what it no longer lists. The answer says how many tracks were scheduled
 ## What is not done (yet)
 
 - Playlists are private: no sharing, no collaborative editing.
-- The mirror is one way (Musizerr → server); playlists made on the server are not
+- The mirror is one way (Musizeer → server); playlists made on the server are not
   imported.
 - A pending approval request for a playlist's tracks holds the tracks it was made
   with; tracks the source gains meanwhile are asked for by the next request.
