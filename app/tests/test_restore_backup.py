@@ -40,7 +40,7 @@ def migrated(tmp_path, monkeypatch):
         session.add(User(id="u1", username="alice", password_hash="x"))
         session.commit()
     directory = tmp_path / "data" / "backups"
-    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("MUSIZEER_DATA_DIR", str(tmp_path / "data"))
     if DIALECT == POSTGRESQL:
         monkeypatch.setenv("DATABASE_URL", engine.url.render_as_string(hide_password=False))
     else:

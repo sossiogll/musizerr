@@ -80,7 +80,6 @@ original rows surviving for a re-run to be complete.
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,6 +87,8 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+
+from core import environment
 
 revision: str = "0010_settings_store"
 down_revision: Union[str, None] = "0009_pending_likes"
@@ -187,7 +188,7 @@ def upgrade() -> None:
                 updated_at=row["updated_at"], row_id=row["id"])
 
     # 2. config.json -> una riga system per chiave.
-    config_path = Path(os.environ.get("DATA_DIR", "/data")) / "config.json"
+    config_path = Path(environment.data_dir()) / "config.json"
     if config_path.exists():
         try:
             file_data = json.loads(config_path.read_text())

@@ -1,11 +1,11 @@
 # Stored credentials are encrypted
 
 Everything Musizeer keeps in its database to sign in to other services is encrypted
-at rest, with a key of its own: `CREDENTIALS_KEY`. Someone who gets a copy of the
+at rest, with a key of its own: `MUSIZEER_CREDENTIALS_KEY`. Someone who gets a copy of the
 database (a backup, a dump, a stolen volume) reads no token, password, API key or
 client secret from it. They need the key too, and the key is not in the database.
 
-This is **not** the key of the sessions (`AUTH_SECRET`, `docs/permissions.md`): that one
+This is **not** the key of the sessions (`MUSIZEER_AUTH_SECRET`, `docs/permissions.md`): that one
 signs tokens, this one encrypts data. They are independent and neither can be derived
 from the other.
 
@@ -30,7 +30,7 @@ Left as it is, on purpose:
   something is stored, not what.
 - Redis holds no credential (locks, counters, events). A provider is handed the credential a call
   needs, decrypted by the host, for that call only, through the sandbox's socket; it never sees the
-  key nor the stored rows. The provider gateway never has `CREDENTIALS_KEY` (it is given a source's
+  key nor the stored rows. The provider gateway never has `MUSIZEER_CREDENTIALS_KEY` (it is given a source's
   token by the host, in memory, to pull an image).
 
 A secret setting is returned **decrypted to an administrator** by `GET /settings/values` and in the
@@ -52,7 +52,7 @@ key from the environment.
 
 ## The key
 
-`CREDENTIALS_KEY` is a Fernet key: the urlsafe base64 of 32 random bytes (44 characters ending in
+`MUSIZEER_CREDENTIALS_KEY` is a Fernet key: the urlsafe base64 of 32 random bytes (44 characters ending in
 `=`). Generate it **once**:
 
 ```sh
@@ -67,8 +67,10 @@ the same thing: the urlsafe base64 of 32 random bytes.
 openssl rand -base64 32 | tr '+/' '-_'
 ```
 
-Write it in `.env` (never committed, see `.env.example`), like `AUTH_SECRET` and
-`POSTGRES_PASSWORD`. Both compose files require it (`${CREDENTIALS_KEY:?...}`) for the services that
+Write it in `.env` (never committed, see `.env.example`), like `MUSIZEER_AUTH_SECRET` and
+`POSTGRES_PASSWORD`. A key still written under its old name, `CREDENTIALS_KEY`, is **not read**: compose, the
+application and the workers stop with `CREDENTIALS_KEY is no longer read: rename it to MUSIZEER_CREDENTIALS_KEY`
+(the value stays the same: rename the line, do not generate a new key). Both compose files require it (`${MUSIZEER_CREDENTIALS_KEY:?...}`) for the services that
 read the database: `init`, `app`, the workers and `beat`. The gateway, the frontend, Redis and
 PostgreSQL do not get it.
 
@@ -81,7 +83,7 @@ in. It runs before the database is touched, because the migration needs the key.
 ### Lose the key, reconnect the accounts
 
 **The key is the only way to read the encrypted values. Back it up with the database**: keep `.env`
-(or at least `CREDENTIALS_KEY`) next to every database backup, in a place that is not the same
+(or at least `MUSIZEER_CREDENTIALS_KEY`) next to every database backup, in a place that is not the same
 volume. A database backup without the key restores everything except the accounts.
 
 If the key is lost, nothing else is: users, library, downloads, favorites, playlists and settings are
@@ -114,7 +116,7 @@ running registry knows which settings its providers declared secret), so the API
 as it has loaded the providers, and again whenever they change (`services/secret_settings.py`).
 New values are always sealed when written.
 
-The migration needs `CREDENTIALS_KEY` and **refuses to run without it**, before it changes a row
+The migration needs `MUSIZEER_CREDENTIALS_KEY` and **refuses to run without it**, before it changes a row
 (the message says so). It can run twice (a value already sealed is left alone, after checking the
 configured keys open it), and it stops, changing nothing, if it finds a value sealed with a key
 that is not configured. Both directions work on SQLite and PostgreSQL. Its downgrade opens
@@ -126,7 +128,7 @@ cannot be opened.
 1. **Back up the database** (`pg_dump`, or the SQLite file with its `-wal` and `-shm`) **and `.env`**.
    Once the migration has run, the previous version cannot read the credentials (it would try to
    parse `enc:v1:...` as JSON) unless the migration is reverted, with the key.
-2. Generate `CREDENTIALS_KEY` and write it in `.env`, **before** pulling or rebuilding: compose
+2. Generate `MUSIZEER_CREDENTIALS_KEY` and write it in `.env`, **before** pulling or rebuilding: compose
    interpolates the whole file on every command, `build` included, and stops without it. Generate it
    with `openssl` (above): the old image has no `cryptography` library to do it with. Back the key up
    with the backup of step 1.
@@ -148,7 +150,7 @@ Rotating means encrypting everything with a new key and retiring the old one. Th
 for the whole procedure the application reads with both keys.
 
 1. Generate the new key (the command above).
-2. In `.env`: `CREDENTIALS_KEY=<new>` and `CREDENTIALS_KEY_PREVIOUS=<old>` (several old keys can be
+2. In `.env`: `MUSIZEER_CREDENTIALS_KEY=<new>` and `MUSIZEER_CREDENTIALS_KEY_PREVIOUS=<old>` (several old keys can be
    listed, comma separated). Restart the stack. It now reads values sealed with either key and
    seals every new one with the new key.
 3. Seal the existing values again, from the `app` container:
@@ -165,7 +167,7 @@ for the whole procedure the application reads with both keys.
    (`skipped`: run it again). It prints no value, key or encrypted text. The exit status is 1 if
    anything was left as it is, 2 if the key is unusable.
 4. When every table says `unreadable 0, in_clear 0`, nothing depends on the old key any more. Remove
-   `CREDENTIALS_KEY_PREVIOUS` (or the old key from it) and restart. Keep the old key in the backups
+   `MUSIZEER_CREDENTIALS_KEY_PREVIOUS` (or the old key from it) and restart. Keep the old key in the backups
    made *before* the rotation, if you want to be able to restore them.
 
 ## For developers
@@ -176,7 +178,7 @@ for the whole procedure the application reads with both keys.
   existing ones; `SettingsRepository` seals what `SettingDef.secret` declares. Add the place to
   the migration's successor and to `services/credentials_rotation.py`, and to the table above.
 - The test suite runs with a fixed, public test key (`tests/credentials_support.py`, set by
-  `tests/conftest.py` like `AUTH_SECRET=test`), forced so a run never uses a real key. A test about
+  `tests/conftest.py` like `MUSIZEER_AUTH_SECRET=test`), forced so a run never uses a real key. A test about
   keys sets its own with `use_keys`.
 - `tests/test_layering.py` keeps the key's name out of every module but `db/credential_cipher.py`,
   `core/secret_box.py` pure, and the gateway without it.

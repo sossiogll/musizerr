@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 
+from . import environment
 from .config import ConfigError, from_environment
 from .control import Control, ControlServer
 from .images import ImageStore
@@ -33,6 +34,7 @@ def _report_task_limits(ceiling: int) -> None:
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    environment.report_at_start()
     try:
         config = from_environment()
     except ConfigError as exc:

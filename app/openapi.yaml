@@ -22,7 +22,7 @@ info:
 
 servers:
   - url: /api
-    description: "Behind the bundled reverse proxy: the API lives under the public prefix (PUBLIC_API_PREFIX, default /api)"
+    description: "Behind the bundled reverse proxy: the API lives under the public prefix (MUSIZEER_PUBLIC_API_PREFIX, default /api)"
   - url: http://localhost:8000
     description: Local development (backend direct)
 
@@ -2900,7 +2900,7 @@ components:
         value, unavailable setting...), or `{error_code, error_message}` when
         the refusal has a stable code the UI translates. Code
         `auth_secret_insecure`: authentication cannot be turned on
-        (`auth_enabled: true`) while the server's `AUTH_SECRET` is missing,
+        (`auth_enabled: true`) while the server's `MUSIZEER_AUTH_SECRET` is missing,
         shorter than 32 characters or a placeholder; the batch is refused whole
         and nothing is written. The message never contains the secret. Code
         `no_admin_account`: authentication cannot be turned on while no active
@@ -7299,7 +7299,7 @@ paths:
         validation and keys the user may not write reject the whole batch. With
         auth disabled the instance's owner has personal (scope user) settings
         like any account. Turning `auth_enabled` on is refused with 400 while
-        `AUTH_SECRET` is weak (`detail.error_code` `auth_secret_insecure`) and
+        `MUSIZEER_AUTH_SECRET` is weak (`detail.error_code` `auth_secret_insecure`) and
         while no active administrator account that can sign in exists
         (`no_admin_account`). When it succeeds, the data of the open-mode owner
         (favorites, likes, playlists, personal settings...) becomes the

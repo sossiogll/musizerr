@@ -16,12 +16,12 @@ Administration as "release information unavailable". Only an answer that is not 
 """
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
 from sqlmodel import Session, select
 
+from core import environment
 from core.utc import utc_iso
 from core.versions import InstalledContract, assess_update, parse_version, update_kind
 from db.models import InstalledProvider
@@ -32,7 +32,7 @@ from services.routines import run_result
 
 ROUTINE = "check_for_updates"
 # The repository whose releases are this instance's updates; a fork names its own.
-REPOSITORY = os.environ.get("MUSIZERR_UPDATE_REPOSITORY") or "sossiogll/musizeer"
+REPOSITORY = environment.get("MUSIZEER_UPDATE_REPOSITORY")
 RELEASE_METADATA = "release.json"
 # The routine keeps its result in a run's detail (2000 characters): the newest few releases are enough
 # to say "there is an update", and each one links its notes.

@@ -26,7 +26,7 @@ import sys
 import time
 from pathlib import Path
 
-os.environ.setdefault("DATA_DIR", "/tmp/data")
+os.environ.setdefault("MUSIZEER_DATA_DIR", "/tmp/data")
 
 from db.engine import engine  # noqa: E402
 from services.database_init import init_db  # noqa: E402

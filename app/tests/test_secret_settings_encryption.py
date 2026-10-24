@@ -122,7 +122,7 @@ def test_a_sealed_value_read_with_another_key_is_the_default_not_the_ciphertext(
     assert values[SECRET_KEY] == declared_default
     assert "enc:v1" not in json.dumps(values)
     assert "secret" not in after.provider_config("catalog")
-    assert TOKEN not in caplog.text and PROVIDER_SECRET not in caplog.text and "CREDENTIALS_KEY" in caplog.text
+    assert TOKEN not in caplog.text and PROVIDER_SECRET not in caplog.text and "MUSIZEER_CREDENTIALS_KEY" in caplog.text
 
     use_keys(monkeypatch, KEY)
     assert ConfigManager(engine=engine).delegation_webhook_token == TOKEN

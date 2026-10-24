@@ -69,7 +69,7 @@ session signs in whatever the policy says.
   (`POST /auth/account/login/exchange`) for a session. The code lives 60 s,
   only its hash is stored, and one conditional UPDATE spends it. A session never
   travels in a URL. **The start and the callback must be served from the same
-  host** (the cookie is host-scoped): `APP_BASE_URL` and the address users open
+  host** (the cookie is host-scoped): `MUSIZEER_APP_BASE_URL` and the address users open
   must share it.
 - **A login account**: `POST /auth/account/login/{provider}/credentials` with
   exactly the fields the provider declares (`credential_fields`).

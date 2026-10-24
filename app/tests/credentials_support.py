@@ -2,7 +2,7 @@
 Keys and helpers for the tests of the encryption of stored credentials (docs/credentials.md).
 
 The keys are FIXED and public: they exist for the tests only and seal nothing real. ``tests/conftest.py``
-sets ``KEY`` as the ``CREDENTIALS_KEY`` of every test (the way the suite is given ``AUTH_SECRET``), so a
+sets ``KEY`` as the ``MUSIZEER_CREDENTIALS_KEY`` of every test (the way the suite is given ``MUSIZEER_AUTH_SECRET``), so a
 store can seal and open without each test arranging it; a test about the keys sets its own with
 ``monkeypatch`` (``use_keys``).
 """
@@ -20,16 +20,16 @@ THIRD_KEY = "NnxeDSgU3KZusKJOm9aEZe1u0B0Syd8YTs9iGn5G6d4="
 
 
 def use_keys(monkeypatch: pytest.MonkeyPatch, primary: str | None, *previous: str) -> None:
-    """The process's ``CREDENTIALS_KEY`` / ``CREDENTIALS_KEY_PREVIOUS`` for the rest of the test
+    """The process's ``MUSIZEER_CREDENTIALS_KEY`` / ``MUSIZEER_CREDENTIALS_KEY_PREVIOUS`` for the rest of the test
     (``None``: unset)."""
     if primary is None:
-        monkeypatch.delenv("CREDENTIALS_KEY", raising=False)
+        monkeypatch.delenv("MUSIZEER_CREDENTIALS_KEY", raising=False)
     else:
-        monkeypatch.setenv("CREDENTIALS_KEY", primary)
+        monkeypatch.setenv("MUSIZEER_CREDENTIALS_KEY", primary)
     if previous:
-        monkeypatch.setenv("CREDENTIALS_KEY_PREVIOUS", ",".join(previous))
+        monkeypatch.setenv("MUSIZEER_CREDENTIALS_KEY_PREVIOUS", ",".join(previous))
     else:
-        monkeypatch.delenv("CREDENTIALS_KEY_PREVIOUS", raising=False)
+        monkeypatch.delenv("MUSIZEER_CREDENTIALS_KEY_PREVIOUS", raising=False)
 
 
 def raw(engine, statement: str, **params):

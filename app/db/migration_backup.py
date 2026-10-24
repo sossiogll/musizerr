@@ -28,7 +28,7 @@ from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
 
-from core import schema_guard
+from core import environment, schema_guard
 from db.engine import POSTGRESQL, SQLITE, make_engine
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ def _tool(name: str) -> str:
     if found is None:
         raise BackupError(
             f"{name} is not installed in this image, so a PostgreSQL database cannot be backed up. The Musizeer "
-            "image ships postgresql-client-17; use it, or back the database up yourself and set MIGRATION_BACKUP=off."
+            "image ships postgresql-client-17; use it, or back the database up yourself and set MUSIZEER_MIGRATION_BACKUP=off."
         )
     return found
 
@@ -69,7 +69,7 @@ def _tool(name: str) -> str:
 def _run(command: list[str], env: dict[str, str], what: str) -> None:
     try:
         done = subprocess.run(
-            command, env={**os.environ, **env}, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            command, env={**environment.snapshot(), **env}, stdin=subprocess.DEVNULL, capture_output=True, text=True,
         )
     except OSError as exc:
         raise BackupError(f"{what} could not be started: {exc}") from exc

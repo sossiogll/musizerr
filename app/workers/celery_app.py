@@ -1,10 +1,10 @@
 from __future__ import annotations
 import logging
-import os
 
 from celery import Celery
 from celery.signals import worker_init, worker_ready
 
+from core import environment
 from db import credential_cipher
 from services.config_manager import ConfigManager
 from services.log_redaction import install_log_redaction
@@ -18,9 +18,10 @@ logger = logging.getLogger(__name__)
 # A worker (and beat, and the API that sends it tasks) refuses to start without the key that
 # opens the stored credentials: a download must never run on credentials it cannot read. Here, at
 # import, because the signal handlers of Celery log what they raise and go on (docs/credentials.md).
+environment.report_at_start()
 credential_cipher.require_credentials_key()
 
-_REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+_REDIS_URL = environment.redis_url()
 
 celery = Celery(
     "musizeer",

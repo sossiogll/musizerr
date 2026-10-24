@@ -40,11 +40,10 @@ mappa hardcoded nel core.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Protocol
 
-from . import download_policy, provider_login, user_auth
+from . import download_policy, environment, provider_login, user_auth
 from musizeer_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK
 from musizeer_sdk.context import (
     DEFAULT_CONNECT_TIMEOUT,
@@ -129,7 +128,7 @@ class GuardFacts(Protocol):
 
 
 def _strong_auth_secret(facts: GuardFacts) -> None:  # noqa: ARG001
-    """Sessions are signed with ``AUTH_SECRET``: authentication cannot be turned on while it is
+    """Sessions are signed with ``MUSIZEER_AUTH_SECRET``: authentication cannot be turned on while it is
     missing, short or a placeholder (``user_auth.require_strong_secret``, the rule startup asks too)."""
     try:
         user_auth.require_strong_secret()
@@ -454,16 +453,13 @@ GROUPS: tuple[GroupMeta, ...] = (
 _GROUPS_BY_KEY: dict[str, GroupMeta] = {g.key: g for g in GROUPS}
 
 # The folder the host and the provider gateway exchange files through. The gateway mounts it in its
-# sandboxes and reads its own copy of the path from ``GATEWAY_WORKSPACE_DIR``; the deployment (docker-compose.yaml)
-# sets BOTH from ONE variable, ``WORKSPACE_DIR``, so the default of the ``workspace_dir`` setting is read from it.
-# A value saved in the settings wins over this seed, and the host warns when it differs from the gateway's
-# (``services/provider_events.GatewayWatcher``).
-DEFAULT_WORKSPACE_DIR = "/downloads/.musizeer-work"
-WORKSPACE_DIR_ENVIRONMENT = "WORKSPACE_DIR"
-
-
+# sandboxes and reads its own copy of the path from ``MUSIZEER_GATEWAY_WORKSPACE_DIR``; the deployment
+# (docker-compose.yaml) sets BOTH from ONE variable, ``MUSIZEER_WORKSPACE_DIR``, so the default of the
+# ``workspace_dir`` setting is read from it. A value saved in the settings wins over this seed, and the host warns
+# when it differs from the gateway's (``services/provider_events.GatewayWatcher``). Removed by ADR-0008: the working
+# folder becomes a folder setting over a root folder, with no environment default.
 def default_workspace_dir() -> str:
-    return os.environ.get(WORKSPACE_DIR_ENVIRONMENT, "").strip() or DEFAULT_WORKSPACE_DIR
+    return environment.get("MUSIZEER_WORKSPACE_DIR").strip() or environment.default("MUSIZEER_WORKSPACE_DIR")
 
 
 def _entry(
@@ -651,7 +647,7 @@ CATALOG: tuple[SettingDef, ...] = (
     # ----- File -----
     _entry("workspace_dir", "string", default_workspace_dir(), GROUP_FILES,
            "Cartella di lavoro",
-           "Dove l'host crea le cartelle temporanee in cui i provider scrivono e leggono i file. Sullo stesso volume della libreria, spostare un file è istantaneo. Deve essere la stessa cartella del gateway (WORKSPACE_DIR / GATEWAY_WORKSPACE_DIR): cambiarla qui senza cambiarla anche là scollega i provider dai loro file."),
+           "Dove l'host crea le cartelle temporanee in cui i provider scrivono e leggono i file. Sullo stesso volume della libreria, spostare un file è istantaneo. Deve essere la stessa cartella del gateway (MUSIZEER_WORKSPACE_DIR / MUSIZEER_GATEWAY_WORKSPACE_DIR): cambiarla qui senza cambiarla anche là scollega i provider dai loro file."),
     _entry("held_upload_max_age_hours", "int", 72, GROUP_FILES,
            "Conservazione file in attesa di upload (h)",
            "Un file scaricato il cui salvataggio sullo storage è fallito resta nella cartella di lavoro e si ritenta solo l'upload; oltre queste ore viene eliminato (il download si rifarà da capo).",

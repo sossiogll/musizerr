@@ -11,7 +11,7 @@ services:
       - downloads:/downloads
   oci-registry:
     ports: !override
-      - "127.0.0.1:${OCI_REGISTRY_PORT:-18600}:5000"
+      - "127.0.0.1:${MUSIZEER_DEV_OCI_REGISTRY_PORT:-18600}:5000"
   registry:
     ports: !reset []
     volumes: !override

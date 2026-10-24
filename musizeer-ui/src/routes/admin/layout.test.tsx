@@ -86,7 +86,7 @@ describe("Administration › a newer version of Musizeer", () => {
     expect(box).toHaveTextContent("Musizeer 1.3.0 is available");
     expect(box).toHaveTextContent("Minor version · you run 1.2.0");
     expect(box).toHaveTextContent("Pulling its images is all it takes");
-    expect(box).toHaveTextContent("set MUSIZERR_VERSION=1.3.0 in .env, then run docker compose pull && docker compose up -d");
+    expect(box).toHaveTextContent("set MUSIZEER_VERSION=1.3.0 in .env, then run docker compose pull && docker compose up -d");
     expect(within(box).getByRole("link", { name: "Release notes" })).toHaveAttribute("href", "https://github.com/r/v1.3.0");
   });
 

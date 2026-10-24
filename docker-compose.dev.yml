@@ -4,17 +4,21 @@ name: musizeer
 # Il database di tutti i servizi: PostgreSQL (il servizio `postgres` qui sotto).
 # POSTGRES_PASSWORD viene da .env (non versionato, vedi .env.example): una
 # password sicura in un URL (lettere e cifre). Senza DATABASE_URL i servizi
-# userebbero il file SQLite di DATA_DIR: vedi docs/postgresql.md.
+# userebbero il file SQLite di MUSIZEER_DATA_DIR: vedi docs/postgresql.md.
 x-database: &database
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-musizeer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-musizeer}
+  MUSIZEER_DB_BUSY_TIMEOUT_MS: ${MUSIZEER_DB_BUSY_TIMEOUT_MS:-}
+  MUSIZEER_DB_STATEMENT_TIMEOUT_MS: ${MUSIZEER_DB_STATEMENT_TIMEOUT_MS:-}
+  MUSIZEER_DB_POOL_SIZE: ${MUSIZEER_DB_POOL_SIZE:-}
+  MUSIZEER_DB_MAX_OVERFLOW: ${MUSIZEER_DB_MAX_OVERFLOW:-}
 
 # The key that encrypts the stored credentials (docs/credentials.md): from .env, required by every
 # service that reads the database (init: its migration encrypts the existing credentials; app;
-# the workers). CREDENTIALS_KEY_PREVIOUS holds the keys it replaced during a rotation. The provider
+# the workers). MUSIZEER_CREDENTIALS_KEY_PREVIOUS holds the keys it replaced during a rotation. The provider
 # gateway never gets either.
 x-credentials: &credentials
-  CREDENTIALS_KEY: ${CREDENTIALS_KEY:?set CREDENTIALS_KEY in .env (docs/credentials.md)}
-  CREDENTIALS_KEY_PREVIOUS: ${CREDENTIALS_KEY_PREVIOUS:-}
+  MUSIZEER_CREDENTIALS_KEY: ${MUSIZEER_CREDENTIALS_KEY:?set MUSIZEER_CREDENTIALS_KEY in .env (it was CREDENTIALS_KEY; docs/credentials.md)}
+  MUSIZEER_CREDENTIALS_KEY_PREVIOUS: ${MUSIZEER_CREDENTIALS_KEY_PREVIOUS:-}
 
 # What a service waits for in development: the database and Redis answering and the migrations
 # done (init). The gateway is not waited for: it is built from the checkout and the application
@@ -45,9 +49,9 @@ services:
       - ./data:/data
     environment:
       <<: [*database, *credentials]
-      DATA_DIR: /data
-      MIGRATION_BACKUP: ${MIGRATION_BACKUP:-on}
-      MIGRATION_BACKUPS_KEEP: ${MIGRATION_BACKUPS_KEEP:-5}
+      MUSIZEER_DATA_DIR: /data
+      MUSIZEER_MIGRATION_BACKUP: ${MUSIZEER_MIGRATION_BACKUP:-}
+      MUSIZEER_MIGRATION_BACKUPS_KEEP: ${MUSIZEER_MIGRATION_BACKUPS_KEEP:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,17 +70,17 @@ services:
       - ./app:/app # bind mount → ogni modifica riavvia uvicorn automaticamente
       - ./sdk:/sdk # il contratto dei provider, modificabile dal vivo
       - ./data:/data
-      - ${MUSIC_DIR:-./data/music}:/downloads
+      - ${MUSIZEER_DOWNLOADS_DIR:-./data/downloads}:/downloads
       - provider_sockets:/run/musizeer # the sockets of the providers the gateway runs
     environment:
       <<: [*database, *credentials]
-      DATA_DIR: /data
-      REDIS_URL: redis://redis:6379/0
-      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8000}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
-      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-} # set once for first boot
-      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+      MUSIZEER_DATA_DIR: /data
+      REDIS_URL: ${REDIS_URL:-}
+      MUSIZEER_APP_BASE_URL: ${MUSIZEER_APP_BASE_URL:-http://localhost:8000}
+      MUSIZEER_FRONTEND_URL: ${MUSIZEER_FRONTEND_URL:-http://localhost:3000}
+      MUSIZEER_AUTH_SECRET: ${MUSIZEER_AUTH_SECRET:?set MUSIZEER_AUTH_SECRET in .env (it was AUTH_SECRET)}
+      MUSIZEER_ADMIN_BOOTSTRAP_EMAIL: ${MUSIZEER_ADMIN_BOOTSTRAP_EMAIL:-} # set once for first boot
+      MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD: ${MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD:-}
     depends_on: *wait-for-database
 
   # ------------------------------------------------------------------
@@ -109,12 +113,12 @@ services:
       - ./app:/app
       - ./sdk:/sdk
       - ./data:/data
-      - ${MUSIC_DIR:-./data/music}:/downloads
+      - ${MUSIZEER_DOWNLOADS_DIR:-./data/downloads}:/downloads
       - provider_sockets:/run/musizeer
     environment: &worker-environment
       <<: [*database, *credentials]
-      DATA_DIR: /data
-      REDIS_URL: redis://redis:6379/0
+      MUSIZEER_DATA_DIR: /data
+      REDIS_URL: ${REDIS_URL:-}
     depends_on: *wait-for-database
 
   worker-jobs:
@@ -145,7 +149,7 @@ services:
       context: musizeer-ui
       target: development
     ports:
-      - "${FRONTEND_PORT:-3000}:5173"
+      - "${MUSIZEER_DEV_FRONTEND_PORT:-3000}:5173"
     volumes:
       - ./musizeer-ui:/app
       - /app/node_modules # volume anonimo: non sovrascrive node_modules del container
@@ -186,7 +190,7 @@ services:
       target: development
     user: "1000:1000"
     restart: unless-stopped
-    pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}
+    pids_limit: ${MUSIZEER_GATEWAY_PIDS_LIMIT:-4096}
     cap_drop: [ALL]
     security_opt:
       - seccomp=./gateway/seccomp/musizeer-gateway.json
@@ -197,10 +201,11 @@ services:
       - ./sdk:/sdk
       - provider_sockets:/run/musizeer
       - gateway_state:/var/lib/musizeer-gateway
-      - ${MUSIC_DIR:-./data/music}:/downloads # the same folder as app: the workspaces live in it
+      - ${MUSIZEER_DOWNLOADS_DIR:-./data/downloads}:/downloads # the same folder as app: the workspaces live in it
+      - ${MUSIZEER_LIBRARY_DIR:-./data/library}:/library # the library: mounted in the gateway only (ADR-0008)
     environment:
-      # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md): the library.
-      GATEWAY_FILESYSTEM_ROOTS: /downloads
+      # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md): the staging folder and the library.
+      MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: /downloads:/library
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.socket(socket.AF_UNIX).connect('/run/musizeer/gateway.sock')"]
       interval: 10s
@@ -217,7 +222,7 @@ services:
   oci-registry:
     image: registry:2
     ports:
-      - "127.0.0.1:${OCI_REGISTRY_PORT:-15000}:5000"
+      - "127.0.0.1:${MUSIZEER_DEV_OCI_REGISTRY_PORT:-15000}:5000"
     volumes:
       - oci_registry:/var/lib/registry
 

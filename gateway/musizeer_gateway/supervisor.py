@@ -494,7 +494,7 @@ class ManagedProvider:
                 continue
             self._task_stop = (
                 f"process/thread limit reached: the sandbox held {held} processes and threads, over its limit of {limit} "
-                f"(limits.processes of its manifest, ceiling GATEWAY_MAX_PROCESSES)"
+                f"(limits.processes of its manifest, ceiling MUSIZEER_GATEWAY_MAX_PROCESSES)"
             )
             summary = tasks.pressure_summary(sandboxes={self.name: (held, limit, usage.memory_mb)})
             logger.error("%s: %s; stopping it. %s", self.name, self._task_stop, summary)

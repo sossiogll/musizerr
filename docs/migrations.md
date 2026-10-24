@@ -17,7 +17,7 @@ ALTER side.
 container runs (`python -m scripts.init_db`) and what a maintenance script runs
 before it opens the database. The API and the workers never migrate: they check
 (below) and refuse to start on a schema they cannot use. The database is the one
-`DATABASE_URL` names (PostgreSQL) or, unset, the SQLite file of `DATA_DIR` (see
+`DATABASE_URL` names (PostgreSQL) or, unset, the SQLite file of `MUSIZEER_DATA_DIR` (see
 `docs/postgresql.md`). `init_db()` judges the schema first
 (`core/schema_guard.py`), and then:
 
@@ -81,21 +81,21 @@ when nothing is pending, or for a database that has no tables yet.
 | File | `/data/backups/premigration-<UTC time>-from-<revision>-to-<revision>.dump` | the same name ending `.sqlite3` |
 | Restore | `pg_restore` (below) | copy the file back (below) |
 
-- **Where**: `DATA_DIR/backups` — in the compose files the `data` volume, mounted at
+- **Where**: `MUSIZEER_DATA_DIR/backups` — in the compose files the `data` volume, mounted at
   `/data` in `init` and the app. The folder is mode 700 and each file mode 600: a
   backup holds everything (sealed credentials, password hashes).
 - **Which**: the name carries the revision the database was at and the one the
   migration went to (`unversioned` for a pre-alembic database), after the time, so a
   listing sorts in the order they were taken.
-- **How many**: the last `MIGRATION_BACKUPS_KEEP` (default **5**) are kept, older ones
+- **How many**: the last `MUSIZEER_MIGRATION_BACKUPS_KEEP` (default **5**) are kept, older ones
   pruned right after the new one is written. A file that is not one of ours is never
   touched.
-- **Off**: `MIGRATION_BACKUP=off` skips the backup, for whoever backs the database up
+- **Off**: `MUSIZEER_MIGRATION_BACKUP=off` skips the backup, for whoever backs the database up
   otherwise (a warning is logged). There is no other way to skip it.
 - A backup is written under a temporary name and renamed when complete: a failure
   leaves no file that looks like a backup.
 - **The credentials key is not in it.** A backup holds the credentials sealed with
-  `CREDENTIALS_KEY`; keep the key with your backups ([credentials.md](credentials.md)).
+  `MUSIZEER_CREDENTIALS_KEY`; keep the key with your backups ([credentials.md](credentials.md)).
 - The backup lives on the `data` volume, next to nothing else that matters for a
   PostgreSQL install. Copy the folder somewhere else if you want it to survive the
   loss of the host; it is a safety net for a migration, not a backup strategy.
@@ -151,7 +151,7 @@ release without `schema_info`) and names the version to go through first.
 
 ## Going back
 
-- **One minor, expand only** (the usual case): set the previous `MUSIZERR_VERSION`
+- **One minor, expand only** (the usual case): set the previous `MUSIZEER_VERSION`
   and `docker compose up -d`. The schema is compatible: nothing to restore.
 - **Across a contract migration, or a migration that went wrong**: restore the backup
   taken before it and start the version it was taken for.
@@ -195,7 +195,7 @@ By hand, without the script:
 
   (`DROP SCHEMA ... CASCADE` empties the database: the dump of an older schema does not
   name the tables a later migration added.)
-- **SQLite** (`DATA_DIR/musizeer.db`): stop the stack, then copy the backup over the
+- **SQLite** (`MUSIZEER_DATA_DIR/musizeer.db`): stop the stack, then copy the backup over the
   file and remove its `-wal` and `-shm` files:
 
   ```sh
@@ -220,7 +220,7 @@ never a plain update.
 After changing `app/db/models.py`:
 
 ```sh
-# From inside the app container (or with DATA_DIR pointing at a sqlite,
+# From inside the app container (or with MUSIZEER_DATA_DIR pointing at a sqlite,
 # or DATABASE_URL at a database, you don't mind touching - autogenerate
 # compares the model metadata to the live DB schema).
 cd app
@@ -269,7 +269,7 @@ alembic downgrade -1         # roll back one (don't on prod)
 alembic stamp <rev>          # mark DB at <rev> without running anything
 ```
 
-`DATABASE_URL` says which database alembic touches; unset, `DATA_DIR`
+`DATABASE_URL` says which database alembic touches; unset, `MUSIZEER_DATA_DIR`
 chooses the sqlite file (default `/data`, the Docker volume). For local
 one-offs, point it at `/tmp/musizeer_test` or similar. `alembic upgrade head`
 by hand takes no backup and records nothing; `python -m scripts.init_db` does both.

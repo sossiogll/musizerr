@@ -1,6 +1,5 @@
 from __future__ import annotations
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from pathlib import Path
@@ -9,9 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-_ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
-
-from core import user_auth
+from core import environment, user_auth
 from db import credential_cipher
 from services.database_init import SchemaError, require_current_schema
 from routes.deps import get_config, init_singletons
@@ -54,9 +51,9 @@ logger = logging.getLogger(__name__)
 
 def _bootstrap_admin() -> None:
     """Create an admin user on first boot if no users exist and env vars
-    ADMIN_BOOTSTRAP_EMAIL / ADMIN_BOOTSTRAP_PASSWORD are set."""
-    admin_email = os.environ.get("ADMIN_BOOTSTRAP_EMAIL")
-    admin_password = os.environ.get("ADMIN_BOOTSTRAP_PASSWORD")
+    MUSIZEER_ADMIN_BOOTSTRAP_EMAIL / MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD are set."""
+    admin_email = environment.get("MUSIZEER_ADMIN_BOOTSTRAP_EMAIL")
+    admin_password = environment.get("MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD")
     if not admin_email or not admin_password:
         return
 
@@ -70,7 +67,7 @@ def _bootstrap_admin() -> None:
         try:
             hashed = user_auth.hash_new_password(admin_password)
         except user_auth.WeakPassword as weak:
-            logger.error("ADMIN_BOOTSTRAP_PASSWORD was not used, no administrator was created: %s", weak)
+            logger.error("MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD was not used, no administrator was created: %s", weak)
             return
         user = user_service.create_user(
             session,
@@ -97,7 +94,7 @@ def _ensure_system_user() -> None:
 
 
 def _require_auth_secret() -> None:
-    """With authentication enabled the sessions are signed with ``AUTH_SECRET``: refuse to start
+    """With authentication enabled the sessions are signed with ``MUSIZEER_AUTH_SECRET``: refuse to start
     on a missing, short or placeholder one. The ONE check, with no switch to skip it; it only runs
     when authentication is on (see ``tests/test_auth_secret_startup.py``)."""
     if get_config().auth_enabled:
@@ -107,6 +104,9 @@ def _require_auth_secret() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Musizeer...")
+    # An old variable name that is still set, and a mistyped MUSIZEER_ one, are said once, before anything else
+    # (ADR-0009 section 3); the values are never printed.
+    environment.report_at_start()
     # Before the database is touched: nothing may run on credentials it cannot read or write
     # (docs/credentials.md).
     credential_cipher.require_credentials_key()
@@ -133,6 +133,8 @@ app = FastAPI(
 )
 
 install_error_handlers(app)
+
+_ALLOWED_ORIGINS = environment.get("MUSIZEER_ALLOWED_ORIGINS").split(",")
 
 app.add_middleware(
     CORSMiddleware,

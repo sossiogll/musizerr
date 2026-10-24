@@ -38,8 +38,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # The version of the web app (ADR-0007 §2), a constant of the build (lib/version.ts).
-ARG MUSIZERR_VERSION=dev
-ENV VITE_MUSIZERR_VERSION=$MUSIZERR_VERSION
+ARG MUSIZEER_VERSION=dev
+ENV VITE_MUSIZEER_VERSION=$MUSIZEER_VERSION
 
 RUN pnpm build
 
@@ -48,15 +48,15 @@ RUN pnpm build
 # Stage: production — nginx serve i file statici e proxia /api/
 #
 # The nginx configuration is a TEMPLATE the official image renders at every start (envsubst): only the
-# variables below are replaced, the `$host`-style variables of nginx are not. BACKEND_URL is where the API is
-# (scheme://host:port), DNS_RESOLVER the name server nginx asks for its address; the name is resolved again
-# every few seconds, so a recreated API container is found. docs/deployment.md.
+# variables below are replaced, the `$host`-style variables of nginx are not. MUSIZEER_BACKEND_URL is where the API
+# is (scheme://host:port), MUSIZEER_DNS_RESOLVER the name server nginx asks for its address; the name is resolved
+# again every few seconds, so a recreated API container is found. The image declares NO default for either: they are
+# read, checked and defaulted by 15-backend-url.envsh, the one reader of this image's environment (ADR-0009), so an
+# unset variable is told from a chosen one. docs/deployment.md.
 # ------------------------------------------------------------------
 FROM nginx:alpine AS production
 
-ENV BACKEND_URL=http://app:8000 \
-    DNS_RESOLVER=127.0.0.11 \
-    NGINX_ENVSUBST_FILTER="^(BACKEND_URL|DNS_RESOLVER)$"
+ENV NGINX_ENVSUBST_FILTER="^(MUSIZEER_BACKEND_URL|MUSIZEER_DNS_RESOLVER)$"
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 RUN rm -f /etc/nginx/conf.d/default.conf
@@ -68,7 +68,8 @@ COPY nginx/25-listen-on-ipv6.sh /docker-entrypoint.d/25-listen-on-ipv6.sh
 RUN chmod 755 /docker-entrypoint.d/15-backend-url.envsh /docker-entrypoint.d/25-listen-on-ipv6.sh
 
 # A template that does not render to a valid configuration fails the build, not the first start.
-RUN envsubst '${BACKEND_URL} ${DNS_RESOLVER}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf \
+RUN . /docker-entrypoint.d/15-backend-url.envsh \
+    && envsubst '${MUSIZEER_BACKEND_URL} ${MUSIZEER_DNS_RESOLVER}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf \
     && nginx -t \
     && rm /etc/nginx/conf.d/default.conf
 

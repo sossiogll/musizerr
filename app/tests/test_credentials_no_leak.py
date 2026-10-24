@@ -187,7 +187,7 @@ def test_the_responses_stay_clean_and_do_not_fail_when_the_key_is_lost(world, vi
 
     for secret in (*CREDENTIALS, SETTING_SECRET, THIRD_KEY):
         assert secret not in caplog.text
-    assert "CREDENTIALS_KEY" in caplog.text
+    assert "MUSIZEER_CREDENTIALS_KEY" in caplog.text
 
 
 def test_the_logs_of_a_normal_use_hold_no_credential(world, caplog):
@@ -240,7 +240,7 @@ def test_the_source_command_refuses_without_the_key_and_says_how(monkeypatch):
 
     code = provider_sources.main(["list"], session_factory=lambda: None, out=out, environ={}, stdin=io.StringIO())
 
-    assert code == 1 and "CREDENTIALS_KEY" in out.getvalue() and "Fernet.generate_key()" in out.getvalue()
+    assert code == 1 and "MUSIZEER_CREDENTIALS_KEY" in out.getvalue() and "Fernet.generate_key()" in out.getvalue()
 
 
 def test_what_a_bad_key_error_says_never_contains_the_key():

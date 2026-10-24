@@ -17,12 +17,12 @@ import time
 import pytest
 
 # The key of the stored credentials (docs/credentials.md) the whole suite runs with, the way it is
-# given AUTH_SECRET: a fixed test key, FORCED so that a run where a real key is in the environment
+# given MUSIZEER_AUTH_SECRET: a fixed test key, FORCED so that a run where a real key is in the environment
 # never uses it. A test about the keys sets its own (tests/credentials_support.use_keys).
 from tests.credentials_support import KEY as _TEST_CREDENTIALS_KEY
 
-os.environ["CREDENTIALS_KEY"] = _TEST_CREDENTIALS_KEY
-os.environ.pop("CREDENTIALS_KEY_PREVIOUS", None)
+os.environ["MUSIZEER_CREDENTIALS_KEY"] = _TEST_CREDENTIALS_KEY
+os.environ.pop("MUSIZEER_CREDENTIALS_KEY_PREVIOUS", None)
 
 from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
 from musizeer_sdk.identifiers import Identifier

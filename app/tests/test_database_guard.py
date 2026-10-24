@@ -43,8 +43,8 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(autouse=True)
 def _backup_settings(monkeypatch):
-    monkeypatch.delenv("MIGRATION_BACKUP", raising=False)
-    monkeypatch.delenv("MIGRATION_BACKUPS_KEEP", raising=False)
+    monkeypatch.delenv("MUSIZEER_MIGRATION_BACKUP", raising=False)
+    monkeypatch.delenv("MUSIZEER_MIGRATION_BACKUPS_KEEP", raising=False)
     # A MAJOR that names an oldest version to upgrade from must not break the flows below.
     monkeypatch.setattr(guard, "MIN_UPGRADE_FROM", None)
 
@@ -210,7 +210,7 @@ def test_pruning_also_removes_a_half_written_file_a_crash_left_and_only_that(bac
 
 
 def test_the_number_kept_is_configurable_and_never_below_one(backups, monkeypatch):
-    monkeypatch.setenv("MIGRATION_BACKUPS_KEEP", "2")
+    monkeypatch.setenv("MUSIZEER_MIGRATION_BACKUPS_KEEP", "2")
     engine = _head_of_the_previous_release()
     backups.mkdir()
     for day in range(1, 4):
@@ -220,11 +220,11 @@ def test_the_number_kept_is_configurable_and_never_below_one(backups, monkeypatc
 
     assert len(_files(backups)) == 2
 
-    monkeypatch.setenv("MIGRATION_BACKUPS_KEEP", "0")
+    monkeypatch.setenv("MUSIZEER_MIGRATION_BACKUPS_KEEP", "0")
     assert database_init.backups_keep() == 1
-    monkeypatch.setenv("MIGRATION_BACKUPS_KEEP", "many")
+    monkeypatch.setenv("MUSIZEER_MIGRATION_BACKUPS_KEEP", "many")
     assert database_init.backups_keep() == database_init.DEFAULT_BACKUPS_KEEP
-    monkeypatch.delenv("MIGRATION_BACKUPS_KEEP")
+    monkeypatch.delenv("MUSIZEER_MIGRATION_BACKUPS_KEEP")
     assert database_init.backups_keep() == 5
 
 
@@ -240,7 +240,7 @@ def test_a_failed_backup_stops_the_migration_with_a_message_that_says_why(backup
         init_db(engine, version="1.5.0", directory=backups, now=lambda: NOW)
 
     assert "NOT migrated" in str(stopped.value) and "the disk is full" in str(stopped.value)
-    assert "MIGRATION_BACKUP=off" in str(stopped.value)
+    assert "MUSIZEER_MIGRATION_BACKUP=off" in str(stopped.value)
     assert _revisions(engine) == {OLD}, "the database was not touched"
     assert "schema_info" not in sa.inspect(engine).get_table_names()
 
@@ -288,7 +288,7 @@ def test_pg_dump_failing_says_what_it_said_and_never_shows_the_password(backups,
 
 
 def test_the_backup_can_be_switched_off_for_whoever_backs_up_otherwise(backups, monkeypatch, caplog):
-    monkeypatch.setenv("MIGRATION_BACKUP", "off")
+    monkeypatch.setenv("MUSIZEER_MIGRATION_BACKUP", "off")
     engine = _head_of_the_previous_release()
 
     with caplog.at_level(logging.WARNING):
@@ -388,7 +388,7 @@ def test_the_upgrade_path_is_checked_before_anything_is_touched(backups, monkeyp
     engine = _head_of_the_previous_release()
     monkeypatch.setattr(guard, "MIN_UPGRADE_FROM", "1.9.0")
 
-    with pytest.raises(SchemaError, match="MUSIZERR_VERSION=1.9.0"):
+    with pytest.raises(SchemaError, match="MUSIZEER_VERSION=1.9.0"):
         init_db(engine, version="2.0.0", directory=backups, now=lambda: NOW)
 
     assert _revisions(engine) == {OLD} and not backups.exists()

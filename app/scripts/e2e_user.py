@@ -10,12 +10,11 @@ lo lancia nel container dell'API).
 """
 from __future__ import annotations
 
-import os
 import sys
 
 from sqlmodel import Session
 
-from core import user_auth
+from core import environment, user_auth
 from db import user_service
 from db.engine import engine
 
@@ -34,16 +33,16 @@ def ensure_account(session: Session, username: str, password: str, role: str) ->
 
 
 def main() -> int:
-    username = os.environ.get("E2E_USERNAME", "e2e")
-    password = os.environ.get("E2E_PASSWORD")
+    username = environment.get("E2E_USERNAME")
+    password = environment.get("E2E_PASSWORD")
     if not password:
         print("E2E_PASSWORD is not set", file=sys.stderr)
         return 2
-    admin_password = os.environ.get("E2E_ADMIN_PASSWORD")
+    admin_password = environment.get("E2E_ADMIN_PASSWORD")
     with Session(engine) as session:
         ensure_account(session, username, password, "user")
         if admin_password:
-            ensure_account(session, os.environ.get("E2E_ADMIN_USERNAME", "e2e-admin"), admin_password, "admin")
+            ensure_account(session, environment.get("E2E_ADMIN_USERNAME"), admin_password, "admin")
     return 0
 
 

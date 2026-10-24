@@ -182,7 +182,7 @@ def test_without_a_usable_key_it_refuses_before_changing_a_row(db, monkeypatch, 
     before = _everything(engine)
     use_keys(monkeypatch, key)
 
-    with pytest.raises(RuntimeError, match="CREDENTIALS_KEY") as refused:
+    with pytest.raises(RuntimeError, match="MUSIZEER_CREDENTIALS_KEY") as refused:
         command.upgrade(cfg, HEAD)
 
     assert _everything(engine) == before
@@ -244,7 +244,7 @@ def test_the_downgrade_needs_the_key_and_refuses_without_it(db, monkeypatch):
     sealed = _everything(engine)
     use_keys(monkeypatch, None)
 
-    with pytest.raises(RuntimeError, match="CREDENTIALS_KEY"):
+    with pytest.raises(RuntimeError, match="MUSIZEER_CREDENTIALS_KEY"):
         command.downgrade(cfg, BEFORE)
 
     assert _everything(engine) == sealed and _revision(engine) == HEAD

@@ -10,7 +10,7 @@
 #   -c NAME         the catalog file, data/catalogs/NAME.json (default: registry, which the
 #                   registry service serves as http://registry:9000/registry.json)
 #   -r HOST:PORT    the registry to push to as THIS machine reaches it (default
-#                   127.0.0.1:${OCI_REGISTRY_PORT:-15000}, the oci-registry service)
+#                   127.0.0.1:${MUSIZEER_DEV_OCI_REGISTRY_PORT:-15000}, the oci-registry service)
 #
 # Running it again for the same provider rebuilds the image and moves the entry's digest on; the
 # entries of other providers in the file are kept. The entries name the image
@@ -23,7 +23,7 @@ set -eu
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CATALOG=registry
-REGISTRY=127.0.0.1:${OCI_REGISTRY_PORT:-15000}
+REGISTRY=127.0.0.1:${MUSIZEER_DEV_OCI_REGISTRY_PORT:-15000}
 while getopts "c:r:h" option; do
   case $option in
     c) CATALOG=$OPTARG ;;

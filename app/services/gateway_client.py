@@ -32,12 +32,12 @@ from typing import Any, Callable
 from musizeer_sdk.context import ContextSnapshot
 from musizeer_sdk.permissions import Permissions, from_json, path_values, settings_targets, tcp_hosts
 
+from core import environment
+
 from services.provider_context import HostProviderContext
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SOCKET = "/run/musizeer/gateway.sock"
-SOCKET_ENVIRONMENT = "PROVIDER_GATEWAY_SOCKET"
 REQUEST_TIMEOUT_SECONDS = 5.0
 GRANT_TTL = 120.0
 GRANT_REFRESH_AFTER = 60.0
@@ -75,7 +75,7 @@ class GatewayListing:
 
 class GatewayClient:
     def __init__(self, socket_path: str | os.PathLike | None = None, timeout: float = REQUEST_TIMEOUT_SECONDS) -> None:
-        self.socket_path = Path(socket_path or os.environ.get(SOCKET_ENVIRONMENT, DEFAULT_SOCKET))
+        self.socket_path = Path(socket_path or environment.get("MUSIZEER_GATEWAY_SOCKET"))
         self._timeout = timeout
 
     @property

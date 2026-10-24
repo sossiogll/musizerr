@@ -23,21 +23,21 @@ touching the target. ``--apply``:
 2. a target that held data BEFORE the run is refused, unless ``--replace`` (it
    empties the tables first). A target that was empty is the normal case: the
    rows the migrations themselves seeded (migration 0010 imports
-   ``DATA_DIR/config.json`` into ``settings``) are not data the operator
+   ``MUSIZEER_DATA_DIR/config.json`` into ``settings``) are not data the operator
    holds, the source is authoritative, so they are emptied in the copy's
    transaction and reported;
 3. every table is copied, in foreign key order, in ONE transaction;
 4. in the same transaction every table is read back and compared with what
    was sent (row count and a checksum over every column of every row); the
    stored credentials are checked to be openable, with the configured
-   CREDENTIALS_KEY, into JSON. Any difference rolls
+   MUSIZEER_CREDENTIALS_KEY, into JSON. Any difference rolls
    the whole copy back (non-zero exit, the target stays empty);
 5. only then the transaction commits.
 
 Types: SQLite 0/1 become booleans, the text of a datetime a ``timestamp``
 (UTC, as the application stores them), everything through the types of the
 models. The credentials are copied as they are, sealed (docs/credentials.md):
-the target needs the same CREDENTIALS_KEY the source was sealed with, which
+the target needs the same MUSIZEER_CREDENTIALS_KEY the source was sealed with, which
 this command requires to be set.
 
 SQLite never checked foreign keys, PostgreSQL does. A row that points at
@@ -55,7 +55,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -68,6 +67,7 @@ import sqlalchemy as sa  # noqa: E402
 from sqlalchemy.engine import URL, Connection, Engine  # noqa: E402
 from sqlmodel import SQLModel  # noqa: E402
 
+from core import environment  # noqa: E402
 from core.secret_box import Unreadable  # noqa: E402
 from core.utc import as_utc  # noqa: E402
 from db import credential_cipher, models, user_service  # noqa: E402
@@ -537,7 +537,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--json", action="store_true", help="print the report as JSON")
     args = parser.parse_args(argv)
 
-    target = args.target or os.environ.get("DATABASE_URL", "")
+    target = args.target or environment.get("DATABASE_URL")
     if not target:
         parser.error("--target (or DATABASE_URL) is required")
     report = migrate(

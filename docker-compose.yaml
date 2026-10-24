@@ -2,39 +2,58 @@
 # and musizeer_<volume> whatever the folder is called.
 name: musizeer
 
+# Every variable of this file is documented in docs/deployment.md (the reference table is generated from the
+# registry, app/core/environment.py) and listed in .env.example. A variable is passed to a container with an EMPTY
+# default when it is optional: an empty value means "unset", so the default of the registry applies and is written
+# in one place only. The old names (AUTH_SECRET, CREDENTIALS_KEY, ...) are not read any more: a process that finds
+# one set says which name replaces it, and the required ones below say it here.
+
 # Il database di tutti i servizi: PostgreSQL (il servizio `postgres` qui sotto).
 # POSTGRES_PASSWORD viene da .env (non versionato, vedi .env.example): una
 # password sicura in un URL (lettere e cifre). Per restare su SQLite (file in
-# DATA_DIR) si tolgono il servizio `postgres` e queste dipendenze: vedi
-# docs/postgresql.md.
+# MUSIZEER_DATA_DIR) si tolgono il servizio `postgres` e queste dipendenze: vedi
+# docs/postgresql.md. The MUSIZEER_DB_* variables tune the connections (docs/postgresql.md).
 x-database: &database
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-musizeer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-musizeer}
+  MUSIZEER_DB_BUSY_TIMEOUT_MS: ${MUSIZEER_DB_BUSY_TIMEOUT_MS:-}
+  MUSIZEER_DB_STATEMENT_TIMEOUT_MS: ${MUSIZEER_DB_STATEMENT_TIMEOUT_MS:-}
+  MUSIZEER_DB_POOL_SIZE: ${MUSIZEER_DB_POOL_SIZE:-}
+  MUSIZEER_DB_MAX_OVERFLOW: ${MUSIZEER_DB_MAX_OVERFLOW:-}
 
-# The key that encrypts the stored credentials (docs/credentials.md). CREDENTIALS_KEY comes from
+# The key that encrypts the stored credentials (docs/credentials.md). MUSIZEER_CREDENTIALS_KEY comes from
 # .env (not versioned, see .env.example) and every service that reads the database needs it: the
 # init container (its migration encrypts the existing credentials), the API, the workers and beat.
-# CREDENTIALS_KEY_PREVIOUS holds the keys it replaced, while a rotation is in progress. The provider
+# MUSIZEER_CREDENTIALS_KEY_PREVIOUS holds the keys it replaced, while a rotation is in progress. The provider
 # gateway never gets either: a provider receives the credential a call needs, never the key.
 x-credentials: &credentials
-  CREDENTIALS_KEY: ${CREDENTIALS_KEY:?set CREDENTIALS_KEY in .env (docs/credentials.md)}
-  CREDENTIALS_KEY_PREVIOUS: ${CREDENTIALS_KEY_PREVIOUS:-}
+  MUSIZEER_CREDENTIALS_KEY: ${MUSIZEER_CREDENTIALS_KEY:?set MUSIZEER_CREDENTIALS_KEY in .env (it was CREDENTIALS_KEY; docs/credentials.md)}
+  MUSIZEER_CREDENTIALS_KEY_PREVIOUS: ${MUSIZEER_CREDENTIALS_KEY_PREVIOUS:-}
 
 # Where Musizeer is reached from outside (docs/deployment.md, "The public URL"): the address users type in
 # their browser, with no trailing slash. OAuth2 providers send the browser back to it after the
-# user signed in at the service ("<PUBLIC_URL>/api/auth/<provider>/callback"), and the application ends
-# the flow on it. APP_BASE_URL (the callback's base, including /api) and FRONTEND_URL (where the flow
-# ends) are derived from it; set them only when the two differ (a proxy that strips /api, say).
-# The default is the stack on this machine, on APP_PORT.
+# user signed in at the service ("<MUSIZEER_PUBLIC_URL>/api/auth/<provider>/callback"), and the application ends
+# the flow on it. MUSIZEER_APP_BASE_URL (the callback's base, including /api) and MUSIZEER_FRONTEND_URL (where the
+# flow ends) are derived from it by the application; set them only when the two differ (a proxy that strips /api,
+# say). The default of MUSIZEER_PUBLIC_URL is the stack on this machine, on MUSIZEER_PORT 80.
 x-public-urls: &public-urls
-  APP_BASE_URL: ${APP_BASE_URL:-${PUBLIC_URL:-http://localhost}/api}
-  FRONTEND_URL: ${FRONTEND_URL:-${PUBLIC_URL:-http://localhost}}
+  MUSIZEER_PUBLIC_URL: ${MUSIZEER_PUBLIC_URL:-}
+  MUSIZEER_APP_BASE_URL: ${MUSIZEER_APP_BASE_URL:-}
+  MUSIZEER_FRONTEND_URL: ${MUSIZEER_FRONTEND_URL:-}
+  MUSIZEER_ALLOWED_ORIGINS: ${MUSIZEER_ALLOWED_ORIGINS:-}
+
+# What the API and the workers share and that is not secret: the prefix the browser reaches the API with (it is
+# applied to the cover and stream URLs) and the repository whose releases are the updates (a fork names its own).
+x-application: &application
+  MUSIZEER_PUBLIC_API_PREFIX: ${MUSIZEER_PUBLIC_API_PREFIX:-}
+  MUSIZEER_UPDATE_REPOSITORY: ${MUSIZEER_UPDATE_REPOSITORY:-}
 
 # The folder the host and the gateway exchange files through (the `workspace_dir` setting, docs/gateway.md):
-# ONE variable for both. The gateway mounts <WORKSPACE_DIR>/<provider> in each sandbox; the host creates
+# ONE variable for both. The gateway mounts <MUSIZEER_WORKSPACE_DIR>/<provider> in each sandbox; the host creates
 # its call folders there and takes the default of the `workspace_dir` setting from it. It must lie inside a
 # volume that the application, the workers AND the gateway all mount at the same path.
+# (ADR-0008 removes this variable: the working folder becomes a setting over a root folder.)
 x-workspace: &workspace
-  WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizeer-work}
+  MUSIZEER_WORKSPACE_DIR: ${MUSIZEER_WORKSPACE_DIR:-}
 
 # What a service that talks to the database, Redis and the providers waits for before it starts: the
 # migrations done (init), the database and Redis answering, the gateway up. The gateway's health is its
@@ -51,21 +70,21 @@ x-backend-depends-on: &backend-depends-on
     condition: service_healthy
 
 # The images of Musizeer, published on GHCR for linux/amd64 and linux/arm64: every merge into master
-# updates :latest, every release publishes :X.Y.Z. MUSIZERR_VERSION (in .env) pins a release and
-# `docker compose pull` fetches it; MUSIZERR_IMAGES names another registry or owner (a fork). To build
+# updates :latest, every release publishes :X.Y.Z. MUSIZEER_VERSION (in .env) pins a release and
+# `docker compose pull` fetches it; MUSIZEER_IMAGES names another registry or owner (a fork). To build
 # them from this checkout instead: docker-compose.build.yml.
 x-images:
-  app: &app-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizeer:${MUSIZERR_VERSION:-latest}
-  gateway: &gateway-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizeer-gateway:${MUSIZERR_VERSION:-latest}
-  frontend: &frontend-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizeer-frontend:${MUSIZERR_VERSION:-latest}
+  app: &app-image ${MUSIZEER_IMAGES:-ghcr.io/sossiogll}/musizeer:${MUSIZEER_VERSION:-latest}
+  gateway: &gateway-image ${MUSIZEER_IMAGES:-ghcr.io/sossiogll}/musizeer-gateway:${MUSIZEER_VERSION:-latest}
+  frontend: &frontend-image ${MUSIZEER_IMAGES:-ghcr.io/sossiogll}/musizeer-frontend:${MUSIZEER_VERSION:-latest}
 
 services:
 
   # ------------------------------------------------------------------
   # Init container: applies the database migrations and exits. app, the workers and beat
   # start only after it completed successfully. Before it migrates anything it backs the
-  # database up into /data/backups (the last MIGRATION_BACKUPS_KEEP are kept; a failed backup
-  # stops the migration; MIGRATION_BACKUP=off for whoever backs up otherwise: docs/migrations.md).
+  # database up into /data/backups (the last MUSIZEER_MIGRATION_BACKUPS_KEEP are kept; a failed backup
+  # stops the migration; MUSIZEER_MIGRATION_BACKUP=off for whoever backs up otherwise: docs/migrations.md).
   # It does NOT scan the library any more: that
   # needs the providers, which the gateway starts only once the API has told it which are
   # installed, so the routine `import_existing_library` does it, once the storage provider
@@ -77,10 +96,10 @@ services:
     restart: "no"
     environment:
       <<: [*database, *credentials]
-      DATA_DIR: /data
-      MIGRATION_BACKUP: ${MIGRATION_BACKUP:-on}
-      MIGRATION_BACKUPS_KEEP: ${MIGRATION_BACKUPS_KEEP:-5}
-      REDIS_URL: redis://redis:6379/0
+      MUSIZEER_DATA_DIR: /data # where the `data` volume below is mounted
+      MUSIZEER_MIGRATION_BACKUP: ${MUSIZEER_MIGRATION_BACKUP:-}
+      MUSIZEER_MIGRATION_BACKUPS_KEEP: ${MUSIZEER_MIGRATION_BACKUPS_KEEP:-}
+      REDIS_URL: ${REDIS_URL:-}
     volumes:
       - data:/data
     depends_on:
@@ -98,12 +117,12 @@ services:
     image: *app-image
     restart: unless-stopped
     environment:
-      <<: [*database, *credentials, *public-urls, *workspace]
-      DATA_DIR: /data
-      REDIS_URL: redis://redis:6379/0
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
-      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
-      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+      <<: [*database, *credentials, *public-urls, *application, *workspace]
+      MUSIZEER_DATA_DIR: /data
+      REDIS_URL: ${REDIS_URL:-}
+      MUSIZEER_AUTH_SECRET: ${MUSIZEER_AUTH_SECRET:?set MUSIZEER_AUTH_SECRET in .env (it was AUTH_SECRET)}
+      MUSIZEER_ADMIN_BOOTSTRAP_EMAIL: ${MUSIZEER_ADMIN_BOOTSTRAP_EMAIL:-}
+      MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD: ${MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD:-}
     volumes:
       - data:/data
       - downloads:/downloads
@@ -131,7 +150,7 @@ services:
   # runs in the container. What the gateway does need, and why:
   #   - a seccomp profile: Docker's default plus the five syscalls bubblewrap
   #     builds a sandbox with (gateway/seccomp/musizeer-gateway.json, or the
-  #     musizeer-gateway.seccomp.json that every release carries; GATEWAY_SECCOMP_PROFILE
+  #     musizeer-gateway.seccomp.json that every release carries; MUSIZEER_GATEWAY_SECCOMP_PROFILE
   #     names the file);
   #   - apparmor=unconfined: Docker's docker-default AppArmor profile (Debian, Ubuntu...) denies
   #     the namespace calls with EACCES, which bubblewrap reports as "Creating new namespace
@@ -153,7 +172,7 @@ services:
   # no RLIMIT_NPROC on a sandbox: the kernel counts that over every process of the same uid on
   # the whole host (other containers included), so under uid 1000 it failed on a busy server.
   # Each sandbox is also held to the `limits.processes` of its manifest by the gateway itself
-  # (docs/gateway.md, "Processes and threads"). GATEWAY_PIDS_LIMIT in .env changes the number.
+  # (docs/gateway.md, "Processes and threads"). MUSIZEER_GATEWAY_PIDS_LIMIT in .env changes the number.
   #
   # Which providers it runs: what the host pushes to it from its database (docs/gateway.md);
   # it runs nothing until it is told.
@@ -162,10 +181,10 @@ services:
     image: *gateway-image
     user: "1000:1000"
     restart: unless-stopped
-    pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}
+    pids_limit: ${MUSIZEER_GATEWAY_PIDS_LIMIT:-4096}
     cap_drop: [ALL]
     security_opt:
-      - seccomp=${GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizeer-gateway.json}
+      - seccomp=${MUSIZEER_GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizeer-gateway.json}
       - apparmor=unconfined
       - systempaths=unconfined
     volumes:
@@ -175,9 +194,14 @@ services:
     environment:
       # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md):
       # the library. Several are separated with ":" (e.g. /downloads:/library, docs/deployment.md#folders).
-      GATEWAY_FILESYSTEM_ROOTS: ${GATEWAY_FILESYSTEM_ROOTS:-/downloads}
-      # The same folder as the host's WORKSPACE_DIR (see x-workspace above).
-      GATEWAY_WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizeer-work}
+      # (ADR-0008 removes this variable and the next one: the host pushes the root folders and the working folder.)
+      MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: ${MUSIZEER_GATEWAY_FILESYSTEM_ROOTS:-/downloads}
+      # The same folder as the host's MUSIZEER_WORKSPACE_DIR (see x-workspace above).
+      MUSIZEER_GATEWAY_WORKSPACE_DIR: ${MUSIZEER_WORKSPACE_DIR:-}
+      # The ceilings of a sandbox: the most any provider may be given, whatever its manifest asks.
+      MUSIZEER_GATEWAY_MAX_MEMORY_MB: ${MUSIZEER_GATEWAY_MAX_MEMORY_MB:-}
+      MUSIZEER_GATEWAY_MAX_OPEN_FILES: ${MUSIZEER_GATEWAY_MAX_OPEN_FILES:-}
+      MUSIZEER_GATEWAY_MAX_PROCESSES: ${MUSIZEER_GATEWAY_MAX_PROCESSES:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.socket(socket.AF_UNIX).connect('/run/musizeer/gateway.sock')"]
       interval: 10s
@@ -211,9 +235,9 @@ services:
       --queues=downloads
     restart: unless-stopped
     environment: &worker-environment
-      <<: [*database, *credentials, *workspace]
-      DATA_DIR: /data
-      REDIS_URL: redis://redis:6379/0
+      <<: [*database, *credentials, *application, *workspace]
+      MUSIZEER_DATA_DIR: /data
+      REDIS_URL: ${REDIS_URL:-}
     volumes: &worker-volumes
       - data:/data
       - downloads:/downloads
@@ -265,8 +289,8 @@ services:
     restart: unless-stopped
     environment:
       <<: [*database, *credentials]
-      DATA_DIR: /data
-      REDIS_URL: redis://redis:6379/0
+      MUSIZEER_DATA_DIR: /data
+      REDIS_URL: ${REDIS_URL:-}
     volumes:
       - data:/data
       - downloads:/downloads
@@ -274,17 +298,18 @@ services:
 
   # ------------------------------------------------------------------
   # Frontend — nginx that serves the static build and proxies /api/ to the API.
-  # BACKEND_URL is where it reaches the API (default: the `app` service of this file); nginx
-  # resolves the name again every few seconds (Docker's resolver), so a recreated `app`
+  # MUSIZEER_BACKEND_URL is where it reaches the API (default: the `app` service of this file); nginx
+  # resolves the name again every few seconds (Docker's resolver, MUSIZEER_DNS_RESOLVER), so a recreated `app`
   # container is found. It starts when the API is healthy. docs/deployment.md.
   # ------------------------------------------------------------------
   frontend:
     image: *frontend-image
     restart: unless-stopped
     environment:
-      BACKEND_URL: ${BACKEND_URL:-http://app:8000}
+      MUSIZEER_BACKEND_URL: ${MUSIZEER_BACKEND_URL:-}
+      MUSIZEER_DNS_RESOLVER: ${MUSIZEER_DNS_RESOLVER:-}
     ports:
-      - "${APP_PORT:-80}:80"
+      - "${MUSIZEER_PORT:-80}:80"
     depends_on:
       app:
         condition: service_healthy

@@ -38,7 +38,7 @@ from tests.database import DIALECT, new_engine
 
 def test_without_database_url_the_data_is_the_sqlite_file_of_data_dir(monkeypatch, tmp_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("MUSIZEER_DATA_DIR", str(tmp_path))
 
     url = database_url()
 
@@ -81,8 +81,8 @@ def test_a_postgresql_connection_has_a_lock_timeout_a_statement_timeout_and_utc(
 
 @pytest.mark.postgresql_only("PostgreSQL session settings")
 def test_the_timeouts_come_from_the_environment(monkeypatch):
-    monkeypatch.setenv("DB_BUSY_TIMEOUT_MS", "2500")
-    monkeypatch.setenv("DB_STATEMENT_TIMEOUT_MS", "0")
+    monkeypatch.setenv("MUSIZEER_DB_BUSY_TIMEOUT_MS", "2500")
+    monkeypatch.setenv("MUSIZEER_DB_STATEMENT_TIMEOUT_MS", "0")
     engine = make_engine(new_engine().url)
 
     with engine.connect() as connection:
@@ -92,8 +92,8 @@ def test_the_timeouts_come_from_the_environment(monkeypatch):
 
 @pytest.mark.postgresql_only("PostgreSQL pool")
 def test_the_pool_is_sized_from_the_environment(monkeypatch):
-    monkeypatch.setenv("DB_POOL_SIZE", "2")
-    monkeypatch.setenv("DB_MAX_OVERFLOW", "1")
+    monkeypatch.setenv("MUSIZEER_DB_POOL_SIZE", "2")
+    monkeypatch.setenv("MUSIZEER_DB_MAX_OVERFLOW", "1")
 
     pool = make_engine(new_engine().url).pool
 

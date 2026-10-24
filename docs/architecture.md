@@ -99,7 +99,7 @@ How to read it:
 
 | Service | What it is |
 |---|---|
-| `frontend` | nginx. Serves the static web app and proxies `/api/` to `BACKEND_URL` (default `http://app:8000`), resolving the name again every few seconds so a recreated API container is found. It drops the `/api` prefix, forwards the original scheme and host, and gives `/api/progress` (server-sent events) no buffering and an hour of silence. |
+| `frontend` | nginx. Serves the static web app and proxies `/api/` to `MUSIZEER_BACKEND_URL` (default `http://app:8000`), resolving the name again every few seconds so a recreated API container is found. It drops the `/api` prefix, forwards the original scheme and host, and gives `/api/progress` (server-sent events) no buffering and an hour of silence. |
 | `app` | The API (uvicorn). Healthy when `/health` answers and says the database answers. |
 | `worker`, `worker-jobs`, `worker-maintenance` | The three Celery workers, one per queue ([Background work](#background-work)). |
 | `beat` | The one beat. In development it is embedded in `worker-maintenance` (`-B`). |
@@ -195,7 +195,7 @@ one beat ([`workers.md`](workers.md)).
 
 | Store | What it holds |
 |---|---|
-| **PostgreSQL** (the default) or a **SQLite** file | Users, sessions, settings, tracks and their identifiers (one table of identifiers), downloads and download requests, the library, favorites, playlists, installed providers and their sources, routine runs and library jobs. Every stored credential is sealed with `CREDENTIALS_KEY` ([`credentials.md`](credentials.md)). One code serves both engines ([`postgresql.md`](postgresql.md)); schema changes are Alembic migrations that run in `init` ([`migrations.md`](migrations.md)). |
+| **PostgreSQL** (the default) or a **SQLite** file | Users, sessions, settings, tracks and their identifiers (one table of identifiers), downloads and download requests, the library, favorites, playlists, installed providers and their sources, routine runs and library jobs. Every stored credential is sealed with `MUSIZEER_CREDENTIALS_KEY` ([`credentials.md`](credentials.md)). One code serves both engines ([`postgresql.md`](postgresql.md)); schema changes are Alembic migrations that run in `init` ([`migrations.md`](migrations.md)). |
 | **Redis** | The Celery queues and results; the progress and providers-changed channels; the counters that let several processes agree: the slots of providers that limit concurrent downloads, the rest period of a failing provider, the workers' heartbeats and the sign-in rate limit. Nothing in Redis is the only copy of anything that matters. |
 | **Shared volume** | The workspaces and, depending on the storage provider that is configured, the library. |
 
@@ -473,7 +473,7 @@ There are **two different things** called an account, and they never mix.
    owner. With it on, users sign in with a password, or through a linked provider account
    ([`provider-login.md`](provider-login.md)); a session is a short-lived access token plus a rotating refresh token.
    The roles are admin and user, and the UI reads *capabilities* from the server instead of applying rules itself.
-   The key that signs sessions is `AUTH_SECRET`.
+   The key that signs sessions is `MUSIZEER_AUTH_SECRET`.
 2. **Accounts at the providers' services**. Each provider *declares* whose account it works with
    (`AccountModel`: none, personal, personal with a shared fallback, or system) and how it signs in (OAuth2, a login
    form, an API key, or a program that captures it). One rule routes every *read* of a credential, and a *write* always

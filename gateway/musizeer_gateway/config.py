@@ -1,10 +1,11 @@
-"""The gateway's settings: environment variables, read once at start."""
+"""The gateway's settings: environment variables, read once at start (through ``environment.py``, its registry)."""
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Mapping
 
+from . import environment
 from .filesystem import PathRefused, check_root, inside
 
 
@@ -66,29 +67,37 @@ class GatewayConfig:
         return self.state_dir / "egress"
 
 
-def from_environment(environ: dict[str, str] | None = None) -> GatewayConfig:
-    env = os.environ if environ is None else environ
-    defaults = GatewayConfig()
+def from_environment(environ: Mapping[str, str] | None = None) -> GatewayConfig:
+    """The configuration of ``environ`` (the process environment when none is given); the defaults are the registry's."""
+    def text(name: str) -> str:
+        return environment.get(name, environ)
+
+    def number(name: str) -> int:
+        try:
+            return environment.get_int(name, environ)
+        except ValueError as refused:
+            raise ConfigError(str(refused)) from None
+
     ceilings = Ceilings(
-        memory_mb=int(env.get("GATEWAY_MAX_MEMORY_MB", defaults.ceilings.memory_mb)),
-        open_files=int(env.get("GATEWAY_MAX_OPEN_FILES", defaults.ceilings.open_files)),
-        processes=int(env.get("GATEWAY_MAX_PROCESSES", defaults.ceilings.processes)),
+        memory_mb=number("MUSIZEER_GATEWAY_MAX_MEMORY_MB"),
+        open_files=number("MUSIZEER_GATEWAY_MAX_OPEN_FILES"),
+        processes=number("MUSIZEER_GATEWAY_MAX_PROCESSES"),
     )
-    state_dir = Path(env.get("GATEWAY_STATE_DIR", defaults.state_dir))
-    run_dir = Path(env.get("GATEWAY_RUN_DIR", defaults.run_dir))
+    state_dir = Path(text("MUSIZEER_GATEWAY_STATE_DIR"))
+    run_dir = Path(text("MUSIZEER_GATEWAY_RUN_DIR"))
     return GatewayConfig(
         state_dir=state_dir,
         run_dir=run_dir,
-        workspace_dir=Path(env.get("GATEWAY_WORKSPACE_DIR", defaults.workspace_dir)),
-        sandbox_uid=int(env.get("GATEWAY_SANDBOX_UID", defaults.sandbox_uid)),
-        sandbox_gid=int(env.get("GATEWAY_SANDBOX_GID", defaults.sandbox_gid)),
+        workspace_dir=Path(text("MUSIZEER_GATEWAY_WORKSPACE_DIR")),
+        sandbox_uid=number("MUSIZEER_GATEWAY_SANDBOX_UID"),
+        sandbox_gid=number("MUSIZEER_GATEWAY_SANDBOX_GID"),
         ceilings=ceilings,
-        filesystem_roots=_roots(env.get("GATEWAY_FILESYSTEM_ROOTS", ""), (state_dir, run_dir)),
+        filesystem_roots=_roots(text("MUSIZEER_GATEWAY_FILESYSTEM_ROOTS"), (state_dir, run_dir)),
     )
 
 
 def _roots(text: str, own: tuple[Path, ...]) -> tuple[str, ...]:
-    """``GATEWAY_FILESYSTEM_ROOTS``: folders separated by ``:``. A root that could expose the gateway
+    """``MUSIZEER_GATEWAY_FILESYSTEM_ROOTS``: folders separated by ``:``. A root that could expose the gateway
     itself is a configuration error, not something to skip quietly."""
     roots: list[str] = []
     for item in (part.strip() for part in text.split(":")):
@@ -97,10 +106,10 @@ def _roots(text: str, own: tuple[Path, ...]) -> tuple[str, ...]:
         try:
             root = check_root(item)
         except PathRefused as exc:
-            raise ConfigError(f"GATEWAY_FILESYSTEM_ROOTS: {exc}") from exc
+            raise ConfigError(f"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: {exc}") from exc
         for path in own:
             if inside(root, str(path)) or inside(str(path), root):
-                raise ConfigError(f"GATEWAY_FILESYSTEM_ROOTS: '{root}' overlaps the gateway's own folder {path}")
+                raise ConfigError(f"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: '{root}' overlaps the gateway's own folder {path}")
         if root not in roots:
             roots.append(root)
     return tuple(roots)

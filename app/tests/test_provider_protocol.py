@@ -690,11 +690,11 @@ class Reading(LyricsProvider):
 def test_the_providers_context_is_the_snapshot_the_host_took_for_that_call(monkeypatch):
     context = HostContextWithoutDatabase("reading", {"market": "IT"})
     proxy = loopback_proxy(Reading, context)
-    monkeypatch.setenv("PUBLIC_API_PREFIX", "/music/api")
+    monkeypatch.setenv("MUSIZEER_PUBLIC_API_PREFIX", "/music/api")
 
     first = json.loads(proxy.get_lyrics(TRACK, SESSION).plain)
     context._given["market"] = "DE"
-    monkeypatch.setenv("PUBLIC_API_PREFIX", "/other")
+    monkeypatch.setenv("MUSIZEER_PUBLIC_API_PREFIX", "/other")
     second = json.loads(proxy.get_lyrics(TRACK, SESSION).plain)
 
     assert first[0] == {"market": "IT"} and second[0] == {"market": "DE"}
@@ -713,7 +713,7 @@ def test_the_host_context_reads_the_settings_and_the_timeouts_at_every_snapshot(
     config = SimpleNamespace(http_timeout=1, download_timeout=2, connect_timeout=3, stream_start_timeout=4)
     monkeypatch.setattr(provider_context, "_get_provider_config", lambda name, session=None: dict(stored))
     monkeypatch.setattr(provider_context, "get_config", lambda: config)
-    monkeypatch.setenv("PUBLIC_API_PREFIX", "/p")
+    monkeypatch.setenv("MUSIZEER_PUBLIC_API_PREFIX", "/p")
     context = HostProviderContext("reading")
 
     assert context.snapshot() == ContextSnapshot({"market": "IT"}, 1, 2, 3, 4, "/p")

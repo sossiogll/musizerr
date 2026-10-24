@@ -58,10 +58,10 @@ def test_every_connection_gets_wal_and_a_busy_timeout(tmp_path):
 
 
 def test_the_default_timeout_comes_from_the_environment(tmp_path, monkeypatch):
-    monkeypatch.setenv("DB_BUSY_TIMEOUT_MS", "2500")
+    monkeypatch.setenv("MUSIZEER_DB_BUSY_TIMEOUT_MS", "2500")
     assert _pragma(make_engine(sqlite_url(tmp_path / "m.db")), "busy_timeout") == 2500
 
-    monkeypatch.setenv("DB_BUSY_TIMEOUT_MS", "not a number")
+    monkeypatch.setenv("MUSIZEER_DB_BUSY_TIMEOUT_MS", "not a number")
     assert _pragma(make_engine(sqlite_url(tmp_path / "n.db")), "busy_timeout") == db_engine.DEFAULT_BUSY_TIMEOUT_MS
 
 
@@ -80,7 +80,7 @@ def test_api_and_workers_share_the_configured_engine(tmp_path):
     )
     out = subprocess.run(
         [sys.executable, "-c", probe], cwd=Path(db_engine.__file__).resolve().parent.parent,
-        env={**os.environ, "DATA_DIR": str(tmp_path), "DB_BUSY_TIMEOUT_MS": "4321"},
+        env={**os.environ, "MUSIZEER_DATA_DIR": str(tmp_path), "MUSIZEER_DB_BUSY_TIMEOUT_MS": "4321"},
         capture_output=True, text=True, check=True,
     ).stdout.split()
     assert out == ["wal", "4321"]

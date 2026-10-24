@@ -27,9 +27,9 @@ P=${INTEGRATION_PROJECT:-mzp6}
 REGISTRY_PORT=${INTEGRATION_REGISTRY_PORT:-18800}
 TMP=$(mktemp -d)
 export POSTGRES_PASSWORD=unused
-export AUTH_SECRET=integration-test-secret-of-at-least-32-characters
-export CREDENTIALS_KEY=3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ= # a key for these throwaway stacks only
-export OCI_REGISTRY_PORT=$REGISTRY_PORT
+export MUSIZEER_AUTH_SECRET=integration-test-secret-of-at-least-32-characters
+export MUSIZEER_CREDENTIALS_KEY=3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ= # a key for these throwaway stacks only
+export MUSIZEER_DEV_OCI_REGISTRY_PORT=$REGISTRY_PORT
 export PROVIDER_LOCAL_TAG_PREFIX=$P-
 export PROVIDER_INSTALL_REGISTRY=oci-registry:5000
 COMPOSE="docker compose -p $P -f docker-compose.dev.yml -f gateway/tests/integration/compose.override.yml"
@@ -74,7 +74,7 @@ push() { docker exec -i "$1" python -m musizeer_gateway.ctl install; } # the ent
 # The host's code, in a container of the application image, with the socket volume of the gateway it is asked about.
 host() { # host <run volume> <workspace volume> <mode>
   docker run --rm -i --network ${P}_default --user 1000:1000 \
-    -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e DATA_DIR=/tmp/data -e AUTH_SECRET -e CREDENTIALS_KEY \
+    -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e MUSIZEER_DATA_DIR=/tmp/data -e MUSIZEER_AUTH_SECRET -e MUSIZEER_CREDENTIALS_KEY \
     -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v "$1":/run/musizeer -v "$2":/downloads \
     -w /repo/app "$HOST_IMAGE" python /repo/gateway/tests/integration/tasks_host_check.py "$3"
 }

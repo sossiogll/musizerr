@@ -9,7 +9,7 @@ Create Date: 2026-09-28
 servite dall'host così come erano al momento della scrittura: prima senza
 prefisso (``/stream/provider/...``), poi con ``/api``. Serviti tali e quali,
 i primi caricavano la pagina del frontend invece dell'audio, e i secondi si
-romperebbero al primo cambio di ``PUBLIC_API_PREFIX``.
+romperebbero al primo cambio di ``MUSIZEER_PUBLIC_API_PREFIX``.
 
 Da qui il DB contiene solo riferimenti senza prefisso
 (``hostref:/cover/provider/p/id``, vedi ``core.urls.to_host_ref``), ricostruiti
@@ -18,19 +18,18 @@ assoluti (CDN dei provider) restano come sono; un percorso relativo che non è
 una risorsa nota viene rimosso. Idempotente: un riferimento resta tale.
 
 Il downgrade riporta i riferimenti a URL pubblici col prefisso corrente
-(``PUBLIC_API_PREFIX``, default ``/api``), la forma che il codice precedente
+(``MUSIZEER_PUBLIC_API_PREFIX``, default ``/api``), la forma che il codice precedente
 restituiva senza modificarla.
 """
 from __future__ import annotations
 
 import json
-import os
 from typing import Callable, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
 
-from core import urls
+from core import environment, urls
 
 revision: str = "0019_host_url_refs"
 down_revision: Union[str, None] = "0018_drop_duplicate_members_group_index"
@@ -95,7 +94,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    prefix = os.environ.get("PUBLIC_API_PREFIX", "/api")
+    prefix = environment.get("MUSIZEER_PUBLIC_API_PREFIX")
     conn = op.get_bind()
     _rewrite_track_data(conn, lambda value: urls.publish(prefix, value))
     _rewrite_saved_stream_urls(conn, lambda value: urls.publish(prefix, value))

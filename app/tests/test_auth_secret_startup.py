@@ -1,12 +1,12 @@
 """
-Sessions are signed with ``AUTH_SECRET``. With authentication enabled the
+Sessions are signed with ``MUSIZEER_AUTH_SECRET``. With authentication enabled the
 application refuses to start on a secret anyone could guess: missing, empty,
 shorter than 32 characters, or one of the placeholders that ship in examples
 (``change-me-in-production``, ``change-me``, ``secret``).
 
 The check is ``user_auth.require_strong_secret``, called ONCE, from
 ``main.lifespan``, only when authentication is enabled. There is no switch to
-skip it: the test suite runs with ``AUTH_SECRET=test`` and passes because it
+skip it: the test suite runs with ``MUSIZEER_AUTH_SECRET=test`` and passes because it
 never starts the application with authentication enabled (it builds apps
 around the routers, or uses ``main.app`` without running its lifespan); the
 tests here that do start it, set the secret they mean.
@@ -46,9 +46,9 @@ ACCEPTED = [
 
 def _set_secret(monkeypatch, value) -> None:
     if value is None:
-        monkeypatch.delenv("AUTH_SECRET", raising=False)
+        monkeypatch.delenv("MUSIZEER_AUTH_SECRET", raising=False)
     else:
-        monkeypatch.setenv("AUTH_SECRET", value)
+        monkeypatch.setenv("MUSIZEER_AUTH_SECRET", value)
 
 
 @pytest.mark.parametrize("secret", REJECTED)
@@ -59,7 +59,7 @@ def test_a_weak_secret_is_refused(secret, monkeypatch):
         user_auth.require_strong_secret()
 
     message = str(refused.value)
-    assert "AUTH_SECRET" in message and "openssl rand -hex 32" in message
+    assert "MUSIZEER_AUTH_SECRET" in message and "openssl rand -hex 32" in message
     assert str(user_auth.MIN_SECRET_LENGTH) in message
     if secret and len(secret.strip()) > 8:
         assert secret.strip() not in message  # the value is never echoed
@@ -97,7 +97,7 @@ def _run_lifespan(monkeypatch, *, auth_enabled: bool, secret, ran: list[str] | N
 
 @pytest.mark.parametrize("secret", REJECTED)
 def test_the_application_does_not_start_with_authentication_on_and_a_weak_secret(secret, monkeypatch):
-    with pytest.raises(user_auth.InsecureAuthSecret, match="AUTH_SECRET"):
+    with pytest.raises(user_auth.InsecureAuthSecret, match="MUSIZEER_AUTH_SECRET"):
         _run_lifespan(monkeypatch, auth_enabled=True, secret=secret)
 
 

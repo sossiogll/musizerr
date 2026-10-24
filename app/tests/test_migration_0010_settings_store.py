@@ -24,9 +24,9 @@ from tests.database import migration_database, new_engine
 
 @pytest.fixture
 def data_dir(tmp_path, monkeypatch):
-    """`DATA_DIR` è letto a runtime dalla migrazione 0010 (per `config.json`):
+    """`MUSIZEER_DATA_DIR` è letto a runtime dalla migrazione 0010 (per `config.json`):
     un `monkeypatch.setenv` basta, nessun modulo va ricaricato."""
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("MUSIZEER_DATA_DIR", str(tmp_path))
     return tmp_path
 
 

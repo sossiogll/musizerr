@@ -260,7 +260,7 @@ describe("SettingsArea", () => {
     mockPatchSettings.mockRejectedValue({
       message: "Request failed",
       response: {
-        data: { detail: { error_code: "auth_secret_insecure", error_message: "auth_enabled: AUTH_SECRET is too short" } },
+        data: { detail: { error_code: "auth_secret_insecure", error_message: "auth_enabled: MUSIZEER_AUTH_SECRET is too short" } },
       },
     });
 

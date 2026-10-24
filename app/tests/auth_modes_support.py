@@ -86,7 +86,7 @@ class World:
 @pytest.fixture
 def world(monkeypatch):
     """A closed-by-default API on a database of its own, with the synthetic user's row in place."""
-    monkeypatch.setenv("AUTH_SECRET", STRONG_SECRET)
+    monkeypatch.setenv("MUSIZEER_AUTH_SECRET", STRONG_SECRET)
     engine = new_engine()
     seed_system_user(engine)
     instance = World(engine)

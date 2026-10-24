@@ -82,10 +82,10 @@ def test_write_through_one_instance_is_visible_from_a_second_instance_sharing_th
 def test_key_absent_from_db_uses_catalog_default_never_a_file(tmp_path, engine, monkeypatch):
     # Un config.json presente sul disco, con un valore che DIFFERISCE dal
     # default dichiarato: se ConfigManager lo leggesse ancora, questo test
-    # lo rivelerebbe. DATA_DIR è patchato per assicurarsi che, se qualche
+    # lo rivelerebbe. MUSIZEER_DATA_DIR è patchato per assicurarsi che, se qualche
     # codice residuo tentasse comunque di leggere il file "di default", non
     # troverebbe per caso un file di un'altra run.
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("MUSIZEER_DATA_DIR", str(tmp_path))
     (tmp_path / "config.json").write_text('{"public_base_url": "http://stale.example"}')
 
     config = ConfigManager(engine=engine)
@@ -94,7 +94,7 @@ def test_key_absent_from_db_uses_catalog_default_never_a_file(tmp_path, engine, 
 
 
 def test_writes_never_touch_config_json_on_disk(tmp_path, engine, monkeypatch):
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("MUSIZEER_DATA_DIR", str(tmp_path))
     path = tmp_path / "config.json"
     path.write_text('{"max_retries": 1}')
     original_raw = path.read_text()

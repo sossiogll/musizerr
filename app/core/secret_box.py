@@ -54,7 +54,7 @@ def is_sealed(stored: str | None) -> bool:
 
 
 def split_keys(text: str | None) -> list[str]:
-    """The keys of a comma-separated list (``CREDENTIALS_KEY_PREVIOUS``): spaces around a key and
+    """The keys of a comma-separated list (``MUSIZEER_CREDENTIALS_KEY_PREVIOUS``): spaces around a key and
     empty items are ignored."""
     return [part.strip() for part in (text or "").split(",") if part.strip()]
 

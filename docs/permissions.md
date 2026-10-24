@@ -96,7 +96,7 @@ authentication off the accounts wait: they can sign in once it is turned on.
 checked and hashed by ONE function, `user_auth.hash_new_password`, which every path that sets a password
 calls: registration, `POST /admin/users` (and with it the guided administrator step of the settings
 page), an administrator changing a password (`PATCH /admin/users/{id}` with `password`) and the first
-administrator of a deployment (`ADMIN_BOOTSTRAP_PASSWORD`: a short one is logged as an error and no
+administrator of a deployment (`MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD`: a short one is logged as an error and no
 administrator is created). The routes answer 422 with `detail.error_code` `password_too_short` and
 `detail.min_length` (`routes/_password.py`), which the UI words in the viewer's language. The rule applies
 only when a password is set: an account whose password is shorter keeps signing in
@@ -108,11 +108,11 @@ page or any writer):
 1. *It is refused* with 400 `no_admin_account` unless at least one **active administrator who can
    sign in** exists (role `admin`, active, not waiting for approval, a password stored; the
    synthetic user is never one). The check is the second half of the `guard_on` of the setting, after
-   the `AUTH_SECRET` rule (`auth_secret_insecure` comes first), so every writer passes through it
+   the `MUSIZEER_AUTH_SECRET` rule (`auth_secret_insecure` comes first), so every writer passes through it
    (`core.settings_catalog._authentication_may_turn_on`, `tests/test_auth_modes.py`). Without it
    the owner of an open instance would turn the app off to themselves, with no account to sign in
    with and no way back but the database. The first start can still create one from
-   `ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD` (only while no account exists).
+   `MUSIZEER_ADMIN_BOOTSTRAP_EMAIL`/`MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD` (only while no account exists).
 2. *The UI* turns that refusal into one guided step, "Create the administrator account": a username
    and a password, then it creates the administrator (`POST /admin/users`), saves the batch that
    was refused with `adopt_into` naming them, and signs them in, so the owner never sees a locked
@@ -164,24 +164,24 @@ Turning it on again adopts what accumulated in the meantime, by the same rules, 
 administrator then chosen. The personal-only accounts that moved are the administrator's: in
 open mode the owner connects them again.
 
-### `AUTH_SECRET`: the key that signs every session
+### `MUSIZEER_AUTH_SECRET`: the key that signs every session
 
 With `auth_enabled = true` access and refresh tokens are signed with the
-`AUTH_SECRET` environment variable. Whoever knows it can forge the token of an
+`MUSIZEER_AUTH_SECRET` environment variable. Whoever knows it can forge the token of an
 administrator, so it is a secret of the deployment, never a value from the
 repository.
 
 - **Compose requires it** (`docker-compose.yaml`, `docker-compose.dev.yml`):
-  `${AUTH_SECRET:?set AUTH_SECRET in .env}`, like `POSTGRES_PASSWORD`. Write it in
+  `${MUSIZEER_AUTH_SECRET:?set MUSIZEER_AUTH_SECRET in .env (it was AUTH_SECRET)}`, like `POSTGRES_PASSWORD`. Under its old name, `AUTH_SECRET`, it is **not read**: the application logs `AUTH_SECRET is no longer read: rename it to MUSIZEER_AUTH_SECRET` and, with authentication on, refuses to start with the same words (the value is unchanged: rename the line, sessions stay valid). Write it in
   `.env` (never committed, see `.env.example`); every `docker compose`
   command on those files needs it, `stop` and `config` included.
 - **The application refuses to start** with authentication enabled and an
-  `AUTH_SECRET` that is missing, empty, shorter than 32 characters or one of
+  `MUSIZEER_AUTH_SECRET` that is missing, empty, shorter than 32 characters or one of
   the published placeholders (`change-me-in-production`, `change-me`,
   `secret`). The error names the variable and how to fix it. There is no
   setting to skip the check. With authentication off nothing is signed and the
   secret is not looked at, which is also why the test suite (it runs with
-  `AUTH_SECRET=test`) starts no application with authentication on unless a test
+  `MUSIZEER_AUTH_SECRET=test`) starts no application with authentication on unless a test
   sets the secret it means (`tests/test_auth_secret_startup.py`).
 - **Turning authentication on while the app runs** (the settings page, `PATCH
   /settings {"auth_enabled": true}`) asks the same rule, where every setting is
@@ -199,9 +199,9 @@ repository.
   (`docs/postgresql.md`) keep the value you set, or accept that.
 - An instance that ran with the old compose default (`change-me-in-production`)
   must be treated as exposed: set a new secret, and review the accounts.
-- `AUTH_SECRET` signs; it encrypts nothing. The connected provider accounts, tokens,
+- `MUSIZEER_AUTH_SECRET` signs; it encrypts nothing. The connected provider accounts, tokens,
   API keys and secret settings in the database are encrypted with a different key,
-  `CREDENTIALS_KEY`, required in the same way: `docs/credentials.md`.
+  `MUSIZEER_CREDENTIALS_KEY`, required in the same way: `docs/credentials.md`.
 
 ## The three principals
 

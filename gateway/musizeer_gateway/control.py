@@ -41,19 +41,19 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import socketserver
 from pathlib import Path
 
 from musizeer_sdk.permissions import to_json
 
+from . import environment
 from .config import GatewayConfig
 from .desired import DesiredError, parse_set
 from .supervisor import RUNNING, ManagedProvider, Supervisor
 from .tasks import read_pids_cgroup
 
 # The version of the gateway (ADR-0007 §2), written by the build from the release tag; "dev" otherwise.
-VERSION = os.environ.get("MUSIZERR_VERSION") or "dev"
+VERSION = environment.get("MUSIZEER_VERSION")
 
 logger = logging.getLogger(__name__)
 

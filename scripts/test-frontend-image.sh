@@ -9,12 +9,12 @@
 #
 # It checks that:
 #   a. `nginx -t` passes in the image, and the template renders: its own variables are left alone;
-#   b. /api/<path> reaches BACKEND_URL as /<path>, query string and encoded characters kept, with
+#   b. /api/<path> reaches MUSIZEER_BACKEND_URL as /<path>, query string and encoded characters kept, with
 #      X-Forwarded-Proto / X-Forwarded-Host (a proxy's value for the scheme is kept, a bogus one is not);
 #   c. the progress stream is not buffered (the first event arrives long before the second), through the same rewrite;
 #   d. the backend's address is resolved again: replacing the upstream container (a new address) needs no restart,
 #      and neither does a backend that did not exist when nginx started;
-#   e. BACKEND_URL names the backend: another service name works; a malformed one stops the container with the reason;
+#   e. MUSIZEER_BACKEND_URL names the backend: another service name works; a malformed one stops the container with the reason;
 #   f. the single-page app is served, deep links fall back to index.html.
 set -eu
 
@@ -69,14 +69,20 @@ docker network create "$NET" >/dev/null
 
 step "a. nginx -t, and the variables of nginx survive the template"
 docker run --rm "$IMAGE" nginx -t 2>&1 | tail -2
-CONF=$(docker run --rm --entrypoint sh "$IMAGE" -c 'envsubst "\${BACKEND_URL} \${DNS_RESOLVER}" < /etc/nginx/templates/default.conf.template')
+# The image declares no default of its own: the script that checks the variables supplies them.
+[ -z "$(docker run --rm --entrypoint sh "$IMAGE" -c 'env | grep -E "^(MUSIZEER_)?(BACKEND_URL|DNS_RESOLVER)=" || true')" ] || die "the image declares a default for a variable"
+CONF=$(docker run --rm --entrypoint sh "$IMAGE" -c '. /docker-entrypoint.d/15-backend-url.envsh && envsubst "\${MUSIZEER_BACKEND_URL} \${MUSIZEER_DNS_RESOLVER}" < /etc/nginx/templates/default.conf.template')
 expect "the backend is substituted" "$CONF" 'set \$backend "http://app:8000";'
 expect "the resolver is substituted" "$CONF" 'resolver 127.0.0.11 valid=10s'
+CONF=$(docker run --rm -e MUSIZEER_DNS_RESOLVER=10.0.0.2 --entrypoint sh "$IMAGE" -c '. /docker-entrypoint.d/15-backend-url.envsh && envsubst "\${MUSIZEER_BACKEND_URL} \${MUSIZEER_DNS_RESOLVER}" < /etc/nginx/templates/default.conf.template')
+expect "the resolver is the operator's" "$CONF" 'resolver 10.0.0.2 valid=10s'
+CONF=$(docker run --rm -e MUSIZEER_BACKEND_URL= -e MUSIZEER_DNS_RESOLVER= --entrypoint sh "$IMAGE" -c '. /docker-entrypoint.d/15-backend-url.envsh && envsubst "\${MUSIZEER_BACKEND_URL} \${MUSIZEER_DNS_RESOLVER}" < /etc/nginx/templates/default.conf.template')
+expect "an empty value is an unset one (compose passes it)" "$CONF" 'set \$backend "http://app:8000";'
 expect "nginx's own variables are not" "$CONF" 'proxy_set_header   Host \$host;'
 expect "nginx's own variables are not (2)" "$CONF" 'X-Forwarded-For \$proxy_add_x_forwarded_for'
 
 step "the frontend starts BEFORE its backend exists (nginx resolves at run time, not at start)"
-front -e BACKEND_URL=http://backend:8000
+front -e MUSIZEER_BACKEND_URL=http://backend:8000
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://127.0.0.1:$PORT/api/health")
 [ "$code" = 502 ] || [ "$code" = 503 ] || die "no backend yet: expected 502/503, got $code"
 echo "no backend: $code, and nginx is up"
@@ -126,24 +132,39 @@ echo "address $old -> $new"
 wait_until 40 "the new backend to answer" sh -c "curl -fsS --max-time 5 http://127.0.0.1:$PORT/api/health | grep -q '\"server\": \"second\"'"
 echo "answered by the second container (nginx was not restarted)"
 
-step "e. BACKEND_URL names the backend"
+step "e. MUSIZEER_BACKEND_URL names the backend"
 docker rm -f $P-up2 >/dev/null
 upstream $P-up1 third renamed
 wait_until 20 "the upstream" docker exec $P-up1 python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/x')"
-front -e BACKEND_URL=http://renamed:8000/
+front -e MUSIZEER_BACKEND_URL=http://renamed:8000/
 wait_until 20 "the renamed backend" sh -c "curl -fsS --max-time 5 http://127.0.0.1:$PORT/api/health | grep -q '\"server\": \"third\"'"
-echo "BACKEND_URL=http://renamed:8000/ (trailing slash dropped)"
+echo "MUSIZEER_BACKEND_URL=http://renamed:8000/ (trailing slash dropped)"
 for bad in "app:8000" "http://app:8000/api" "ftp://app"; do
   docker rm -f $P-bad >/dev/null 2>&1 || true
-  docker run -d --name $P-bad --network "$NET" -e BACKEND_URL="$bad" "$IMAGE" >/dev/null
-  wait_until 20 "the container with BACKEND_URL=$bad to stop" sh -c "[ \"\$(docker inspect -f '{{.State.Running}}' $P-bad)\" = false ]"
-  [ "$(docker inspect -f '{{.State.ExitCode}}' $P-bad)" != 0 ] || die "BACKEND_URL=$bad was accepted"
-  expect "the reason for $bad" "$(docker logs $P-bad 2>&1)" "BACKEND_URL"
-  echo "BACKEND_URL=$bad refused"
+  docker run -d --name $P-bad --network "$NET" -e MUSIZEER_BACKEND_URL="$bad" "$IMAGE" >/dev/null
+  wait_until 20 "the container with MUSIZEER_BACKEND_URL=$bad to stop" sh -c "[ \"\$(docker inspect -f '{{.State.Running}}' $P-bad)\" = false ]"
+  [ "$(docker inspect -f '{{.State.ExitCode}}' $P-bad)" != 0 ] || die "MUSIZEER_BACKEND_URL=$bad was accepted"
+  expect "the reason for $bad" "$(docker logs $P-bad 2>&1)" "MUSIZEER_BACKEND_URL"
+  echo "MUSIZEER_BACKEND_URL=$bad refused"
 done
 
+step "e2. the old names are not read: the web app says so, names the new ones and starts with the defaults"
+docker rm -f $P-bad >/dev/null 2>&1 || true
+docker run -d --name $P-bad --network "$NET" -e BACKEND_URL=http://elsewhere:9 -e DNS_RESOLVER=10.9.9.9 -e MUSIZEER_BACKEND_URI=http://typo:1 "$IMAGE" >/dev/null
+wait_until 20 "the container with the old names to log" sh -c "docker logs $P-bad 2>&1 | grep -qi 'configuration complete'"
+log=$(docker logs $P-bad 2>&1)
+expect "the old backend name" "$log" 'BACKEND_URL is no longer read: rename it to MUSIZEER_BACKEND_URL'
+expect "the old resolver name" "$log" 'DNS_RESOLVER is no longer read: rename it to MUSIZEER_DNS_RESOLVER'
+expect "the typo" "$log" 'unknown variable MUSIZEER_BACKEND_URI'
+rendered=$(docker exec $P-bad cat /etc/nginx/conf.d/default.conf)
+expect "the default backend, not the old variable's" "$rendered" 'set \$backend "http://app:8000";'
+expect "the default resolver, not the old variable's" "$rendered" 'resolver 127.0.0.11 valid=10s'
+case "$log" in *elsewhere*|*10.9.9.9*|*typo:1*) die "a value was printed" ;; esac
+docker rm -f $P-bad >/dev/null
+echo "the old names are reported (without their values) and ignored"
+
 step "f. the single-page app"
-front -e BACKEND_URL=http://renamed:8000
+front -e MUSIZEER_BACKEND_URL=http://renamed:8000
 root=$(get "http://127.0.0.1:$PORT/")
 deep=$(get "http://127.0.0.1:$PORT/library/albums/some-id")
 expect "index.html" "$root" '<div id="root"'

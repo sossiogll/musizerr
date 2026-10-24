@@ -1,5 +1,5 @@
 """
-Turning ``auth_enabled`` on while the process runs with a weak ``AUTH_SECRET``
+Turning ``auth_enabled`` on while the process runs with a weak ``MUSIZEER_AUTH_SECRET``
 is refused where every setting is written (``SettingsService.write_values``,
 through the ``guard_on`` the catalog declares), with the same rule startup asks
 (``user_auth.require_strong_secret``): a 400 with the stable code
@@ -79,7 +79,7 @@ def test_turning_authentication_on_with_a_weak_secret_is_refused_and_nothing_is_
     assert resp.status_code == 400, resp.text
     detail = resp.json()["detail"]
     assert detail["error_code"] == "auth_secret_insecure"
-    assert "AUTH_SECRET" in detail["error_message"] and "openssl rand -hex 32" in detail["error_message"]
+    assert "MUSIZEER_AUTH_SECRET" in detail["error_message"] and "openssl rand -hex 32" in detail["error_message"]
     if secret and len(secret.strip()) > 8:
         assert secret.strip() not in resp.text  # the value is never echoed
     assert_conforms(resp, "PATCH", "/settings")

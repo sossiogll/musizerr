@@ -134,7 +134,7 @@ def test_with_the_wrong_key_the_source_has_no_token_and_nothing_is_overwritten(w
     # An edit that does not name the token leaves the sealed text where it is (so the key can come back).
     world.manager().edit_source(source.id, enabled=False)
     assert _stored(world) == before
-    assert TOKEN not in caplog.text and "CREDENTIALS_KEY" in caplog.text
+    assert TOKEN not in caplog.text and "MUSIZEER_CREDENTIALS_KEY" in caplog.text
 
     use_keys(monkeypatch, KEY)
     world.session.expire_all()

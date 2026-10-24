@@ -4,14 +4,14 @@ app, the workers, the scripts and Alembic (``migrations/env.py``).
 
 ``DATABASE_URL`` names the database (PostgreSQL: ``postgresql+psycopg://user:
 password@host:5432/musizeer``). Unset, the data is the SQLite file
-``DATA_DIR/musizeer.db``: a small install needs nothing else.
+``MUSIZEER_DATA_DIR/musizeer.db``: a small install needs nothing else.
 
 Every connection gets the settings of its dialect (``make_engine``):
 
 - SQLite: WAL, a busy timeout, ``synchronous=NORMAL``;
 - PostgreSQL: a lock timeout and a statement timeout, a ``pool_pre_ping``.
 
-``DB_BUSY_TIMEOUT_MS`` is how long a write waits for a lock another writer
+``MUSIZEER_DB_BUSY_TIMEOUT_MS`` is how long a write waits for a lock another writer
 holds before it fails (SQLite busy timeout, PostgreSQL ``lock_timeout``).
 """
 from __future__ import annotations
@@ -29,35 +29,32 @@ from sqlalchemy import event, inspect
 from sqlalchemy.engine import URL, Engine, make_url
 from sqlmodel import Session, create_engine
 
+from core import environment
+
 logger = logging.getLogger(__name__)
 
 SQLITE = "sqlite"
 POSTGRESQL = "postgresql"
 
-# Il database senza DATABASE_URL: un file in DATA_DIR (default /data nel
-# container Docker).
-DEFAULT_DATA_DIR = "/data"
 _APP_ROOT = Path(__file__).resolve().parent.parent
 _ALEMBIC_INI = _APP_ROOT / "alembic.ini"
 
 # Quanto una scrittura aspetta il lock di un'altra prima di arrendersi
 # ("database is locked" su SQLite, lock_not_available su PostgreSQL). L'API e
 # i worker scrivono sullo stesso database: senza attesa una scrittura
-# dell'API fallisce subito mentre un worker scrive.
-DEFAULT_BUSY_TIMEOUT_MS = 15_000
+# dell'API fallisce subito mentre un worker scrive. I valori di default sono
+# quelli del registro (core/environment.py), l'unico posto in cui un default e' scritto.
+DEFAULT_BUSY_TIMEOUT_MS = int(environment.default("MUSIZEER_DB_BUSY_TIMEOUT_MS"))
 # Una singola query oltre questo tempo viene interrotta (PostgreSQL; 0 la
 # lascia correre): una query rimasta appesa non deve tenere per sempre una
 # connessione del pool.
-DEFAULT_STATEMENT_TIMEOUT_MS = 120_000
-DEFAULT_POOL_SIZE = 5
-DEFAULT_MAX_OVERFLOW = 10
+DEFAULT_STATEMENT_TIMEOUT_MS = int(environment.default("MUSIZEER_DB_STATEMENT_TIMEOUT_MS"))
+DEFAULT_POOL_SIZE = int(environment.default("MUSIZEER_DB_POOL_SIZE"))
+DEFAULT_MAX_OVERFLOW = int(environment.default("MUSIZEER_DB_MAX_OVERFLOW"))
 
 
-def _env_int(name: str, default: int) -> int:
-    try:
-        return max(0, int(os.environ.get(name, default)))
-    except ValueError:
-        return default
+def _env_int(name: str) -> int:
+    return max(0, environment.get_int(name))
 
 
 def parse_url(value: str) -> URL:
@@ -71,10 +68,10 @@ def parse_url(value: str) -> URL:
 
 def database_url() -> URL:
     """Where the data lives: ``DATABASE_URL`` or the SQLite file of
-    ``DATA_DIR``."""
-    configured = os.environ.get("DATABASE_URL", "").strip()
+    ``MUSIZEER_DATA_DIR``."""
+    configured = environment.get("DATABASE_URL").strip()
     if not configured:
-        return sqlite_url(Path(os.environ.get("DATA_DIR", DEFAULT_DATA_DIR)) / "musizeer.db")
+        return sqlite_url(Path(environment.data_dir()) / "musizeer.db")
     return parse_url(configured)
 
 
@@ -115,7 +112,7 @@ def make_engine(
     """The engine of ``url``, configured for its dialect. ``engine_options``
     go to ``create_engine`` (the pool class of a migration, for one)."""
     url = parse_url(url) if isinstance(url, str) else url
-    busy = _env_int("DB_BUSY_TIMEOUT_MS", DEFAULT_BUSY_TIMEOUT_MS) if busy_timeout_ms is None else busy_timeout_ms
+    busy = _env_int("MUSIZEER_DB_BUSY_TIMEOUT_MS") if busy_timeout_ms is None else busy_timeout_ms
     if url.get_backend_name() == SQLITE:
         return configure_sqlite(
             create_engine(
@@ -127,13 +124,13 @@ def make_engine(
             busy_timeout_ms=busy,
         )
     statement = (
-        _env_int("DB_STATEMENT_TIMEOUT_MS", DEFAULT_STATEMENT_TIMEOUT_MS)
+        _env_int("MUSIZEER_DB_STATEMENT_TIMEOUT_MS")
         if statement_timeout_ms is None else statement_timeout_ms
     )
     # A caller that picks its own pool class (a migration: no pool) sizes none.
     sizing = {} if "poolclass" in engine_options else {
-        "pool_size": _env_int("DB_POOL_SIZE", DEFAULT_POOL_SIZE),
-        "max_overflow": _env_int("DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW),
+        "pool_size": _env_int("MUSIZEER_DB_POOL_SIZE"),
+        "max_overflow": _env_int("MUSIZEER_DB_MAX_OVERFLOW"),
     }
     return create_engine(
         url,

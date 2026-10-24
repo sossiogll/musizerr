@@ -98,17 +98,17 @@ def test_an_existing_shorter_password_still_signs_in(world):
 
 
 def test_the_first_administrator_of_a_deployment_applies_it_too(world, monkeypatch, caplog):
-    monkeypatch.setenv("ADMIN_BOOTSTRAP_EMAIL", "boss@example.com")
+    monkeypatch.setenv("MUSIZEER_ADMIN_BOOTSTRAP_EMAIL", "boss@example.com")
     monkeypatch.setattr("db.engine.get_session", lambda: iter([world.session()]))
 
-    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASSWORD", SHORT)
+    monkeypatch.setenv("MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD", SHORT)
     with caplog.at_level(logging.ERROR):
         main._bootstrap_admin()
     with world.session() as session:
         assert user_service.get_user_count(session) == 0
     assert "no administrator was created" in caplog.text
 
-    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASSWORD", EXACT)
+    monkeypatch.setenv("MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD", EXACT)
     main._bootstrap_admin()
     with world.session() as session:
         assert [(u.username, u.role) for u in user_service.list_users(session)] == [("boss", "admin")]

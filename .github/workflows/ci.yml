@@ -47,8 +47,8 @@ jobs:
       - run: python -m pytest -p no:cacheprovider
         working-directory: app
         env:
-          AUTH_SECRET: test-secret
-          DATA_DIR: ${{ runner.temp }}/data
+          MUSIZEER_AUTH_SECRET: test-secret
+          MUSIZEER_DATA_DIR: ${{ runner.temp }}/data
 
   backend-postgresql:
     name: backend (PostgreSQL ${{ matrix.shard }}/4)
@@ -99,8 +99,8 @@ jobs:
       - run: python -m pytest -p no:cacheprovider $(cat "$RUNNER_TEMP/shard.txt")
         working-directory: app
         env:
-          AUTH_SECRET: test-secret
-          DATA_DIR: ${{ runner.temp }}/data
+          MUSIZEER_AUTH_SECRET: test-secret
+          MUSIZEER_DATA_DIR: ${{ runner.temp }}/data
           TEST_DATABASE_URL: postgresql+psycopg://postgres:test@localhost:5432/postgres
 
   sdk:
@@ -158,8 +158,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       POSTGRES_PASSWORD: ci
-      AUTH_SECRET: ci-secret-of-at-least-thirty-two-characters
-      CREDENTIALS_KEY: 3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ=
+      MUSIZEER_AUTH_SECRET: ci-secret-of-at-least-thirty-two-characters
+      MUSIZEER_CREDENTIALS_KEY: 3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ=
     steps:
       - uses: actions/checkout@v7
       - name: the files render
@@ -167,6 +167,15 @@ jobs:
           docker compose -f docker-compose.yaml config -q
           docker compose -f docker-compose.yaml -f docker-compose.build.yml config -q
           docker compose -f docker-compose.dev.yml config -q
+      - name: an environment that still has the old names is refused, and the message names the new ones
+        run: |
+          # One variable missing at a time: a compose that reports only its first error still names this one.
+          out=$(env -u MUSIZEER_AUTH_SECRET AUTH_SECRET=old docker compose -f docker-compose.yaml config 2>&1 || true)
+          printf '%s\n' "$out" > "$RUNNER_TEMP/auth.txt"
+          grep -q 'set MUSIZEER_AUTH_SECRET in .env (it was AUTH_SECRET)' "$RUNNER_TEMP/auth.txt"
+          out=$(env -u MUSIZEER_CREDENTIALS_KEY CREDENTIALS_KEY=old docker compose -f docker-compose.yaml config 2>&1 || true)
+          printf '%s\n' "$out" > "$RUNNER_TEMP/key.txt"
+          grep -q 'set MUSIZEER_CREDENTIALS_KEY in .env (it was CREDENTIALS_KEY' "$RUNNER_TEMP/key.txt"
       - name: the gateway is never privileged and is not left to AppArmor's default, in any compose file
         run: |
           for file in docker-compose.yaml docker-compose.dev.yml; do

@@ -8,7 +8,7 @@ Until now the credentials were stored in clear: ``provider_credentials.data`` (O
 logins, API keys, OAuth clients, the accounts of a capture utility), ``provider_sources.credential``
 (the token of a private catalog and its images) and the value of the secret settings of the catalog
 (``delegation_webhook_token``). From here they are SEALED (``core/secret_box.py``: ``enc:v1:`` and a
-Fernet token) with ``CREDENTIALS_KEY`` (docs/credentials.md).
+Fernet token) with ``MUSIZEER_CREDENTIALS_KEY`` (docs/credentials.md).
 
 The upgrade needs the key in the environment and REFUSES to run without it (or with a malformed
 one), before it changes a row. It seals every value still in clear, and leaves alone the ones

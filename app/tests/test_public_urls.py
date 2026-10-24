@@ -1,6 +1,6 @@
 """
 URL delle risorse servite dal backend (cover, stream): il frontend raggiunge
-l'API solo sotto un prefisso (``PUBLIC_API_PREFIX``, default ``/api``), quindi
+l'API solo sotto un prefisso (``MUSIZEER_PUBLIC_API_PREFIX``, default ``/api``), quindi
 ogni URL di questo tipo nelle risposte deve iniziare con quel prefisso. Un
 path relativo alla root caricherebbe la pagina del frontend al posto
 dell'immagine o dell'audio.
@@ -33,7 +33,7 @@ from tests.loopback import host_proxy
 
 @pytest.fixture(params=["/api", "/music/api"])
 def prefix(request, monkeypatch):
-    monkeypatch.setenv("PUBLIC_API_PREFIX", request.param)
+    monkeypatch.setenv("MUSIZEER_PUBLIC_API_PREFIX", request.param)
     return request.param
 
 

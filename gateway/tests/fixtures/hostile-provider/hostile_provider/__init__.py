@@ -83,7 +83,7 @@ def run() -> list:
 
     def own_environment():
         keys = sorted(os.environ)
-        bad = [k for k in keys if k in ("POSTGRES_PASSWORD", "AUTH_SECRET", "GATEWAY_CANARY", "REDIS_URL", "DATABASE_URL")]
+        bad = [k for k in keys if k in ("POSTGRES_PASSWORD", "MUSIZEER_AUTH_SECRET", "MUSIZEER_CREDENTIALS_KEY", "GATEWAY_CANARY", "REDIS_URL", "DATABASE_URL")]
         return not bad and CANARY not in "".join(os.environ.values()), f"variables: {keys}"
 
     attempt(report, "the environment holds nothing of the host's", own_environment)

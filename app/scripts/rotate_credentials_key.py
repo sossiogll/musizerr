@@ -1,7 +1,7 @@
 """
-Seals the stored credentials again with the current CREDENTIALS_KEY (docs/credentials.md): the last
-step of rotating the key, after the new key became CREDENTIALS_KEY and the one it replaces was kept in
-CREDENTIALS_KEY_PREVIOUS. Without ``--apply`` it is a dry run: the database does not change, the
+Seals the stored credentials again with the current MUSIZEER_CREDENTIALS_KEY (docs/credentials.md): the last
+step of rotating the key, after the new key became MUSIZEER_CREDENTIALS_KEY and the one it replaces was kept in
+MUSIZEER_CREDENTIALS_KEY_PREVIOUS. Without ``--apply`` it is a dry run: the database does not change, the
 report says how many values it would seal again.
 
 Uso, dalla cartella ``app/``::
@@ -13,7 +13,7 @@ Everything it prints is a count: never a credential, a key or a sealed text. A v
 configured key opens (``unreadable``), or that is stored in clear where it never should be
 (``in_clear``), is left as it is and makes the exit status 1; the same for a row somebody changed
 while the command ran (``skipped``: run it again). Once every table says ``unreadable 0`` and
-``in_clear 0``, nothing is sealed with an old key: remove it from CREDENTIALS_KEY_PREVIOUS.
+``in_clear 0``, nothing is sealed with an old key: remove it from MUSIZEER_CREDENTIALS_KEY_PREVIOUS.
 
 Exit status: 0 done (or a clean dry run), 1 done but something was left as it is, 2 not done (the key
 is missing or malformed).

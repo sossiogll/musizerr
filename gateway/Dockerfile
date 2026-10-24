@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends bubblewrap util
 # Same uid as the application's user, so the sockets and workspaces they share need
 # no widening of permissions.
 RUN useradd -u 1000 -m musizeer \
-    && mkdir -p /var/lib/musizeer-gateway /run/musizeer /downloads \
-    && chown 1000:1000 /var/lib/musizeer-gateway /run/musizeer /downloads
+    && mkdir -p /var/lib/musizeer-gateway /run/musizeer /downloads /library \
+    && chown 1000:1000 /var/lib/musizeer-gateway /run/musizeer /downloads /library
 
 ENV PYTHONUNBUFFERED=1
 
@@ -29,9 +29,9 @@ CMD ["python", "-m", "musizeer_gateway"]
 
 FROM base AS production
 # The version this image is (ADR-0007 §2), shown in the gateway's health.
-ARG MUSIZERR_VERSION=dev
-ARG MUSIZERR_COMMIT=
-ENV MUSIZERR_VERSION=$MUSIZERR_VERSION MUSIZERR_COMMIT=$MUSIZERR_COMMIT
+ARG MUSIZEER_VERSION=dev
+ARG MUSIZEER_COMMIT=
+ENV MUSIZEER_VERSION=$MUSIZEER_VERSION MUSIZEER_COMMIT=$MUSIZEER_COMMIT
 COPY sdk /tmp/sdk
 COPY gateway /tmp/gateway
 RUN pip install --no-cache-dir /tmp/sdk /tmp/gateway && rm -rf /tmp/sdk /tmp/gateway
