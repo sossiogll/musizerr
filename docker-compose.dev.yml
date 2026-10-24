@@ -7,6 +7,10 @@ name: musizeer
 # userebbero il file SQLite di MUSIZEER_DATA_DIR: vedi docs/postgresql.md.
 x-database: &database
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-musizeer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-musizeer}
+  MUSIZEER_DB_BUSY_TIMEOUT_MS: ${MUSIZEER_DB_BUSY_TIMEOUT_MS:-}
+  MUSIZEER_DB_STATEMENT_TIMEOUT_MS: ${MUSIZEER_DB_STATEMENT_TIMEOUT_MS:-}
+  MUSIZEER_DB_POOL_SIZE: ${MUSIZEER_DB_POOL_SIZE:-}
+  MUSIZEER_DB_MAX_OVERFLOW: ${MUSIZEER_DB_MAX_OVERFLOW:-}
 
 # The key that encrypts the stored credentials (docs/credentials.md): from .env, required by every
 # service that reads the database (init: its migration encrypts the existing credentials; app;
