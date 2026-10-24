@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
+from services import folders
 from services.config_manager import get_config
 from core import download_states as ds
 from musizeer_sdk.errors import DownloadDelegated
@@ -100,6 +101,10 @@ def retry_track(
 
 
 def _request(session: Session, record: TrackRecord, user_id, favorite_for, registry, force: bool) -> EnqueueResult:
+    # The one gate (ADR-0008): nothing is queued, and no favorite intent registered, while the working folder (or the
+    # library folder of the active storage provider) is not set. ``request_download`` has asked already; this is for
+    # every other way in (a retry, the routine, an approval).
+    _require_folders(session, registry)
     track_id = record.internal_id
     if favorite_for:
         favorites.register_intent(session, favorite_for, track_id, registry)
@@ -130,6 +135,15 @@ def _request(session: Session, record: TrackRecord, user_id, favorite_for, regis
         session.rollback()
         mark_unqueued(session, dl.id, str(exc) or type(exc).__name__, datetime.now(timezone.utc))
     return EnqueueResult(QUEUED, track_id, dl.id)
+
+
+def _require_folders(session: Session, registry) -> None:
+    """``FoldersNotReady`` unless downloads can work. Without a registry only the working folder can be judged."""
+    config = get_config()
+    if registry is None:
+        config.workspace_dir  # noqa: B018 — raises while the working folder is not set
+        return
+    folders.require_ready(session, config, registry)
 
 
 def _sync_types(registry) -> list[str]:
@@ -284,6 +298,10 @@ def retry_transient_failures(session: Session, registry, config) -> dict:
     ``transient_retry_batch_size`` per giro, le più vecchie prima: un
     fallimento di massa torna ai provider un poco alla volta.
     """
+    blocking = folders.blocked(session, config, registry)
+    if blocking is not None:
+        # Nothing could be stored: the failures wait (they are retried when the folders are set).
+        return {"candidates": 0, "queued": 0, "blocked": blocking.error_code}
     after = timedelta(hours=int(config.get("transient_retry_after_hours")))
     max_rounds = int(config.get("transient_retry_max_rounds"))
     batch = int(config.get("transient_retry_batch_size"))

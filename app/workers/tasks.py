@@ -30,7 +30,7 @@ from db import library_job_store as job_store
 from services import library_jobs
 from services.credentials import account_holders, has_own_account, own_store, shared_store
 from services import downloads as download_service
-from services import favorites, library_scan, playlist_monitor, playlist_sync, provider_order, routines, sync_index
+from services import favorites, folders, library_scan, playlist_monitor, playlist_sync, provider_order, routines, sync_index
 from services.download_requests import liked_elsewhere_spec, request_download
 from services.enrichment import cross_enrich_track
 from services.errors import public_error
@@ -106,6 +106,18 @@ def download_task(
         publish_download_progress(download_id, status, track.title, track.internal_id, registry, **extra)
 
     retry_num = self.request.retries
+
+    # A task queued before a folder was cleared checks again before it downloads (ADR-0008): it ends failed and
+    # retriable with the code of the missing folder, and the routine of the transient failures takes it up again.
+    with Session(engine) as session:
+        blocking = folders.blocked(session, config, registry)
+    if blocking is not None:
+        _update_download_status(
+            download_id, status=ds.FAILED, error_message=f"{blocking.error_code}: {blocking.message}", retriable=True,
+        )
+        progress(ds.FAILED)
+        logger.warning("Download of '%s' not started: %s", track.title, blocking.error_code)
+        return {"status": ds.FAILED, "error": blocking.error_code}
 
     # La traccia è arrivata in libreria da un'altra strada mentre questa
     # richiesta aspettava (una scansione, il sync provider, un altro
@@ -915,6 +927,14 @@ def library_download_sync(user_id: str, time_range: str = "all", run_id: str | N
         return {"status": "skipped", "detail": "run not queued"}
     try:
         return _download_missing_likes(user_id, time_range, reporter)
+    except folders.FoldersNotReady as blocking:
+        # Downloads are blocked until a folder is set (ADR-0008): the run ends, with the code of the missing folder.
+        logger.warning("Library download sync for %s not started: %s", user_id, blocking.error_code)
+        reporter.finish(
+            job_store.STATUS_FAILED, error_code=blocking.error_code, error_message=blocking.message,
+            error_detail=blocking.detail or None,
+        )
+        return {"status": "error", "error_code": blocking.error_code, "detail": blocking.message}
     except Exception as exc:  # noqa: BLE001 — the run must end, whatever happened
         logger.exception("Library download sync failed for %s", user_id)
         reporter.finish(job_store.STATUS_FAILED, error_code=library_jobs.JOB_FAILED, error_detail=str(exc))
@@ -934,6 +954,9 @@ def _download_missing_likes(user_id: str, time_range: str, reporter) -> dict:
         if not user:
             reporter.finish(job_store.STATUS_FAILED, error_code=library_jobs.ACCOUNT_REQUIRED)
             return {"status": "error", "detail": "user not found"}
+
+        # Before looking at a single like: nothing can be queued while a folder is not set.
+        folders.require_ready(session, get_config(), registry)
 
         # Un like già collegato a una traccia della libreria non manca.
         query = select(UserSavedTrack).where(

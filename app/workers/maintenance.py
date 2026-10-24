@@ -39,7 +39,7 @@ from services.delegation import poll_for_requested_track
 from services.enrichment import check_sync_availability
 from services.progress import publish_download_progress
 from services.stream import resolve_sync_id
-from services import held_uploads, library_reconcile, playlist_downloads, update_check
+from services import folders, held_uploads, library_reconcile, playlist_downloads, update_check
 from services.workspace import open_workspace, remove_stale_workspaces
 
 from .celery_app import celery, get_config, get_registry
@@ -74,6 +74,12 @@ def verify_full_sync(sync_name: str | None = None) -> dict:
         return {"status": "error", "detail": f"sync provider '{sync_name}' non trovato"}
     if storage is None:
         return {"status": "error", "detail": "storage provider non trovato"}
+
+    # The probe writes through the storage provider, from the working folder (ADR-0008): refused while a folder is not set.
+    with Session(engine) as session:
+        blocking = folders.blocked(session, config, registry)
+    if blocking is not None:
+        return {"status": "error", "error_code": blocking.error_code, "detail": blocking.message}
 
     with Session(engine) as session:
         store = shared_store(session)
@@ -833,9 +839,14 @@ def sweep_workspaces() -> dict:
     file in attesa di upload da più di ``held_upload_max_age_hours``
     (services/held_uploads.py)."""
     config = get_config()
+    try:
+        workspace_dir = config.workspace_dir
+    except folders.FoldersNotReady as blocking:
+        # No working folder, nothing to sweep.
+        return {"status": "ok", "removed": 0, "held_removed": 0, "skipped": blocking.error_code}
     max_age = max(2 * config.download_hard_time_limit_seconds, _WORKSPACE_MIN_AGE_SECONDS)
-    removed = remove_stale_workspaces(config.workspace_dir, max_age)
-    held = held_uploads.remove_stale(config.workspace_dir, config.held_upload_max_age_hours * 3600)
+    removed = remove_stale_workspaces(workspace_dir, max_age)
+    held = held_uploads.remove_stale(workspace_dir, config.held_upload_max_age_hours * 3600)
     return {"status": "ok", "removed": removed, "held_removed": held}
 
 
