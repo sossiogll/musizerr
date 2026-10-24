@@ -220,12 +220,7 @@ jobs:
             section feature "Features"
             section fix "Fixes"
             section chore "Other changes"
-            if [ "$(jq .contract_migrations "$notes/migrations.json")" = true ]; then
-              echo "## Database"
-              echo
-              echo "This release has **contract migrations** ($(jq -r '.contract | join(", ")' "$notes/migrations.json")). The previous release cannot run on the result: init takes a backup first (\`/data/backups\`), and going back means restoring it ([docs/migrations.md](https://github.com/$GITHUB_REPOSITORY/blob/v$VERSION/docs/migrations.md))."
-              echo
-            fi
+            scripts/release-database-notes.sh "$notes/migrations.json" "$GITHUB_REPOSITORY" "$VERSION"
             echo "## Images"
             echo
             for image in musizerr musizerr-frontend musizerr-gateway; do
@@ -241,11 +236,7 @@ jobs:
           # What an instance's update check reads (ADR-0007 §5.1): the migrations of the release by phase
           # (app/scripts/migration_phases.py) and the oldest version it upgrades from (core/schema_guard.py).
           manual=$([ -s "$notes/upgrade.md" ] && echo true || echo false)
-          jq -n --arg version "$VERSION" --argjson contract "$contract" --argjson images "$images" --argjson manual "$manual" \
-            --slurpfile migrations "$notes/migrations.json" \
-            '{version: $version, provider_contracts: [$contract], images: $images, manual_steps: $manual,
-              contract_migrations: $migrations[0].contract_migrations, min_upgrade_from: $migrations[0].min_upgrade_from}' \
-            > "$RUNNER_TEMP/release.json"
+          scripts/release-json.sh "$VERSION" "$contract" "$images" "$manual" "$notes/migrations.json" > "$RUNNER_TEMP/release.json"
           cat "$RUNNER_TEMP/release.json"
           # The compose file and the seccomp profile it reads from the host, side by side (a profile cannot come from an image).
           scripts/package-release-assets.sh "$RUNNER_TEMP/assets"
