@@ -169,10 +169,13 @@ jobs:
           docker compose -f docker-compose.dev.yml config -q
       - name: an environment that still has the old names is refused, and the message names the new ones
         run: |
-          printf 'POSTGRES_PASSWORD=ci\nAUTH_SECRET=old\nCREDENTIALS_KEY=old\n' > "$RUNNER_TEMP/old.env"
-          out=$(env -u MUSIZEER_AUTH_SECRET -u MUSIZEER_CREDENTIALS_KEY docker compose --env-file "$RUNNER_TEMP/old.env" -f docker-compose.yaml config 2>&1 || true)
-          echo "$out" | grep -q 'set MUSIZEER_AUTH_SECRET in .env (it was AUTH_SECRET)'
-          echo "$out" | grep -q 'set MUSIZEER_CREDENTIALS_KEY in .env (it was CREDENTIALS_KEY'
+          # One variable missing at a time: a compose that reports only its first error still names this one.
+          out=$(env -u MUSIZEER_AUTH_SECRET AUTH_SECRET=old docker compose -f docker-compose.yaml config 2>&1 || true)
+          printf '%s\n' "$out" > "$RUNNER_TEMP/auth.txt"
+          grep -q 'set MUSIZEER_AUTH_SECRET in .env (it was AUTH_SECRET)' "$RUNNER_TEMP/auth.txt"
+          out=$(env -u MUSIZEER_CREDENTIALS_KEY CREDENTIALS_KEY=old docker compose -f docker-compose.yaml config 2>&1 || true)
+          printf '%s\n' "$out" > "$RUNNER_TEMP/key.txt"
+          grep -q 'set MUSIZEER_CREDENTIALS_KEY in .env (it was CREDENTIALS_KEY' "$RUNNER_TEMP/key.txt"
       - name: the gateway is never privileged and is not left to AppArmor's default, in any compose file
         run: |
           for file in docker-compose.yaml docker-compose.dev.yml; do
