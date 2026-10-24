@@ -54,7 +54,10 @@ export function findProviderByName(data: ProvidersResponse | undefined, name: st
 
 /** Nomi provider in ordine: quelli già in `order` (nel loro ordine, filtrati
  * a quelli tuttora installati), poi quelli non ancora presenti (installati
- * ma mai riordinati), nell'ordine restituito da GET /providers. */
+ * ma mai riordinati), nell'ordine restituito da GET /providers.
+ * Il server restituisce già l'ordine EFFETTIVO (completo, mai vuoto con
+ * provider installati): qui resta solo come rete di sicurezza per un provider
+ * comparso fra la lettura dei valori e quella dei provider. */
 export function mergeProviderOrder(order: string[] | undefined, providers: ProviderInfo[]): string[] {
   const known = new Set(providers.map((p) => p.name));
   const kept = (order ?? []).filter((name) => known.has(name));

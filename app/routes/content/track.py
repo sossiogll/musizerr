@@ -7,7 +7,7 @@ from musizerr_sdk.auth import AuthSession
 from musizerr_sdk.identifiers import Identifier
 from core.provider_failures import ProviderFailures
 from core.serialization import serialize_item, serialize_lyrics, serialize_track
-from routes.deps import AuthManagerDep, ConfigDep, DownloaderDep, RegistryDep, SessionDep, ViewerDep
+from routes.deps import AuthManagerDep, ConfigDep, DownloaderDep, MetadataPriorityDep, RegistryDep, SessionDep, ViewerDep
 from services.download_requests import request_download, track_spec
 from services.enrichment import cross_enrich_track, enrich_tracks_with_stream_url
 from services.errors import provider_errors
@@ -119,6 +119,7 @@ def get_related_tracks(
     db_session: SessionDep,
     config: ConfigDep,
     viewer: ViewerDep,
+    priority: MetadataPriorityDep,
     limit: int = Query(20, ge=1, le=50),
 ):
     """Varianti correlate della traccia da tutti i provider di metadati, in
@@ -126,18 +127,21 @@ def get_related_tracks(
     failures = ProviderFailures()
     track, budget = _enriched_track(provider, id, registry, auth_manager, config, failures)
     items = [serialize_track(t) for t in related_tracks(
-        track, registry, auth_manager, config.metadata_provider_priority, limit, failures=failures, budget=budget,
+        track, registry, auth_manager, priority, limit, failures=failures, budget=budget,
     )]
     annotate_tracks(items, db_session, viewer, registry)
     return {"items": items, "provider_errors": provider_errors(failures)}
 
 
 @router.get("/track/{provider}/{id}/appears-on")
-def get_appears_on(provider: str, id: str, registry: RegistryDep, auth_manager: AuthManagerDep, config: ConfigDep):
+def get_appears_on(
+    provider: str, id: str, registry: RegistryDep, auth_manager: AuthManagerDep, config: ConfigDep,
+    priority: MetadataPriorityDep,
+):
     """Le uscite che contengono la stessa registrazione (stesso ISRC o MBID)."""
     failures = ProviderFailures()
     track, budget = _enriched_track(provider, id, registry, auth_manager, config, failures)
-    items = appears_on(track, registry, auth_manager, config.metadata_provider_priority, failures=failures, budget=budget)
+    items = appears_on(track, registry, auth_manager, priority, failures=failures, budget=budget)
     return {"items": items, "provider_errors": provider_errors(failures)}
 
 

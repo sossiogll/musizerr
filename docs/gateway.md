@@ -76,7 +76,7 @@ and declares. The first-party ones are in their own repositories (the public one
 ## The sandbox
 
 ```
-prlimit --as=… --nofile=… --nproc=… --core=0 --
+prlimit --as=… --nofile=… --core=0 --
 bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-session --clearenv
       --uid 10001 --gid 10001 --cap-drop ALL
       --ro-bind <image rootfs> /  --proc /proc  --dev /dev  --size … --tmpfs /tmp
@@ -92,10 +92,16 @@ bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-sess
   "try"). No capability, `no_new_privs`, a non-root uid, a new session, and the process dies with the gateway.
 - The environment is empty except `PATH`, `HOME=/tmp`, `LANG`/`TZ` and certificate variables from the image,
   and the proxy variables. Nothing of the gateway's environment.
-- Limits (`prlimit`): address space, open files and processes from the manifest, capped at the gateway's
-  ceilings (`GATEWAY_MAX_MEMORY_MB`, `GATEWAY_MAX_OPEN_FILES`, `GATEWAY_MAX_PROCESSES`); defaults when the
-  manifest asks for nothing. `RLIMIT_NPROC` counts processes of the whole uid, which all sandboxes and the
-  gateway share: the process ceiling is a ceiling for the lot, not a quota for each.
+- `MALLOC_ARENA_MAX=2`, the same for every provider, unless the image declares its own. glibc gives each thread that
+  allocates a malloc arena of its own (up to 8 per CPU) and reserves **64 MB of address space** for each; the sandbox's address
+  space is limited (`limits.memory_mb`, 1024 MB by default), so a runner, which serves one thread per concurrent call, ran out
+  of it at 14-18 threads (`can't start new thread`) with next to no memory in use. With two arenas the same sandbox
+  starts about 113 threads at the default 8 MB stacks (measured by `scripts/test-gateway-tasks-integration.sh`). The arenas are
+  address space, not memory: the limit on real memory is not raised.
+- Limits: address space and open files (`prlimit`, limits of each process) and processes and threads (counted
+  by the gateway, [below](#processes-and-threads)) from the manifest, capped at the gateway's ceilings
+  (`GATEWAY_MAX_MEMORY_MB`, `GATEWAY_MAX_OPEN_FILES`, `GATEWAY_MAX_PROCESSES`); defaults when the manifest asks for
+  nothing (1024 MB, 1024 files, 512 tasks). **No `RLIMIT_NPROC` is set**, see below.
 - A provider that declares `filesystem_from_settings` gets the folders its settings name, when the gateway
   grants them ([below](#folders-named-by-settings)); until then it runs without them.
 - **Inner seccomp filter** (`sandbox_filter.py`): the gateway container needs `unshare`, `clone` with
@@ -111,6 +117,52 @@ bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-sess
   `sandbox unavailable: <reason>` (with a hint on what to change when the reason is a known one, see
   [Troubleshooting](#troubleshooting)), and the sandbox is checked again every 30 s. There is no unconfined
   fallback.
+
+### Processes and threads
+
+`limits.processes` of a manifest (default 512, at most `GATEWAY_MAX_PROCESSES`, 1024) is **the number of tasks, processes and
+threads together, that the whole sandbox of a provider may hold**. Two things enforce it:
+
+- **The gateway counts.** Every 2 seconds it adds up the threads of each sandbox's process tree (`/proc`, `tasks.py`). A
+  provider above its limit in two samples in a row (one sample over is a burst) is stopped and started again with the usual
+  pause; `ctl list` says `process/thread limit reached: the sandbox held N processes and threads, over its limit of M`
+  (`reason`) and the log has the same, with the numbers of the container. It is sampling: it catches a provider that leaks or
+  runs away, not a burst between two samples.
+- **The container's pids limit is the hard cap.** `pids_limit` of the gateway service (`GATEWAY_PIDS_LIMIT`, default 4096) is the
+  cgroup `pids` controller: it counts the tasks of THIS container only, the gateway and every sandbox in it, and nothing else
+  on the host. A fork bomb ends there and never reaches the host's process table. The gateway logs the limit at start (a
+  warning when there is none) and shows it in `ctl list` and `ctl health` (`container`: `pids`, `pids_limit`). The limit is
+  shared by the whole container: while a provider's burst holds every task of it, the gateway cannot start the thread that
+  answers its control socket either (the host sees the gateway as unreachable) until the burst ends or the count above stops
+  the provider. That is why the default is far above what the sandboxes hold at rest (a few tasks each) and a provider is
+  stopped at its own limit long before the container's.
+
+**Why there is no `RLIMIT_NPROC`.** It looks like the obvious tool (`--nproc` was set on every sandbox up to 1.2.0) and is the wrong one:
+the kernel does not check it against the process or its sandbox but against the number of tasks of the same **real uid in
+the whole machine**, in every container and outside them. The gateway runs as uid 1000, and on a typical host that is the main
+account, which owns the tasks of other containers (a media server, a Node service, Celery...). On a server with 481 of them
+already, `--nproc=512` left 31 tasks for every provider in the world: a runner holding two threads got `RuntimeError: can't
+start new thread` when two requests came together, and the host saw `Connection reset by peer` from the provider. A uid of its
+own for the gateway (a dedicated `10001`, say) would fix the neighbours but not the meaning: all the sandboxes and the gateway
+share that uid, so the limit would be one cap for all of them (a provider that asks for 64 would fail as soon as the others held
+64) and every file a sandbox writes into the library would belong to a uid that your media server does not know (the sandbox's
+uid is mapped to the gateway's, see [Sockets, volumes and permissions](#sockets-volumes-and-permissions)). The pids
+controller and the gateway's own count give the per-sandbox and the per-container limits that `RLIMIT_NPROC` cannot, whatever
+uid the gateway has, so the uid stays what it was and nothing needs to change ownership.
+
+A provider that cannot create a thread says so (`RuntimeError: can't start new thread`, Go's `failed to create new OS
+thread`, `fork: retry: Resource temporarily unavailable`), and bubblewrap says `Resource temporarily unavailable` when it cannot
+even start. The gateway recognises both, once a minute at most writes to its log
+
+```
+tasks: process/thread limit reached (RLIMIT_NPROC / pids): the provider reported "RuntimeError: can't start new thread" (3 so far).
+EAGAIN: the kernel would not create a process or a thread. ... [container pids: 4096 of 4096 (pids_limit); RLIMIT_NPROC of the
+gateway: 32137, counted over every process of uid 1000 on the whole host; sandbox tasks: 61 of 64 (limits.processes)]
+```
+
+and counts it in the provider's `task_limit_hits` (`ctl list`). A bubblewrap `EAGAIN` becomes `sandbox unavailable: ... (hint: EAGAIN: ...)`
+with the same numbers. If `container pids` is at its limit, raise `GATEWAY_PIDS_LIMIT`; if it is far below it, something outside the
+gateway limits `RLIMIT_NPROC` for the uid (see the [troubleshooting table](#troubleshooting)).
 
 ### Egress
 
@@ -273,6 +325,7 @@ All of them go in `security_opt`, in every compose file that runs the gateway:
 ```yaml
 provider-gateway:
   user: "1000:1000"
+  pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}                 # the processes and threads of the whole container: see "Processes and threads"
   cap_drop: [ALL]
   security_opt:
     - seccomp=./gateway/seccomp/musizerr-gateway.json    # or musizerr-gateway.seccomp.json next to a release's compose file
@@ -309,6 +362,7 @@ for the errors below (`SANDBOX_HINTS` in `sandbox.py`) and checks again every 30
 | `Can't mount proc on /newroot/proc: Operation not permitted` | `EPERM` | The container's `/proc` is masked. | `systempaths=unconfined` in `security_opt`. |
 | `pivot_root: Operation not permitted`, `Can't mount tmpfs ...: Operation not permitted` | `EPERM` | The seccomp profile in use does not allow `mount`, `pivot_root`, `unshare`, `clone`, `umount2`. | The gateway's profile, not Docker's default (above). |
 | `bwrap: execvp ...: No such file or directory`, `bubblewrap is not installed` | | A gateway image that is not the published one. | Pull `musizerr-gateway`. |
+| `Creating new namespace failed: Resource temporarily unavailable`, `fork: Resource temporarily unavailable`; or, in a provider's output and the gateway's log, `process/thread limit reached (RLIMIT_NPROC / pids)` and `can't start new thread` | `EAGAIN` | The kernel would not create a process or a thread. The message carries the numbers: `container pids: N of M (pids_limit)` and `RLIMIT_NPROC of the gateway`. Not a permission problem: no AppArmor or seccomp change helps. | `N` close to `M`: raise `GATEWAY_PIDS_LIMIT` (and look at `tasks` of each provider in `ctl list`: a provider that leaks threads is stopped at its `limits.processes`). `N` far below `M`: an `RLIMIT_NPROC` is set on the gateway from outside (`ulimits: nproc` in a compose override, `default-ulimits` in `/etc/docker/daemon.json`, `LimitNPROC` of the Docker unit) and the kernel counts it over every process of the uid on the host; remove it, the pids limit does the job. |
 
 The same table, from the host's side: `EACCES` is a **Linux security module** (AppArmor, SELinux) saying no; `EPERM` is
 **seccomp** or a **sysctl**. On an SELinux host (Fedora, RHEL) the container may need `label=disable` in
@@ -324,8 +378,8 @@ out. `python -m musizerr_gateway.ctl [list|health|install|grant]` is a client (`
 
 | request | answer |
 |---|---|
-| `{"op": "list"}` | `epoch` (changes when the gateway restarts), `desired` (the identifier of the set the host last pushed, null before the first push), `generation` (changes when the set of running providers does), `workspace_root`, `sandbox` (`available`, `reason`), `rejected` (entries of the file that are unusable, with why), and per provider: `state` (`pulling`, `starting`, `running`, `restarting`, `refused`, `unavailable`, `failed`, `stopped`), `reason`, `restarts`, `socket` (relative to the run directory, when running), `declared` (name, roles, API version, permissions of its image), `egress` (`fixed`, wildcards included; `granted`; `tcp`, the hosts of `tcp_from_settings` with their ports; `refused`), `folders` (`granted`: path and mode of what is bound into the running process; `refused`: setting -> why its path is not) |
-| `{"op": "health"}` | `status`: `ok`, `degraded` (a provider is down) or `unavailable` (no sandbox can be made: nothing runs), the sandbox verdict and the state of each provider |
+| `{"op": "list"}` | `epoch` (changes when the gateway restarts), `desired` (the identifier of the set the host last pushed, null before the first push), `generation` (changes when the set of running providers does), `workspace_root`, `sandbox` (`available`, `reason`), `rejected` (entries of the file that are unusable, with why), and per provider: `state` (`pulling`, `starting`, `running`, `restarting`, `refused`, `unavailable`, `failed`, `stopped`), `reason`, `restarts`, `socket` (relative to the run directory, when running), `declared` (name, roles, API version, permissions of its image), `egress` (`fixed`, wildcards included; `granted`; `tcp`, the hosts of `tcp_from_settings` with their ports; `refused`), `folders` (`granted`: path and mode of what is bound into the running process; `refused`: setting -> why its path is not), `tasks` (the processes and threads of its sandbox: `current`, `peak`, `limit` = its `limits.processes`) and `task_limit_hits` (`count` and `last` words of the times it reported that the kernel would not create a thread); and `container` (the gateway container's `pids` and `pids_limit`, null when there is none or it cannot be read) |
+| `{"op": "health"}` | `status`: `ok`, `degraded` (a provider is down) or `unavailable` (no sandbox can be made: nothing runs), the sandbox verdict, `container` (as in `list`) and the state of each provider |
 | `{"op": "egress", "provider", "targets": ["host:port"], "ttl", "tcp": {setting: [host]}, "paths": {setting: path}}` | the host's grant, see above: `granted` (destinations understood), `paths` (`granted`, `refused`), `restarted` (the process was restarted to change its mounts; the reply came after the new one ran) |
 | `{"op": "install", "providers": [...], "generation": "..."}` | the desired set, see above: `accepted` (names) and `rejected` (name: reason) |
 
@@ -351,6 +405,12 @@ out. `python -m musizerr_gateway.ctl [list|health|install|grant]` is a client (`
   by the transport: hard-linked (copied when it cannot be) into a folder of the second provider's tree for
   the duration of the call. A file outside the workspace tree is never staged.
 - `gateway_state` holds the layer cache, the unpacked images and the egress sockets (not shared).
+- **The gateway's uid is about files, not about limits.** The sandbox's uid (10001 inside) is mapped to the gateway's, so what a
+  provider writes into a granted library folder belongs to the gateway's uid (1000 by default) and to its group. That is why it
+  is the application's uid: the library, the sockets and the workspaces then share an owner, and a media server that reads the
+  library as uid 1000 sees the files as its own. Nothing about the number of processes depends on it (see
+  [Processes and threads](#processes-and-threads)): change `user:` only for the files' sake, and then `chown` the library, the
+  `gateway_state` and `provider_sockets` volumes to match.
 
 ## Operations
 
@@ -365,6 +425,8 @@ out. `python -m musizerr_gateway.ctl [list|health|install|grant]` is a client (`
   its labels, and refuses to push to ghcr.io or Docker Hub. Published images are pushed by other scripts
   ([catalog.md](catalog.md#publishing-to-ghcr)): for linux/amd64 and linux/arm64, pinned by the digest of their index.
 - Images that are no longer installed are not removed from the cache yet.
-- `scripts/test-gateway-integration.sh`, `scripts/test-sources-integration.sh` and
-  `scripts/test-provider-infra-integration.sh` (wildcards, raw TCP, folders from settings, and the dev catalog script) run the
-  whole thing for real (see their headers).
+- `scripts/test-gateway-integration.sh`, `scripts/test-sources-integration.sh`,
+  `scripts/test-provider-infra-integration.sh` (wildcards, raw TCP, folders from settings, and the dev catalog script) and
+  `scripts/test-gateway-tasks-integration.sh` (processes and threads: a second container holding 700 threads as the gateway's
+  uid, a provider stopped over its `limits.processes`, a container with a small pids limit) run the whole thing for real (see
+  their headers).

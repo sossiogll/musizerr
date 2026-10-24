@@ -27,7 +27,7 @@ from db.locks import xact_lock
 from db.models import Download, TrackIdentifierRecord, TrackRecord
 from db.track_store import find_or_create_track
 from services.track_identity import with_sync_aliases
-from services import favorites
+from services import favorites, provider_order
 from services.stored_tracks import public_track_dict
 from services.track_state import file_state_of, sync_id_types
 from workers.celery_app import celery
@@ -229,13 +229,14 @@ def download_album(
     accetta (``DownloadDelegated``): altrimenti un provider a priorità più
     bassa vincerebbe sempre il download d'album, perché ``dispatch_album`` è
     una presa a tutto-o-niente — il risolutore per traccia rispetta già
-    ``download_provider_order`` e ripiega per traccia sui provider capaci di
+    l'ordine dei provider di download (``services/provider_order``) e ripiega per traccia sui provider capaci di
     dispaccio. Se il dispaccio non c'è o non riesce, ogni traccia passa dalla
     porta (``enqueue_tracks``).
     """
+    download_order = provider_order.effective_download_order(registry, config, session)
     download_providers = sorted(
         registry.all_download(),
-        key=lambda p: provider_sort_key(p.name, config.download_provider_order),
+        key=lambda p: provider_sort_key(p.name, download_order),
     )
     if download_providers:
         top = download_providers[0]

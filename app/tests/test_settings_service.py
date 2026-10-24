@@ -122,8 +122,10 @@ def test_ordinary_user_values_omit_system_scoped_settings(service, session):
     assert "track_format" not in values
     assert "delegation_webhook_token" not in values
     # metadata_provider_priority è system_with_user_override: sempre leggibile,
-    # anche senza un override personale ancora impostato (default = []).
-    assert values["metadata_provider_priority"] == []
+    # anche senza un override personale ancora impostato. Il valore è l'ordine
+    # EFFETTIVO (services/provider_order): mai la lista grezza, vuota di default,
+    # ma tutti i provider di metadati registrati.
+    assert values["metadata_provider_priority"] == ["fakeprovider"]
 
 
 def test_admin_values_include_system_scoped_settings(service, session):
@@ -344,20 +346,25 @@ def test_non_admin_write_of_overridable_key_sets_personal_override_only(service,
     assert SettingsRepository(session).get_user("metadata_provider_priority", user.id) == ["x", "y"]
 
 
-def test_two_users_overrides_are_independent_and_admin_default_is_the_fallback(service, session, config):
+def test_two_users_overrides_are_independent_and_admin_default_is_the_fallback(session, config):
+    registry = FakeRegistry(
+        metadata=[_FakeConfigurableProvider("one"), _FakeConfigurableProvider("two"), _FakeConfigurableProvider("three")],
+    )
+    service = SettingsService(session, config, registry)
     admin = _make_user(session, role="admin")
     user_a = _make_user(session, role="user")
     user_b = _make_user(session, role="user")
 
-    service.write_values({"metadata_provider_priority": ["global"]}, admin)
-    service.write_values({"metadata_provider_priority": ["a-only"]}, user_a)
+    service.write_values({"metadata_provider_priority": ["three"]}, admin)
+    service.write_values({"metadata_provider_priority": ["two"]}, user_a)
 
     values_a = service.effective_values(user_a, include_providers=False)
     values_b = service.effective_values(user_b, include_providers=False)
 
-    assert values_a["metadata_provider_priority"] == ["a-only"]
+    # Each order is completed with the providers it does not name.
+    assert values_a["metadata_provider_priority"] == ["two", "one", "three"]
     # user_b non ha un override personale: eredita il default globale appena scritto dall'admin.
-    assert values_b["metadata_provider_priority"] == ["global"]
+    assert values_b["metadata_provider_priority"] == ["three", "one", "two"]
 
 
 # ---------------------------------------------------------------------------
@@ -484,7 +491,7 @@ def test_synthetic_user_reads_back_only_what_it_chose(service, session):
 
     assert values["theme"] == "dark"
     assert "language" not in values  # never chosen: omitted, not substituted
-    assert values["metadata_provider_priority"] == []
+    assert values["metadata_provider_priority"] == ["fakeprovider"]  # the effective order
 
 
 def test_synthetic_user_does_not_see_another_users_choice(service, session):

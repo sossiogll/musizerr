@@ -639,7 +639,10 @@ CATALOG: tuple[SettingDef, ...] = (
     # "provider_ref" — è un ordine, non una singola selezione) ma è la stessa
     # informazione dichiarativa di cui la UI ha bisogno per sapere QUALE
     # categoria di GET /providers questo ordine riguarda, così il frontend
-    # non tiene una propria mappa chiave->categoria.
+    # non tiene una propria mappa chiave->categoria. Dichiarare la categoria
+    # fa anche di questa lista un ORDINE di provider (`provider_order_settings`):
+    # il valore salvato è una preferenza, chi legge usa l'ordine effettivo di
+    # `services/provider_order.py`.
     _entry("download_provider_order", "list", [], GROUP_PROVIDER_SELECTION,
            "Ordine download provider", "Ordine di tentativo dei provider di download.",
            provider_category="download"),
@@ -896,6 +899,14 @@ _BY_KEY: dict[str, SettingDef] = {s.key: s for s in CATALOG}
 
 def get_def(key: str) -> SettingDef | None:
     return _BY_KEY.get(key)
+
+
+def provider_order_settings() -> tuple[SettingDef, ...]:
+    """The settings that ORDER the providers of a category: every ``list`` that declares a
+    ``provider_category``. Their stored value is a preference (empty, partial or out of date);
+    what readers use is the effective order (``services/provider_order.py``). Driven by the
+    declaration, never by a key name."""
+    return tuple(s for s in CATALOG if s.type == "list" and s.provider_category)
 
 
 def catalog_defaults() -> dict[str, Any]:

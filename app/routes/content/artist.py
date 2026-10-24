@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from core.discography import OWN_RELEASE_TYPES, RELEASES_LISTING_LIMIT, group_releases
 from core.provider_failures import ProviderFailures
 from core.serialization import serialize_item, serialize_release_group, serialize_track
-from routes.deps import AuthManagerDep, ConfigDep, DownloaderDep, RegistryDep, SessionDep, ViewerDep
+from routes.deps import AuthManagerDep, ConfigDep, DownloaderDep, MetadataPriorityDep, RegistryDep, SessionDep, ViewerDep
 from routes._pagination import paginated_response
 from services.discography import DiscographyError, gather_discography, not_supported
 from services.download_requests import artist_spec, request_download
@@ -51,6 +51,7 @@ def get_artist_albums(
     db_session: SessionDep,
     config: ConfigDep,
     viewer: ViewerDep,
+    priority: MetadataPriorityDep,
     page: int = Query(1, ge=1),
     limit: int | None = Query(None, ge=1, le=200),
 ):
@@ -72,7 +73,7 @@ def get_artist_albums(
     cross_enrich_artist_albums(artist.name, provider, albums, registry, auth_manager, failures=failures,
                                budget=enrichment_budget(config, failures))
     logger.info("get_artist_albums %s/%s → %d albums", provider, id, len(albums))
-    groups = group_releases(albums, config.metadata_provider_priority)
+    groups = group_releases(albums, priority)
     coverages = release_coverage(groups, db_session, registry)
     start = (page - 1) * limit if limit else 0
     end = start + limit if limit else len(groups)
@@ -100,6 +101,7 @@ def get_artist_top_tracks(
     db_session: SessionDep,
     config: ConfigDep,
     viewer: ViewerDep,
+    priority: MetadataPriorityDep,
     limit: int = Query(10, ge=1, le=50),
 ):
     """Tracce più popolari dell'artista (vedi services/top_tracks.py), con lo
@@ -117,7 +119,7 @@ def get_artist_top_tracks(
     if not artist:
         raise HTTPException(status_code=404, detail="Artist not found")
 
-    result = artist_top_tracks(artist, p, registry, auth_manager, config.metadata_provider_priority, limit)
+    result = artist_top_tracks(artist, p, registry, auth_manager, priority, limit)
     items = [serialize_track(t) for t in result.tracks]
     # Una riga di un provider che negli elenchi omette l'ISRC (es. il ripiego
     # su un secondo provider) non si riconoscerebbe in libreria: la si
@@ -142,6 +144,7 @@ def download_artist(
     session: SessionDep,
     config: ConfigDep,
     user: DownloaderDep,
+    priority: MetadataPriorityDep,
     response: Response,
 ):
     """
@@ -165,7 +168,7 @@ def download_artist(
         raise HTTPException(status_code=404, detail="Artist not found")
     try:
         discography = gather_discography(
-            artist, p, auth_session, priority=config.metadata_provider_priority,
+            artist, p, auth_session, priority=priority,
             release_types=body.release_types or OWN_RELEASE_TYPES,
         )
     except DiscographyError as exc:

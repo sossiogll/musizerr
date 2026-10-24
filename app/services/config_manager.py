@@ -119,14 +119,6 @@ class ConfigManager:
         return int(self.get("provider_cooldown_seconds"))
 
     @property
-    def metadata_provider_priority(self) -> list[str]:
-        return self.get("metadata_provider_priority")
-
-    @property
-    def download_provider_order(self) -> list[str]:
-        return self.get("download_provider_order")
-
-    @property
     def track_format(self) -> str:
         return self.get("track_format")
 

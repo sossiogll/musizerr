@@ -76,7 +76,7 @@ from db.models import (  # noqa: E402
 from db.engine import atomic_session  # noqa: E402
 from db.library_store import library_clause  # noqa: E402
 from db.track_store import find_or_create_track, stored_track_data, track_from_record  # noqa: E402
-from services import favorites  # noqa: E402
+from services import favorites, provider_order  # noqa: E402
 from services.auth import auth_manager_for  # noqa: E402
 from services.config_manager import get_config  # noqa: E402
 from services.credentials import shared_store  # noqa: E402
@@ -609,7 +609,7 @@ def main() -> None:
 
         report["bitrates_fixed"] = fix_bitrates(session)
         report["duplicate_groups"] = fix_duplicate_groups(session, config.dedup_prefer_lossless)
-        lookup = Lookup(registry, auth, live_items, sync_names, list(config.metadata_provider_priority or []))
+        lookup = Lookup(registry, auth, live_items, sync_names, provider_order.effective_metadata_priority(registry, config, session))
         report["wrong_merges"] = split_wrong_merges(session, lookup, registry)
         report["wrong_merges"]["provider_lookup_errors"] = lookup.errors
         report["wrong_merges"]["provider_lookup_error_kinds"] = dict(lookup.error_kinds)

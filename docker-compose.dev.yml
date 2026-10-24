@@ -166,6 +166,10 @@ services:
   # uid 1000 is the application's user: the sockets and the workspace folders
   # they share need no widening of permissions.
   #
+  # pids_limit caps the processes and threads of the whole container (the cgroup pids controller),
+  # which is what bounds a runaway provider; the gateway sets no RLIMIT_NPROC on a sandbox, because
+  # the kernel counts that over every process of the same uid on the whole host (docs/gateway.md).
+  #
   # Which providers it runs: what the host pushes to it from its database (docs/gateway.md); it
   # runs nothing until it is told.
   # ------------------------------------------------------------------
@@ -176,6 +180,7 @@ services:
       target: development
     user: "1000:1000"
     restart: unless-stopped
+    pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}
     cap_drop: [ALL]
     security_opt:
       - seccomp=./gateway/seccomp/musizerr-gateway.json

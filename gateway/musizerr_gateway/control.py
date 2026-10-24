@@ -12,6 +12,9 @@ host's containers share the volume) can open. The operations:
     directory it hands the sandboxes subtrees of, whether a sandbox can be made, and each
     installed provider with its state, the manifest its image declares, the path of its
     socket (relative to the run directory) and its egress (fixed, granted, refused).
+    Also the gateway container's pids against its limit (`container`: `pids`, `pids_limit`, null when none is set), and per
+    provider the tasks (processes and threads) of its sandbox against `limits.processes` (`tasks`: `current`,
+    `peak`, `limit`) and how often it reported that the kernel would not create a thread (`task_limit_hits`).
 ``{"op": "health"}``
     Just the verdict: ``ok``, ``degraded`` (a provider is down) or ``unavailable`` (no
     sandbox can be made: nothing runs), with the reason.
@@ -47,6 +50,7 @@ from musizerr_sdk.permissions import to_json
 from .config import GatewayConfig
 from .desired import DesiredError, parse_set
 from .supervisor import RUNNING, ManagedProvider, Supervisor
+from .tasks import read_pids_cgroup
 
 # The version of the gateway (ADR-0007 §2), written by the build from the release tag; "dev" otherwise.
 VERSION = os.environ.get("MUSIZERR_VERSION") or "dev"
@@ -87,7 +91,20 @@ def provider_view(managed: ManagedProvider, run_dir: Path) -> dict:
             "granted": [{"path": bind.dest, "mode": bind.mode} for bind in status.binds],
             "refused": dict(status.path_refusals),
         },
+        # The processes and threads of its sandbox against limits.processes (counted by the gateway), and the
+        # times it reported that the kernel would not create one. Both after "state": see the note on "folders".
+        "tasks": None if status.tasks is None else {
+            "current": status.tasks.current, "peak": status.tasks.peak, "limit": status.tasks.limit,
+        },
+        "task_limit_hits": {"count": status.task_failures, "last": status.task_failure},
     }
+
+
+def container_view() -> dict | None:
+    """The pids of the gateway's container against its limit (``pids_limit``): ``limit`` is null when none is set,
+    and the whole object is null when the controller cannot be read."""
+    cgroup = read_pids_cgroup()
+    return None if cgroup is None else {"pids": cgroup.current, "pids_limit": cgroup.limit}
 
 
 class Control:
@@ -114,6 +131,7 @@ class Control:
                 "generation": supervisor.generation,
                 "workspace_root": str(self._config.workspace_dir),
                 "sandbox": self.sandbox(),
+                "container": container_view(),
                 "rejected": supervisor.rejected,
                 "providers": [provider_view(m, self._config.run_dir) for m in supervisor.providers()],
             }
@@ -125,7 +143,7 @@ class Control:
                 status = "degraded"
             else:
                 status = "ok"
-            reply = {"ok": True, "status": status, "version": VERSION, "sandbox": self.sandbox(), "providers": providers}
+            reply = {"ok": True, "status": status, "version": VERSION, "sandbox": self.sandbox(), "container": container_view(), "providers": providers}
             if status == "unavailable":
                 reply["detail"] = f"sandbox unavailable: {supervisor.health.reason}"
             return reply

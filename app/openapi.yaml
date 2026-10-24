@@ -714,13 +714,16 @@ components:
         metadata_priority:
           type: array
           description: >
-            The viewer's metadata priority: their own when signed in and set,
-            otherwise the system one. Only installed providers.
+            The viewer's EFFECTIVE metadata order, the one every route uses: the
+            stored list (their own when signed in and set, otherwise the system
+            default) restricted to the metadata providers that are running,
+            then every other one oldest installation first. Every running
+            metadata provider appears exactly once; never empty while one runs.
           items:
             type: string
         metadata:
           type: array
-          description: Every metadata provider, in the viewer's priority order (the unprioritised last).
+          description: The same list as metadata_priority (kept for existing clients).
           items:
             type: string
         metadata_capabilities:
@@ -4260,7 +4263,7 @@ paths:
       description: >
         Editions of the same release (deluxe, remaster, regional, the same
         album from another provider) are one entry with an editions list; the
-        representative follows metadata_provider_priority. The same release
+        representative follows the viewer's metadata provider order (see /providers/public). The same release
         dated differently by two providers (typically a digital reissue carrying
         its upload date) is one entry too, when each provider lists only one
         release with that title, artist and type and the known track counts
@@ -5901,7 +5904,7 @@ paths:
         First the variants of the same track (find_related_tracks: other
         versions and releases), then similar tracks (find_similar_tracks: artist
         radio, recommendations), each group from every metadata provider in
-        metadata_provider_priority order. Deduplicated with the core track
+        metadata provider order (see /providers/public). Deduplicated with the core track
         matcher, without the track itself (a similar track matching it is left
         out too), annotated with download status. A failing provider is skipped.
         Empty when no configured provider offers either: clients hide the section.
@@ -5968,7 +5971,7 @@ paths:
       summary: The artist's most popular tracks
       description: >
         From the requested provider first and, while tracks are missing, from the
-        other metadata providers in metadata_provider_priority order (the artist is
+        other metadata providers in the viewer's metadata provider order (the artist is
         found there through cross-enrichment). Deduplicated with the core track
         matcher and annotated with download status. A failing provider is skipped;
         if every provider queried fails, the answer is 200 with an empty list and
@@ -7235,6 +7238,15 @@ paths:
       operationId: getSettingsValues
       tags: [settings]
       summary: Effective value of every setting readable by the current user
+      description: >
+        The value of a setting that orders the providers of a category
+        (metadata_provider_priority, download_provider_order: every list setting
+        that declares a provider_category) is the effective order, never the raw
+        stored list, which can be empty or partial: every running provider of the
+        category exactly once, the stored names first and the others oldest
+        installation first. For metadata_provider_priority it is the same list as
+        metadata_priority of GET /providers/public. Saving it back stores the
+        full order.
       responses:
         "200":
           description: Key to value

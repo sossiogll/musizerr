@@ -1,7 +1,10 @@
 # ADR-0006: Distributing providers as OCI images on GHCR and running them in a sandbox
 
-**Status:** Proposed. Distribution on GHCR was decided by the maintainer on 2026-10-12;
-the rest awaits review.
+**Status:** Implemented (phases 1 to 6 below are done; the code was published on 2026-10-17).
+Distribution on GHCR was decided by the maintainer on 2026-10-12. The open question about provider
+instances (ADR-0002) is still open; the others were settled in the implementation (fail closed without a sandbox, `tcp_from_settings` for FTP, the
+external utility intake).
+*Status line updated on 2026-10-24 from "Proposed"; the maintainer confirms it in the pull request.*
 **Date:** 2026-10-12
 **Deciders:** @sossiogll (maintainer)
 **Supersedes:** the Harbor decision of August 2026 (never recorded as an ADR)
