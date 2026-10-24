@@ -89,7 +89,7 @@ A source may carry a token with read access to a private catalog and to its imag
 classic token with `read:packages` and `repo` read, and a raw URL such as
 `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/catalog.json`).
 
-- Stored in `provider_sources.credential`, **encrypted at rest** with `CREDENTIALS_KEY`, like the
+- Stored in `provider_sources.credential`, **encrypted at rest** with `MUSIZEER_CREDENTIALS_KEY`, like the
   provider credentials (`docs/credentials.md`; a token that cannot be read with the configured key is
   a source without one). Never returned by any route (`has_credential`), never logged, never in an
   error message.
@@ -172,7 +172,7 @@ push an image for several platforms), created when it is missing. `GHCR_NAMESPAC
 The repository lists no provider: the development catalog is generated, under `data/catalogs/` (gitignored, like the rest of
 `data/`), and the `registry` service of `docker-compose.dev.yml` serves that folder (`http://registry:9000/registry.json` is
 `data/catalogs/registry.json`). The images go to the `oci-registry` service, a local registry bound to the loopback
-(`127.0.0.1:${OCI_REGISTRY_PORT:-15000}`), so the source is added with `--insecure` ("allow insecure registry"): the gateway
+(`127.0.0.1:${MUSIZEER_DEV_OCI_REGISTRY_PORT:-15000}`), so the source is added with `--insecure` ("allow insecure registry"): the gateway
 reaches the registry as `oci-registry:5000` over plain HTTP.
 
 ```sh

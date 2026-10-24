@@ -100,7 +100,7 @@ bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-sess
   address space, not memory: the limit on real memory is not raised.
 - Limits: address space and open files (`prlimit`, limits of each process) and processes and threads (counted
   by the gateway, [below](#processes-and-threads)) from the manifest, capped at the gateway's ceilings
-  (`GATEWAY_MAX_MEMORY_MB`, `GATEWAY_MAX_OPEN_FILES`, `GATEWAY_MAX_PROCESSES`); defaults when the manifest asks for
+  (`MUSIZEER_GATEWAY_MAX_MEMORY_MB`, `MUSIZEER_GATEWAY_MAX_OPEN_FILES`, `MUSIZEER_GATEWAY_MAX_PROCESSES`); defaults when the manifest asks for
   nothing (1024 MB, 1024 files, 512 tasks). **No `RLIMIT_NPROC` is set**, see below.
 - A provider that declares `filesystem_from_settings` gets the folders its settings name, when the gateway
   grants them ([below](#folders-named-by-settings)); until then it runs without them.
@@ -120,7 +120,7 @@ bwrap --unshare-all --unshare-user --disable-userns --die-with-parent --new-sess
 
 ### Processes and threads
 
-`limits.processes` of a manifest (default 512, at most `GATEWAY_MAX_PROCESSES`, 1024) is **the number of tasks, processes and
+`limits.processes` of a manifest (default 512, at most `MUSIZEER_GATEWAY_MAX_PROCESSES`, 1024) is **the number of tasks, processes and
 threads together, that the whole sandbox of a provider may hold**. Two things enforce it:
 
 - **The gateway counts.** Every 2 seconds it adds up the threads of each sandbox's process tree (`/proc`, `tasks.py`). A
@@ -128,7 +128,7 @@ threads together, that the whole sandbox of a provider may hold**. Two things en
   pause; `ctl list` says `process/thread limit reached: the sandbox held N processes and threads, over its limit of M`
   (`reason`) and the log has the same, with the numbers of the container. It is sampling: it catches a provider that leaks or
   runs away, not a burst between two samples.
-- **The container's pids limit is the hard cap.** `pids_limit` of the gateway service (`GATEWAY_PIDS_LIMIT`, default 4096) is the
+- **The container's pids limit is the hard cap.** `pids_limit` of the gateway service (`MUSIZEER_GATEWAY_PIDS_LIMIT`, default 4096) is the
   cgroup `pids` controller: it counts the tasks of THIS container only, the gateway and every sandbox in it, and nothing else
   on the host. A fork bomb ends there and never reaches the host's process table. The gateway logs the limit at start (a
   warning when there is none) and shows it in `ctl list` and `ctl health` (`container`: `pids`, `pids_limit`). The limit is
@@ -161,7 +161,7 @@ gateway: 32137, counted over every process of uid 1000 on the whole host; sandbo
 ```
 
 and counts it in the provider's `task_limit_hits` (`ctl list`). A bubblewrap `EAGAIN` becomes `sandbox unavailable: ... (hint: EAGAIN: ...)`
-with the same numbers. If `container pids` is at its limit, raise `GATEWAY_PIDS_LIMIT`; if it is far below it, something outside the
+with the same numbers. If `container pids` is at its limit, raise `MUSIZEER_GATEWAY_PIDS_LIMIT`; if it is far below it, something outside the
 gateway limits `RLIMIT_NPROC` for the uid (see the [troubleshooting table](#troubleshooting)).
 
 ### Egress
@@ -267,9 +267,9 @@ the folder that setting holds, bound into its sandbox **at the same absolute pat
 declared. The host sends the CURRENT value with the grant (`paths`), and the gateway accepts it only if:
 
 - it is absolute and normalized (no `..`, `//` or trailing `/`) and is not `/`;
-- it lies inside one of the roots of **`GATEWAY_FILESYSTEM_ROOTS`** (`:`-separated; empty: no folder is ever
+- it lies inside one of the roots of **`MUSIZEER_GATEWAY_FILESYSTEM_ROOTS`** (`:`-separated; empty: no folder is ever
   granted; the compose files set `/downloads`, the library volume, unless `.env` says otherwise: several roots are
-  `GATEWAY_FILESYSTEM_ROOTS=/downloads:/library`, [deployment.md](deployment.md#folders)) **and so does what it resolves to**: a link inside the root
+  `MUSIZEER_GATEWAY_FILESYSTEM_ROOTS=/downloads:/library`, [deployment.md](deployment.md#folders)) **and so does what it resolves to**: a link inside the root
   that leads out of it is refused. A root that is `/`, relative, inside or holding the gateway's own state or run
   directory, or one of `/proc`, `/dev`, `/tmp`, `/run`, `/workspace` stops the gateway from starting;
 - it exists and is a directory, is not inside the workspace directory, and does not collide with what every sandbox
@@ -325,7 +325,7 @@ All of them go in `security_opt`, in every compose file that runs the gateway:
 ```yaml
 provider-gateway:
   user: "1000:1000"
-  pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}                 # the processes and threads of the whole container: see "Processes and threads"
+  pids_limit: ${MUSIZEER_GATEWAY_PIDS_LIMIT:-4096}                 # the processes and threads of the whole container: see "Processes and threads"
   cap_drop: [ALL]
   security_opt:
     - seccomp=./gateway/seccomp/musizeer-gateway.json    # or musizeer-gateway.seccomp.json next to a release's compose file
@@ -357,12 +357,12 @@ for the errors below (`SANDBOX_HINTS` in `sandbox.py`) and checks again every 30
 |---|---|---|---|
 | `Creating new namespace failed: Permission denied` | `EACCES` | AppArmor: Docker's `docker-default` profile denies the namespace calls. This is what a stock Debian or Ubuntu host shows. | `apparmor=unconfined` in the gateway's `security_opt` (not `privileged`). |
 | `setting up uid map: Permission denied` | `EACCES` | An AppArmor policy that restricts unprivileged user namespaces (`kernel.apparmor_restrict_unprivileged_userns=1`, Ubuntu 24.04+). | `apparmor=unconfined` for the container, or `sysctl kernel.apparmor_restrict_unprivileged_userns=0` on the host. |
-| `No permissions to create a new namespace` (older: `...to creating new namespace, likely because the kernel does not allow non-privileged user namespaces`) | `EPERM` | Docker's default seccomp profile is in use (the `seccomp=` file was not found or not given), or the kernel forbids unprivileged user namespaces. | The `seccomp=` option must name `musizeer-gateway.json` as a path that exists **on the Docker host** (`GATEWAY_SECCOMP_PROFILE`, [deployment.md](deployment.md#apparmor-and-seccomp)); on Debian `sysctl kernel.unprivileged_userns_clone=1`; check `sysctl user.max_user_namespaces` is not 0. |
+| `No permissions to create a new namespace` (older: `...to creating new namespace, likely because the kernel does not allow non-privileged user namespaces`) | `EPERM` | Docker's default seccomp profile is in use (the `seccomp=` file was not found or not given), or the kernel forbids unprivileged user namespaces. | The `seccomp=` option must name `musizeer-gateway.json` as a path that exists **on the Docker host** (`MUSIZEER_GATEWAY_SECCOMP_PROFILE`, [deployment.md](deployment.md#apparmor-and-seccomp)); on Debian `sysctl kernel.unprivileged_userns_clone=1`; check `sysctl user.max_user_namespaces` is not 0. |
 | `Creating new namespace failed, likely because the kernel does not support user namespaces` | `EINVAL` | The kernel has no user namespaces, or `user.max_user_namespaces` is 0. | `sysctl user.max_user_namespaces=15000` (persist it in `/etc/sysctl.d/`); a kernel built without `CONFIG_USER_NS` cannot run the gateway. |
 | `Can't mount proc on /newroot/proc: Operation not permitted` | `EPERM` | The container's `/proc` is masked. | `systempaths=unconfined` in `security_opt`. |
 | `pivot_root: Operation not permitted`, `Can't mount tmpfs ...: Operation not permitted` | `EPERM` | The seccomp profile in use does not allow `mount`, `pivot_root`, `unshare`, `clone`, `umount2`. | The gateway's profile, not Docker's default (above). |
 | `bwrap: execvp ...: No such file or directory`, `bubblewrap is not installed` | | A gateway image that is not the published one. | Pull `musizeer-gateway`. |
-| `Creating new namespace failed: Resource temporarily unavailable`, `fork: Resource temporarily unavailable`; or, in a provider's output and the gateway's log, `process/thread limit reached (RLIMIT_NPROC / pids)` and `can't start new thread` | `EAGAIN` | The kernel would not create a process or a thread. The message carries the numbers: `container pids: N of M (pids_limit)` and `RLIMIT_NPROC of the gateway`. Not a permission problem: no AppArmor or seccomp change helps. | `N` close to `M`: raise `GATEWAY_PIDS_LIMIT` (and look at `tasks` of each provider in `ctl list`: a provider that leaks threads is stopped at its `limits.processes`). `N` far below `M`: an `RLIMIT_NPROC` is set on the gateway from outside (`ulimits: nproc` in a compose override, `default-ulimits` in `/etc/docker/daemon.json`, `LimitNPROC` of the Docker unit) and the kernel counts it over every process of the uid on the host; remove it, the pids limit does the job. |
+| `Creating new namespace failed: Resource temporarily unavailable`, `fork: Resource temporarily unavailable`; or, in a provider's output and the gateway's log, `process/thread limit reached (RLIMIT_NPROC / pids)` and `can't start new thread` | `EAGAIN` | The kernel would not create a process or a thread. The message carries the numbers: `container pids: N of M (pids_limit)` and `RLIMIT_NPROC of the gateway`. Not a permission problem: no AppArmor or seccomp change helps. | `N` close to `M`: raise `MUSIZEER_GATEWAY_PIDS_LIMIT` (and look at `tasks` of each provider in `ctl list`: a provider that leaks threads is stopped at its `limits.processes`). `N` far below `M`: an `RLIMIT_NPROC` is set on the gateway from outside (`ulimits: nproc` in a compose override, `default-ulimits` in `/etc/docker/daemon.json`, `LimitNPROC` of the Docker unit) and the kernel counts it over every process of the uid on the host; remove it, the pids limit does the job. |
 
 The same table, from the host's side: `EACCES` is a **Linux security module** (AppArmor, SELinux) saying no; `EPERM` is
 **seccomp** or a **sysctl**. On an SELinux host (Fedora, RHEL) the container may need `label=disable` in
@@ -393,10 +393,10 @@ out. `python -m musizeer_gateway.ctl [list|health|install|grant]` is a client (`
   `/run/musizeer` owned by it, so the volume is initialised right whoever starts first). In development the app
   runs as root, which reaches the sockets anyway.
 - The workspace directory (`workspace_dir`, default `/downloads/.musizeer-work`) must be the same path in the
-  gateway (`GATEWAY_WORKSPACE_DIR`) and the host, and lie inside a volume all of them mount. Compose sets both from
-  ONE variable, `WORKSPACE_DIR` (in `.env`): the gateway gets it as `GATEWAY_WORKSPACE_DIR`, the host as the default of its
+  gateway (`MUSIZEER_GATEWAY_WORKSPACE_DIR`) and the host, and lie inside a volume all of them mount. Compose sets both from
+  ONE variable, `MUSIZEER_WORKSPACE_DIR` (in `.env`): the gateway gets it as `MUSIZEER_GATEWAY_WORKSPACE_DIR`, the host as the default of its
   `workspace_dir` setting. A value saved in the settings wins over that default, so changing the setting in the
-  interface without changing `WORKSPACE_DIR` desyncs them; the API compares its setting with the gateway's
+  interface without changing `MUSIZEER_WORKSPACE_DIR` desyncs them; the API compares its setting with the gateway's
   `workspace_root` every few seconds and logs an error (once per pair of values) when they differ. A call's workspace is
   `<workspace_dir>/<provider>/<random>`; the sandbox of `<provider>` sees `<workspace_dir>/<provider>` as
   `/workspace` and nothing else. The provider folder is 0711 (crossed, not listed), the call folder 0777: the

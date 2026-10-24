@@ -37,16 +37,16 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
 
    ```sh
    POSTGRES_PASSWORD=...        # openssl rand -hex 24
-   AUTH_SECRET=...              # openssl rand -hex 32
-   CREDENTIALS_KEY=...          # openssl rand -base64 32 | tr '+/' '-_'
-   ADMIN_BOOTSTRAP_EMAIL=you@example.com
-   ADMIN_BOOTSTRAP_PASSWORD=...
-   PUBLIC_URL=http://your-server:8080   # the address people type; OAuth callbacks and sign-in redirects use it
-   APP_PORT=8080
-   # MUSIZERR_VERSION=1.2.0     # optional: pin a release (the tags of the GitHub releases); default latest
+   MUSIZEER_AUTH_SECRET=...              # openssl rand -hex 32
+   MUSIZEER_CREDENTIALS_KEY=...          # openssl rand -base64 32 | tr '+/' '-_'
+   MUSIZEER_ADMIN_BOOTSTRAP_EMAIL=you@example.com
+   MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD=...
+   MUSIZEER_PUBLIC_URL=http://your-server:8080   # the address people type; OAuth callbacks and sign-in redirects use it
+   MUSIZEER_PORT=8080
+   # MUSIZEER_VERSION=1.2.0     # optional: pin a release (the tags of the GitHub releases); default latest
    ```
 
-   Keep `CREDENTIALS_KEY` with your database backups: without it the stored credentials cannot be read and every
+   Keep `MUSIZEER_CREDENTIALS_KEY` with your database backups: without it the stored credentials cannot be read and every
    account has to be connected again ([`docs/credentials.md`](docs/credentials.md)).
 
 2. Start it: Compose pulls the published images (`ghcr.io/sossiogll/musizeer`, `musizeer-gateway`, `musizeer-frontend`,
@@ -56,12 +56,12 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
    docker compose pull && docker compose up -d
    ```
 
-   The web app is on `APP_PORT` (default 80). The first start creates the admin from the bootstrap variables (only
+   The web app is on `MUSIZEER_PORT` (default 80). The first start creates the admin from the bootstrap variables (only
    while no account exists). A new install has authentication off: you are the one owner and there is nothing to
    sign in to. Turn it on in Administration › System; the admin account is what lets you sign in afterwards, and if
    you set no bootstrap variables the settings page asks you to create one at that moment (what you have in
    Musizeer by then becomes that account's, [`docs/permissions.md`](docs/permissions.md)). To update, pull
-   again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the database before the API and the workers
+   again (or raise `MUSIZEER_VERSION`) and `up -d`: the init container migrates the database before the API and the workers
    start. The gateway container is never `privileged`: it needs the seccomp profile, `apparmor=unconfined` and
    `systempaths=unconfined`, which the compose file already sets ([why](docs/deployment.md#apparmor-and-seccomp)).
 
