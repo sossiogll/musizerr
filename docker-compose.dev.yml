@@ -42,6 +42,9 @@ services:
       - ./data:/data
     environment:
       <<: [*database, *credentials]
+      DATA_DIR: /data
+      MIGRATION_BACKUP: ${MIGRATION_BACKUP:-on}
+      MIGRATION_BACKUPS_KEEP: ${MIGRATION_BACKUPS_KEEP:-5}
     depends_on:
       postgres:
         condition: service_healthy

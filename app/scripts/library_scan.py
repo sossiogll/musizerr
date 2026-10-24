@@ -25,10 +25,11 @@ from sqlmodel import Session
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from db.engine import engine, init_db
+from db.engine import engine
 from services.auth import auth_manager_for
 from services.config_manager import get_config
 from services.credentials import shared_store
+from services.database_init import init_db
 from services.library_scan import scan_library_once
 from services.log_redaction import install_log_redaction
 from services.provider_registry import ProviderRegistry

@@ -13,7 +13,7 @@ _ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
 
 from core import user_auth
 from db import credential_cipher
-from db.engine import init_db
+from services.database_init import SchemaError, require_current_schema
 from routes.deps import get_config, init_singletons
 from routes.errors import install_error_handlers
 from services import app_version
@@ -107,10 +107,16 @@ def _require_auth_secret() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Musizerr...")
-    # Before the database is touched: the migration that encrypts the stored credentials needs the
-    # key, and nothing may run on credentials it cannot read or write (docs/credentials.md).
+    # Before the database is touched: nothing may run on credentials it cannot read or write
+    # (docs/credentials.md).
     credential_cipher.require_credentials_key()
-    init_db()
+    # The API never migrates: `init` did (backup, migrations, schema_info). It refuses to start on a schema
+    # that is behind or that it cannot use, and says what to do (ADR-0007 §4, docs/migrations.md).
+    try:
+        require_current_schema()
+    except SchemaError as refused:
+        logger.critical("%s", refused)
+        raise
     init_singletons()
     _require_auth_secret()
     _ensure_system_user()

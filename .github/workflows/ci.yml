@@ -72,7 +72,8 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements*.txt
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      # postgresql-client: pg_dump and pg_restore, which the backup tests (test_database_guard, test_restore_backup) run against the service (16).
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg postgresql-client
       - run: pip install -q -r requirements-dev.txt -e sdk
       # One database per test makes this suite slow: four runners take a quarter of the test files each.
       - name: the shard's test files

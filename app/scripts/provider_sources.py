@@ -326,7 +326,8 @@ def main(
         print(f"error: credentials_key: {refused}", file=out)
         return 1
     if session_factory is None:
-        from db.engine import engine, init_db
+        from db.engine import engine
+        from services.database_init import init_db
 
         init_db()
         session_factory = lambda: Session(engine)  # noqa: E731

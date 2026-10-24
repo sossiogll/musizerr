@@ -146,9 +146,23 @@ def consumed_queues(sender) -> frozenset[str]:
         return frozenset()
 
 
+def _require_schema() -> None:
+    """A worker never migrates (``init`` did): it refuses to start on a schema that is behind or that its code
+    cannot use (ADR-0007 §4). A SystemExit, not an Exception: Celery logs what a signal handler raises and goes
+    on, and a worker that goes on against a schema it cannot use would fail every task."""
+    from services.database_init import SchemaError, require_current_schema
+
+    try:
+        require_current_schema()
+    except SchemaError as refused:
+        logger.critical("%s", refused)
+        raise SystemExit(1) from refused
+
+
 @worker_init.connect
 def _on_worker_init(sender=None, **kwargs) -> None:
     global _config, _consumed
+    _require_schema()
     logger.info("Initializing worker state...")
     _config = ConfigManager()
     _consumed = consumed_queues(sender)

@@ -59,7 +59,10 @@ services:
 
   # ------------------------------------------------------------------
   # Init container: applies the database migrations and exits. app, the workers and beat
-  # start only after it completed successfully. It does NOT scan the library any more: that
+  # start only after it completed successfully. Before it migrates anything it backs the
+  # database up into /data/backups (the last MIGRATION_BACKUPS_KEEP are kept; a failed backup
+  # stops the migration; MIGRATION_BACKUP=off for whoever backs up otherwise: docs/migrations.md).
+  # It does NOT scan the library any more: that
   # needs the providers, which the gateway starts only once the API has told it which are
   # installed, so the routine `import_existing_library` does it, once the storage provider
   # answers (docs/workers.md).
@@ -71,6 +74,8 @@ services:
     environment:
       <<: [*database, *credentials]
       DATA_DIR: /data
+      MIGRATION_BACKUP: ${MIGRATION_BACKUP:-on}
+      MIGRATION_BACKUPS_KEEP: ${MIGRATION_BACKUPS_KEEP:-5}
       REDIS_URL: redis://redis:6379/0
     volumes:
       - data:/data

@@ -4,9 +4,12 @@
 FROM python:3.12-slim AS base
 
 # ffmpeg/ffprobe: integrity check, quality probe and tag writing of the host (core/).
+# postgresql-client-17: pg_dump/pg_restore, the backup `init` takes before a migration (ADR-0007 §4); the
+# client must be of the server's major (the compose files run postgres:17) or pg_dump refuses.
 # Nothing a provider needs lives here: providers are separate images run by the gateway.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    postgresql-client-17 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -84,7 +84,7 @@ def _run_lifespan(monkeypatch, *, auth_enabled: bool, secret, ran: list[str] | N
     config = ConfigManager(engine=new_engine())
     config.update({"auth_enabled": auth_enabled})
     ran = [] if ran is None else ran
-    monkeypatch.setattr(main, "init_db", lambda: None)
+    monkeypatch.setattr(main, "require_current_schema", lambda: None)
     monkeypatch.setattr(main, "init_singletons", lambda: None)
     monkeypatch.setattr(main, "_ensure_system_user", lambda: ran.append("system user"))
     monkeypatch.setattr(main, "_bootstrap_admin", lambda: ran.append("admin bootstrap"))

@@ -25,7 +25,7 @@ import time
 
 os.environ.setdefault("DATA_DIR", "/tmp/data")
 
-from db.engine import init_db  # noqa: E402
+from services.database_init import init_db  # noqa: E402
 
 from musizerr_sdk.auth import AuthSession  # noqa: E402
 from musizerr_sdk.models import Track  # noqa: E402

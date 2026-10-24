@@ -18,15 +18,22 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from db.engine import init_db
+from services.database_init import SchemaError, init_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
-def main() -> None:
-    init_db()
-    logging.getLogger(__name__).info("Database migrations applied.")
+def main() -> int:
+    log = logging.getLogger(__name__)
+    try:
+        init_db()
+    except SchemaError as refused:
+        # The message says what to do. Exit status 1: the services behind `init` do not start.
+        log.error("%s", refused)
+        return 1
+    log.info("Database is ready.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

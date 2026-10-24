@@ -40,7 +40,7 @@ def _run_lifespan(monkeypatch, key, ran: list[str], *, auth_enabled: bool = Fals
     """Runs the application's lifespan; what it ran (in place, so a refusal still leaves the record)."""
     config = ConfigManager(engine=new_engine())
     config.update({"auth_enabled": auth_enabled})
-    monkeypatch.setattr(main, "init_db", lambda: ran.append("migrations"))
+    monkeypatch.setattr(main, "require_current_schema", lambda: ran.append("schema check"))
     monkeypatch.setattr(main, "init_singletons", lambda: ran.append("singletons"))
     monkeypatch.setattr(main, "_ensure_system_user", lambda: ran.append("system user"))
     monkeypatch.setattr(main, "_bootstrap_admin", lambda: ran.append("admin bootstrap"))
@@ -58,7 +58,7 @@ def test_the_application_does_not_start_without_a_usable_key_whatever_the_authen
     with pytest.raises(credential_cipher.CredentialsKeyError, match="CREDENTIALS_KEY"):
         _run_lifespan(monkeypatch, key, ran, auth_enabled=auth_enabled)
 
-    assert ran == [], "nothing ran: not the migrations (which would change the credentials), not the rest"
+    assert ran == [], "nothing ran: not the schema check, not the rest"
 
 
 @pytest.mark.parametrize("key", [KEY, OTHER_KEY])
@@ -67,7 +67,7 @@ def test_the_application_starts_with_a_usable_key_and_migrates_first(key, monkey
 
     _run_lifespan(monkeypatch, key, ran)
 
-    assert ran[:2] == ["migrations", "singletons"]
+    assert ran[:2] == ["schema check", "singletons"]
 
 
 def test_a_previous_key_does_not_replace_the_key(monkeypatch):
