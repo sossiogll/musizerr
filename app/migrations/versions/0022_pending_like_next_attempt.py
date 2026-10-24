@@ -23,6 +23,9 @@ down_revision: Union[str, None] = "0021_library_job_runs"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "expand"  # adds a nullable column and an index
+
 
 def upgrade() -> None:
     with op.batch_alter_table("pending_likes") as batch:

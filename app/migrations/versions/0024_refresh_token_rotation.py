@@ -21,6 +21,9 @@ down_revision: Union[str, None] = "0023_download_retriable"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "expand"  # adds nullable columns and an index
+
 
 def upgrade() -> None:
     with op.batch_alter_table("refresh_tokens") as batch:

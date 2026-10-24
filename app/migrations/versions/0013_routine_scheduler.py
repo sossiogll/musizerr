@@ -26,6 +26,9 @@ down_revision: Union[str, None] = "0012_download_followers_drop_watched_items"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # converts the old interval settings into routine settings and deletes the old keys
+
 # (old_key, new_key, converter ore->minuti se serve)
 _OLD_TO_NEW = (
     ("library_sync_interval_hours", "routine.sync_saved_tracks.interval_minutes", lambda hours: hours * 60),

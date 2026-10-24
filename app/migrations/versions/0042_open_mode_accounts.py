@@ -33,6 +33,10 @@ down_revision: Union[str, None] = "0041_encrypt_credentials"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # moves or deletes credential rows; the downgrade does nothing
+irreversible = True  # its downgrade cannot be relied on to restore the previous state
+
 logger = logging.getLogger("alembic.runtime.migration")
 
 SYSTEM_USER_ID = "__system__"  # when this migration was written (db.models.SYSTEM_USER_ID)

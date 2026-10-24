@@ -94,6 +94,9 @@ down_revision: Union[str, None] = "0009_pending_likes"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # drops and recreates the settings table with another shape, moving its rows
+
 
 def _read_existing_settings_rows(conn) -> list[dict]:
     """Righe da preservare dalla tabella `settings` ATTUALE, prima del drop.

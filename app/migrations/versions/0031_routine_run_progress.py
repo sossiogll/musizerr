@@ -21,6 +21,9 @@ down_revision: Union[str, None] = "0030_unlike_on_origin_per_user"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "expand"  # adds nullable columns
+
 
 def upgrade() -> None:
     with op.batch_alter_table("routine_runs") as batch:

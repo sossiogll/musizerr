@@ -33,6 +33,9 @@ down_revision: Union[str, None] = "0038_playlists"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # drops and recreates installed_providers with another shape
+
 
 def upgrade() -> None:
     op.drop_index("ix_installed_providers_source_id", table_name="installed_providers")

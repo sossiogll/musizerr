@@ -37,6 +37,9 @@ down_revision: Union[str, None] = "0018_drop_duplicate_members_group_index"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # rewrites stored URLs into hostref: references the previous code cannot read
+
 _BATCH = 500
 
 

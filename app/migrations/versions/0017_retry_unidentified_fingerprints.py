@@ -22,6 +22,10 @@ down_revision: Union[str, None] = "0016_drop_anonymous_downloads"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # deletes cached fingerprint rows; the downgrade cannot restore them
+irreversible = True  # its downgrade cannot be relied on to restore the previous state
+
 
 def upgrade() -> None:
     op.get_bind().execute(sa.text("DELETE FROM duplicate_fingerprint_cache WHERE recording_id IS NULL"))
