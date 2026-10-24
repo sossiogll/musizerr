@@ -48,7 +48,7 @@ cleanup() {
   docker rm -f $P-host $P-gw-default >/dev/null 2>&1 || true
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
   docker volume rm $P-df-run $P-df-state $P-df-ws >/dev/null 2>&1 || true
-  for image in ghcr.io/sossiogll/musizeer-provider-base:5 $P-lrclib:build $P-hostile-provider:build \
+  for image in ghcr.io/sossiogll/musizeer-provider-base:6 $P-lrclib:build $P-hostile-provider:build \
       127.0.0.1:$REGISTRY_PORT/musizeer-provider-lrclib:dev 127.0.0.1:$REGISTRY_PORT/musizeer-provider-hostile:dev $P-provider-gateway; do
     docker rmi "$image" >/dev/null 2>&1 || true
   done

@@ -145,7 +145,7 @@ assert the roles, the permissions and the methods you implement.
 ## The image
 
 ```dockerfile
-FROM ghcr.io/sossiogll/musizeer-provider-base:5
+FROM ghcr.io/sossiogll/musizeer-provider-base:6
 COPY . /tmp/provider
 RUN pip install /tmp/provider && rm -rf /tmp/provider
 ENTRYPOINT ["python", "-m", "musizeer_sdk.runner", "--provider", "my_provider:MyProvider"]
@@ -188,6 +188,6 @@ another version is listed but cannot be installed, and the gateway refuses an
 image that implements another one. Within a version, the SDK only adds: optional
 methods with defaults, new declarations, fields with a default. Your image says the
 SDK it was built on (the label `org.musizeer.provider.sdk-version`, put by the build),
-and Musizeer sends it only the fields that SDK knows: a provider built on 5.5 keeps
-working with a Musizeer on 5.9, and the other way round, without a rebuild. A new
+and Musizeer sends it only the fields that SDK knows: a provider built on 6.1 keeps
+working with a Musizeer on 6.9, and the other way round, without a rebuild. A new
 major version comes with what a provider has to change.

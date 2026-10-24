@@ -25,7 +25,7 @@ LABEL_ROLES = LABEL_PREFIX + "roles"
 LABEL_API_VERSION = LABEL_PREFIX + "api-version"
 LABEL_PERMISSIONS = LABEL_PREFIX + "permissions"
 LABEL_LABEL = LABEL_PREFIX + "label"  # the name to show; optional (the gateway ignores it), a catalog entry is made from it
-# The SDK the image was built on (ADR-0007 §3.1); optional: an image built before 5.5 has none.
+# The SDK the image was built on (ADR-0007 §3.1); optional: an image without it is treated as the first release of the major (BASELINE).
 LABEL_SDK_VERSION = LABEL_PREFIX + "sdk-version"
 
 REQUIRED_LABELS = (LABEL_NAME, LABEL_ROLES, LABEL_API_VERSION, LABEL_PERMISSIONS)

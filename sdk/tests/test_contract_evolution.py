@@ -3,8 +3,8 @@ Additions within a contract major never break a peer built on another minor (ADR
 
 A field added after the first release of the major carries the minor it exists since and a default; the
 codec ignores the fields it does not know and fills the ones it misses; each side of a call encodes for the
-other's minor. ``Probe`` stands for a contract type that gained two fields, in 5.5 and in 5.7; ``OldProbe``
-for the same type as an SDK of 5.4 knows it, decoded the way every SDK before 5.5 decodes: strictly.
+other's minor. ``Probe`` stands for a contract type that gained two fields, in 6.1 and in 6.3; ``OldProbe``
+for the same type as an SDK of 6.0 knows it, decoded the way a peer of an older minor decodes: strictly.
 """
 from __future__ import annotations
 
@@ -28,20 +28,20 @@ from sample_providers import SampleMetadata, session
 class EvolutionProbe:
     title: str
     year: int | None = None
-    mood: str | None = field(default=None, metadata={wire.SINCE: "5.5"})
-    tempo: int = field(default=0, metadata={wire.SINCE: "5.7"})
+    mood: str | None = field(default=None, metadata={wire.SINCE: "6.1"})
+    tempo: int = field(default=0, metadata={wire.SINCE: "6.3"})
 
 
 @dataclass(frozen=True)
 class OldProbe:
-    """The same type, as an SDK of 5.4 knows it."""
+    """The same type, as an SDK of 6.0 knows it."""
 
     title: str
     year: int | None = None
 
 
 def strict_decode_as_old(data: dict) -> OldProbe:
-    """How an SDK before 5.5 decodes: every key is a keyword of the class, an unknown one fails."""
+    """How a peer of an older minor decodes: every key is a keyword of the class, an unknown one fails."""
     return OldProbe(**{key: value for key, value in data.items() if key != wire.TAG})
 
 
@@ -55,17 +55,17 @@ def test_without_a_peer_every_field_travels():
 
 
 @pytest.mark.parametrize("peer, fields", [
-    ((5, 4), {"title", "year"}),
-    ((5, 5), {"title", "year", "mood"}),
-    ((5, 7), {"title", "year", "mood", "tempo"}),
-    ((5, 9), {"title", "year", "mood", "tempo"}),
+    ((6, 0), {"title", "year"}),
+    ((6, 1), {"title", "year", "mood"}),
+    ((6, 3), {"title", "year", "mood", "tempo"}),
+    ((6, 9), {"title", "year", "mood", "tempo"}),
 ])
 def test_a_peer_gets_only_the_fields_of_its_minor(peer, fields):
     assert set(wire.encode(PROBE, peer)) - {"$"} == fields
 
 
 def test_the_rule_holds_inside_lists_dicts_and_tuples():
-    encoded = wire.encode({"probes": [PROBE], "pair": (PROBE, 1)}, (5, 4))
+    encoded = wire.encode({"probes": [PROBE], "pair": (PROBE, 1)}, (6, 0))
     assert "mood" not in encoded["probes"][0] and "mood" not in encoded["pair"]["v"][0]
 
 
@@ -92,7 +92,7 @@ def test_a_field_added_later_must_have_a_default():
     @dataclass
     class NoDefault:
         a: int
-        b: int = field(metadata={wire.SINCE: "5.5"})
+        b: int = field(metadata={wire.SINCE: "6.1"})
 
     with pytest.raises(TypeError, match="needs a default"):
         wire.register(NoDefault)
@@ -125,7 +125,7 @@ def test_the_sdk_version_is_the_package_version():
     assert tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"] == SDK_VERSION
 
 
-@pytest.mark.parametrize("text, minor", [("5.5.0", (5, 5)), ("5.5", (5, 5)), ("5.12.3", (5, 12)), (None, BASELINE), ("x", BASELINE)])
+@pytest.mark.parametrize("text, minor", [("6.1.0", (6, 1)), ("6.1", (6, 1)), ("6.12.3", (6, 12)), (None, BASELINE), ("x", BASELINE)])
 def test_a_peer_that_says_nothing_usable_is_the_baseline(text, minor):
     assert peer_minor(text) == minor
 
@@ -155,15 +155,15 @@ def _result_fields(sdk: str | None) -> set[str]:
 
 
 def test_a_request_says_the_hosts_sdk_and_is_encoded_for_the_providers():
-    message = protocol.load_message(protocol.call_request("search_tracks", ("q", PROBE), {}, None, (5, 4)))
+    message = protocol.load_message(protocol.call_request("search_tracks", ("q", PROBE), {}, None, (6, 0)))
     assert message["sdk"] == SDK_VERSION
     assert set(message["args"][1]) - {"$"} == {"title", "year"}
 
 
 def test_the_runner_answers_each_host_in_its_own_minor():
-    assert _result_fields(None) == {"title", "year"}  # a host built before 5.5
-    assert _result_fields("5.5.0") == {"title", "year", "mood"}
-    assert _result_fields("5.7.2") == {"title", "year", "mood", "tempo"}
+    assert _result_fields(None) == {"title", "year"}  # a host that says nothing is the baseline (6.0)
+    assert _result_fields("6.1.0") == {"title", "year", "mood"}
+    assert _result_fields("6.3.2") == {"title", "year", "mood", "tempo"}
 
 
 # ---- the manifest and the image ------------------------------------------------------------------------
@@ -172,11 +172,11 @@ def test_a_provider_says_the_sdk_it_was_built_on():
     built = manifest_module.build(DeclaredMetadata(None))
     assert built.sdk_version == SDK_VERSION
     assert labels.labels_for(built)[labels.LABEL_SDK_VERSION] == SDK_VERSION
-    # An old host reading the manifest never meets the field.
-    assert "sdk_version" not in wire.encode(built, BASELINE)
+    assert wire.encode(built, BASELINE)["sdk_version"] == SDK_VERSION, "the field is part of the base of the major"
 
 
-def test_a_manifest_of_a_provider_built_before_says_nothing():
-    old = wire.encode(manifest_module.build(SampleMetadata(None)), BASELINE)
-    assert wire.decode(old).sdk_version is None
-    assert peer_minor(wire.decode(old).sdk_version) == BASELINE
+def test_a_manifest_that_says_nothing_is_the_baseline():
+    silent = dataclasses.replace(manifest_module.build(SampleMetadata(None)), sdk_version=None)
+    decoded = wire.decode(wire.encode(silent, BASELINE))
+    assert decoded.sdk_version is None
+    assert peer_minor(decoded.sdk_version) == BASELINE

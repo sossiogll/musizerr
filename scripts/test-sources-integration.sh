@@ -51,7 +51,7 @@ cleanup() {
   fi
   docker rm -f $P-watcher >/dev/null 2>&1 || true
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
-  for image in ghcr.io/sossiogll/musizeer-provider-base:5 $P-lrclib:build $P-lrclib-wide:build \
+  for image in ghcr.io/sossiogll/musizeer-provider-base:6 $P-lrclib:build $P-lrclib-wide:build \
       127.0.0.1:$REGISTRY_PORT/musizeer-provider-lrclib:dev 127.0.0.1:$REGISTRY_PORT/musizeer-provider-lrclib:wide $P-provider-gateway; do
     docker rmi "$image" >/dev/null 2>&1 || true
   done

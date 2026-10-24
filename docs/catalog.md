@@ -24,7 +24,7 @@ pinned by digest. The database is the only source of truth for what is installed
       "name": "lrclib",
       "image": "ghcr.io/owner/musizeer-provider-lrclib",
       "digest": "sha256:<64 lowercase hex digits>",
-      "provider_api_version": 5,
+      "provider_api_version": 6,
       "roles": ["lyrics"],
       "label": "LRCLIB",
       "description": "Synced and plain lyrics from lrclib.net.",

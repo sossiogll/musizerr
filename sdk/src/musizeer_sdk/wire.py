@@ -30,9 +30,9 @@ are a :class:`WireError`: nothing is guessed.
 **Evolution within a contract major** (ADR-0007 §3.1). Decoding ignores a field
 it does not know (a newer peer's) and gives a missing one its default (an older
 peer's). A field added after the first release of the major carries the minor
-it exists since, ``field(default=..., metadata={SINCE: "5.5"})``, and must have a
-default; ``encode(value, peer=(5, 4))`` leaves out the fields newer than the
-peer's minor, so a peer that still decodes strictly (every SDK before 5.5) never
+it exists since, ``field(default=..., metadata={SINCE: "6.1"})``, and must have a
+default; ``encode(value, peer=(6, 0))`` leaves out the fields newer than the
+peer's minor, so a peer that decodes strictly (an older minor of the major) never
 meets one. ``peer=None`` encodes everything. An iterator is not a value; the
 protocol streams it (``musizeer_sdk.protocol``). The one iterator inside a
 contract type, ``StorageStreamResult.chunks``, is encoded as a marker and
@@ -54,7 +54,7 @@ from .version import minor_of
 
 TAG = "$"
 # The metadata key of a field added after the first release of the contract major: the SDK minor it
-# exists since ("5.5").
+# exists since ("6.1").
 SINCE = "since"
 
 Peer = tuple[int, int] | None

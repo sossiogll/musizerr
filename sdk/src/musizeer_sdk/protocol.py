@@ -9,8 +9,8 @@ provider streams). A frame is at most ``MAX_FRAME_SIZE`` long.
 
 **Requests** (host to runner, one JSON frame)::
 
-    {"v": 1, "sdk": "5.5.0", "op": "describe", "context": <ContextSnapshot>}
-    {"v": 1, "sdk": "5.5.0", "op": "call", "method": "search_tracks", "args": [...], "kwargs": {...},
+    {"v": 1, "sdk": "6.0.0", "op": "describe", "context": <ContextSnapshot>}
+    {"v": 1, "sdk": "6.0.0", "op": "call", "method": "search_tracks", "args": [...], "kwargs": {...},
      "session": <AuthSession> | null, "session_at": <index in args> | null,
      "context": <ContextSnapshot> | null}
 
@@ -22,7 +22,7 @@ and public URL prefix for THIS call: the provider never calls back into the
 host (``CONTEXT_FREE_METHODS`` are called without one).
 
 ``sdk`` is the host's SDK version (ADR-0007 §3.1): the runner encodes its replies for it, leaving out
-the fields newer than the host knows; a request without it comes from a host built before 5.5. The host
+the fields newer than the host knows; a request without it is taken for the first release of the major (BASELINE). The host
 encodes a call for the provider's own SDK version, which its manifest says.
 
 **Replies** (runner to host, a sequence of frames)::
@@ -218,7 +218,7 @@ def call_request(
 
 
 def peer_of(message: dict) -> tuple[int, int]:
-    """The SDK minor of the host that sent ``message`` (BASELINE: a host built before 5.5)."""
+    """The SDK minor of the host that sent ``message`` (BASELINE when it said nothing)."""
     return peer_minor(message.get("sdk"))
 
 

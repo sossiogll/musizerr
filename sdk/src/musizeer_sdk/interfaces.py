@@ -27,7 +27,7 @@ from .settings import ProviderSetting
 # Versione del contratto dei provider. Un pacchetto installato da fuori
 # dichiara in `provider_api_version` quella che implementa; il registry
 # rifiuta un pacchetto che ne dichiara un'altra (o nessuna).
-PROVIDER_API_VERSION = 5
+PROVIDER_API_VERSION = 6
 
 
 class BaseProvider(ABC):

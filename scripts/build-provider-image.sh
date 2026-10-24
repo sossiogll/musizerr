@@ -11,7 +11,7 @@
 #                   defaults, and it does not log in anywhere.
 #   [tag]           default: dev
 #
-# Steps: (1) build the base image locally (ghcr.io/sossiogll/musizeer-provider-base:5; it is
+# Steps: (1) build the base image locally (ghcr.io/sossiogll/musizeer-provider-base:6; it is
 # a name, never pushed here), (2) build the provider image, (3) ask the provider itself for its
 # org.musizeer.provider.* labels (the image describes itself: name, roles, contract version,
 # permissions) and build again with them, (4) push, (5) print the digest and the entry for a
@@ -28,7 +28,7 @@ PROVIDER_DIR=$1
 REGISTRY=$2
 TAG=${3:-dev}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BASE=${PROVIDER_BASE_IMAGE:-ghcr.io/sossiogll/musizeer-provider-base:5}
+BASE=${PROVIDER_BASE_IMAGE:-ghcr.io/sossiogll/musizeer-provider-base:6}
 DIRNAME=$(basename "$PROVIDER_DIR")
 LOCAL=${PROVIDER_LOCAL_TAG_PREFIX:-musizeer-provider-}$DIRNAME:build
 LABELS=$(mktemp)

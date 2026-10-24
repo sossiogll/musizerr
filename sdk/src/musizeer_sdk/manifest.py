@@ -89,9 +89,9 @@ class Manifest:
     implements: tuple[str, ...] = ()
     # What the sandbox grants it (an empty declaration: nothing).
     permissions: Permissions = field(default_factory=Permissions)
-    # The SDK the provider was built on (ADR-0007 §3.1): the host encodes its calls for it. Added in 5.5,
-    # so a provider built before says nothing and is treated as 5.4.
-    sdk_version: str | None = field(default=None, metadata={wire.SINCE: "5.5"})
+    # The SDK the provider was built on (ADR-0007 §3.1): the host encodes its calls for it. A provider that
+    # says nothing is treated as BASELINE (6.0).
+    sdk_version: str | None = None
 
 
 def roles_of(provider: object) -> tuple[str, ...]:

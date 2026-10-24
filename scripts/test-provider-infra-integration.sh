@@ -46,7 +46,7 @@ cleanup() {
     echo "---- gateway log ----"; $COMPOSE logs --no-color --tail 120 provider-gateway 2>&1 || true
   fi
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
-  for image in ghcr.io/sossiogll/musizeer-provider-base:5 $P-infra-provider:build \
+  for image in ghcr.io/sossiogll/musizeer-provider-base:6 $P-infra-provider:build \
       127.0.0.1:18700/musizeer-provider-infra:dev $P-provider-gateway; do
     docker rmi "$image" >/dev/null 2>&1 || true
   done

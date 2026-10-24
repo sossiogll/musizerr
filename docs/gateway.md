@@ -421,7 +421,7 @@ out. `python -m musizeer_gateway.ctl [list|health|install|grant]` is a client (`
   `data/catalogs/registry.json`, which the `registry` service serves as `http://registry:9000/registry.json`. Install from that
   catalog in Administration or with `python -m scripts.provider_sources`; the source is added with "allow insecure
   registry", because the image name is the one the gateway reaches (`oci-registry:5000`) over plain HTTP. The build
-  script builds the base image locally (`ghcr.io/sossiogll/musizeer-provider-base:5`, never pushed), has the provider print
+  script builds the base image locally (`ghcr.io/sossiogll/musizeer-provider-base:6`, never pushed), has the provider print
   its labels, and refuses to push to ghcr.io or Docker Hub. Published images are pushed by other scripts
   ([catalog.md](catalog.md#publishing-to-ghcr)): for linux/amd64 and linux/arm64, pinned by the digest of their index.
 - Images that are no longer installed are not removed from the cache yet.

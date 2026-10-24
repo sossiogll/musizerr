@@ -66,7 +66,7 @@ def _install(session: Session, names: list[str], roles=("metadata",), first_day:
     for index, name in enumerate(names):
         session.add(InstalledProvider(
             source_id=source.id, name=name, image=f"ghcr.io/o/{name}", digest="sha256:" + "a" * 64,
-            provider_api_version=5, label=name, roles=json.dumps(list(roles)), permissions="{}",
+            provider_api_version=6, label=name, roles=json.dumps(list(roles)), permissions="{}",
             installed_at=T0 + timedelta(days=first_day + index),
         ))
     session.commit()

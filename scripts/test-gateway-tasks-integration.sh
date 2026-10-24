@@ -44,7 +44,7 @@ cleanup() {
   docker rm -f $P-hog $P-gw-pids >/dev/null 2>&1 || true
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
   docker volume rm $P-pids-run $P-pids-state $P-pids-ws >/dev/null 2>&1 || true
-  for image in ghcr.io/sossiogll/musizeer-provider-base:5 $P-tasks-provider:build \
+  for image in ghcr.io/sossiogll/musizeer-provider-base:6 $P-tasks-provider:build \
       127.0.0.1:$REGISTRY_PORT/musizeer-provider-tasks:dev $P-provider-gateway; do
     docker rmi "$image" >/dev/null 2>&1 || true
   done

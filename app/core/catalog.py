@@ -9,7 +9,7 @@ permissions its sandbox will be given::
         {"name": "words",                   # the provider's name (how the host knows it)
          "image": "ghcr.io/owner/musizeer-provider-words",   # registry/repository, no tag
          "digest": "sha256:<64 hex>",
-         "provider_api_version": 5,
+         "provider_api_version": 6,
          "roles": ["lyrics"],
          "label": "Words",
          "description": "Synced lyrics from lyrics.example.org",

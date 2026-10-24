@@ -31,7 +31,7 @@ def install(engine, name="lrclib", digest=DIGEST_A, credential=None, insecure=Fa
         session.add(source)
         session.flush()
         session.add(InstalledProvider(
-            source_id=source.id, name=name, image=f"ghcr.io/o/{name}", digest=digest, provider_api_version=5, label=name,
+            source_id=source.id, name=name, image=f"ghcr.io/o/{name}", digest=digest, provider_api_version=6, label=name,
             roles=json.dumps(list(roles)), permissions=json.dumps({"egress": ["a.example:443"]}),
         ))
         session.commit()
