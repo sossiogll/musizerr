@@ -92,7 +92,12 @@ class ConfigManager:
 
     @property
     def workspace_dir(self) -> Path:
-        return Path(self.get("workspace_dir"))
+        """The working folder, resolved from the ``workspace_dir`` folder setting (a root folder plus a path,
+        ADR-0008). There is no default: while it is not set this raises ``services.folders.FoldersNotReady``
+        (``working_folder_not_set``), which is how every place that needs a workspace is blocked."""
+        from services import folders
+
+        return folders.working_folder(self)
 
     @property
     def max_concurrent_downloads(self) -> int:

@@ -19,9 +19,11 @@ the gateway never does.
   included) with what the registry last loaded, and announces the difference: it is how a
   provider that came up after the host started, or one that crashed, reaches every process.
   It also keeps the gateway's DESIRED set equal to the database's (``services/gateway_sync.py``):
-  a gateway that restarted knows no installed provider until the host tells it, and the
+  a gateway that restarted knows no installed provider, root folder or working folder until the host tells it, and the
   watcher is what notices (the ``desired`` identifier of its listing is not the database's)
-  and pushes the set again.
+  and pushes the set again. The first time the gateway answers it also runs the one-shot conversion of the folder
+  values an older version stored (``services/roots.convert_legacy``, ADR-0008), and after every check compares the
+  working folder it holds with its own, a safety net that only logs.
 """
 from __future__ import annotations
 
@@ -34,6 +36,7 @@ from core import environment
 from services.config_manager import get_config
 from services.gateway_client import GatewayClient, GatewayUnreachable
 from services.gateway_sync import GatewaySync
+from services import roots as roots_service
 
 logger = logging.getLogger(__name__)
 
@@ -148,15 +151,19 @@ class GatewayWatcher:
 
     def __init__(self, registry, client: GatewayClient | None = None, announce: Callable[[], None] = announce_changed,
                  interval: float = WATCH_INTERVAL_SECONDS, sync: GatewaySync | None = None,
-                 workspace_dir: Callable[[], object] | None = None) -> None:
+                 workspace_dir: Callable[[], object] | None = None,
+                 convert: Callable[[], object] | None = None) -> None:
         self._registry = registry
         self._client = client or GatewayClient()
         self._sync = sync
         self._announce = announce
         self._interval = interval
-        # The host's workspace folder (the setting), compared with the gateway's own (docs/deployment.md).
+        # The host's working folder (the setting), compared with the one the gateway holds: a safety net, since the host
+        # tells the gateway (ADR-0008). A callable that raises (the folder is not set) compares nothing.
         self._workspace_dir = workspace_dir or (lambda: get_config().workspace_dir)
         self._workspace_warned: tuple[str, str] | None = None
+        # The conversion of today's folder values, run while there is something to convert.
+        self._convert = convert if convert is not None else self._convert_legacy
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="gateway-watcher", daemon=True)
 
@@ -174,6 +181,7 @@ class GatewayWatcher:
             listing = self._client.listing()
         except GatewayUnreachable:
             return False
+        self._run_conversion()
         self._check_workspace(listing.workspace_root)
         if self._sync is not None:
             try:
@@ -189,15 +197,44 @@ class GatewayWatcher:
             return False
         return True
 
-    def _check_workspace(self, gateway_root: str) -> None:
-        """The host and the gateway must name the same workspace folder: the gateway mounts
-        ``<folder>/<provider>`` in each sandbox and the host creates its call folders in ITS folder,
-        so with two different ones every call that carries a file fails, far from the cause. Said once
-        per pair of values, in the log (the setting and ``MUSIZEER_GATEWAY_WORKSPACE_DIR`` come from ``MUSIZEER_WORKSPACE_DIR``)."""
+    def _convert_legacy(self) -> object:
+        """Convert the folder values an older version stored (ADR-0008), once the gateway answers; idempotent."""
+        from sqlmodel import Session
+
+        from db.engine import engine
+
+        with Session(engine) as session:
+            if not roots_service.pending(session, self._registry):
+                return None
+            return roots_service.convert_legacy(
+                session, self._client, self._registry, on_written=lambda written: get_config().committed(
+                    {key: value for key, value in written.items() if key == "workspace_dir"}
+                ),
+            )
+
+    def _run_conversion(self) -> None:
+        try:
+            converted = self._convert()
+        except Exception as exc:  # noqa: BLE001 — the database may be busy, the registry empty: the next check tries again
+            logger.warning("could not convert the folder values of an older version: %s", exc)
+            return
+        if converted is not None and self._sync is not None:
+            try:
+                self._sync.push()  # the gateway learns the roots and the working folder the conversion made
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("could not tell the gateway the folders the conversion made: %s", exc)
+
+    def _check_workspace(self, gateway_root: str | None) -> None:
+        """Safety net, not a mechanism: the host tells the gateway its working folder (ADR-0008), so the two cannot drift. After
+        a push the two are compared anyway; if they differ (a root the gateway refused, a push that did not arrive) it is
+        said once per pair of values, in the log. Nothing is compared while either folder is not set."""
         try:
             mine = os.path.normpath(str(self._workspace_dir()))
-        except Exception:  # noqa: BLE001 — the settings may not be readable yet; the next check looks again
+        except Exception:  # noqa: BLE001 — not set (or the settings are not readable yet): the next check looks again
+            self._workspace_warned = None
             return
+        if gateway_root is None:
+            return  # the gateway has none (yet): the push, or its verdict on the root, says why
         theirs = os.path.normpath(gateway_root)
         if mine == theirs:
             self._workspace_warned = None
@@ -205,9 +242,9 @@ class GatewayWatcher:
         if self._workspace_warned != (mine, theirs):
             self._workspace_warned = (mine, theirs)
             logger.error(
-                "The workspace folder of the host (setting workspace_dir: %s) is not the gateway's (MUSIZEER_GATEWAY_WORKSPACE_DIR: %s): "
-                "providers cannot exchange files with Musizeer. Set both from MUSIZEER_WORKSPACE_DIR, or change the setting to the gateway's "
-                "value (docs/deployment.md).", mine, theirs,
+                "The working folder of the host (%s) is not the one the gateway holds (%s): providers cannot exchange files "
+                "with Musizeer until the host pushes it again (Administration > Root folders shows the gateway's verdict).",
+                mine, theirs,
             )
 
     def _run(self) -> None:

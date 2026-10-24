@@ -50,6 +50,15 @@ class GatewayUnreachable(Exception):
     """The gateway does not answer (not deployed, down, or its reply is not one)."""
 
 
+class GatewayRefused(GatewayUnreachable):
+    """The gateway answered and refused the request (``{"ok": false, "error": ...}``): ``error`` says why. A subclass of
+    :class:`GatewayUnreachable`, since everything that treated a refusal as "cannot be done now" still does."""
+
+    def __init__(self, message: str, error: str) -> None:
+        super().__init__(message)
+        self.error = error
+
+
 @dataclass(frozen=True)
 class GatewayProvider:
     name: str
@@ -64,13 +73,18 @@ class GatewayProvider:
 class GatewayListing:
     epoch: str
     generation: int
-    workspace_root: str
+    # The working folder the gateway accepted (ADR-0008), None while it is not set or the gateway refuses it.
+    workspace_root: str | None
     sandbox_available: bool | None
     sandbox_reason: str
     providers: tuple[GatewayProvider, ...] = ()
     rejected: dict[str, str] = field(default_factory=dict)
     # The identifier of the desired set the host last pushed (``services/gateway_sync.py``); None: none yet.
     desired: str | None = None
+    # What the gateway made of each root folder the host declared: ``{id, path, state, reason, device, ...}``.
+    roots: tuple[dict, ...] = ()
+    # The working folder as declared and judged: ``{path, state, reason}``.
+    workspace: dict = field(default_factory=dict)
 
 
 class GatewayClient:
@@ -106,7 +120,8 @@ class GatewayClient:
         finally:
             connection.close()
         if not isinstance(document, dict) or not document.get("ok"):
-            raise GatewayUnreachable(f"the provider gateway refused: {document.get('error') if isinstance(document, dict) else document!r}")
+            error = str(document.get("error")) if isinstance(document, dict) else repr(document)
+            raise GatewayRefused(f"the provider gateway refused: {error}", error)
         return document
 
     def listing(self) -> GatewayListing:
@@ -116,7 +131,7 @@ class GatewayClient:
             return GatewayListing(
                 epoch=document["epoch"],
                 generation=int(document["generation"]),
-                workspace_root=document["workspace_root"],
+                workspace_root=document.get("workspace_root"),
                 sandbox_available=sandbox.get("available"),
                 sandbox_reason=str(sandbox.get("reason", "")),
                 providers=tuple(
@@ -128,6 +143,8 @@ class GatewayClient:
                 ),
                 rejected=dict(document.get("rejected") or {}),
                 desired=document.get("desired"),
+                roots=tuple(document.get("roots") or ()),
+                workspace=dict(document.get("workspace") or {}),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise GatewayUnreachable(f"the provider gateway's listing is malformed: {exc!r}") from exc
@@ -135,10 +152,29 @@ class GatewayClient:
     def health(self) -> dict:
         return self.request({"op": "health"})
 
-    def install(self, providers: list[dict], generation: str) -> dict:
-        """Push the desired set (``services/gateway_sync.py``). The entries may carry a credential: it
-        goes to the gateway over its socket and nowhere else, and no message here repeats the request."""
-        return self.request({"op": "install", "providers": providers, "generation": generation})
+    def install(
+        self, providers: list[dict], generation: str, roots: list[dict] | None = None, workspace: str | None = None,
+    ) -> dict:
+        """Push the desired set (``services/gateway_sync.py``) with the root folders and the working folder the
+        administrator declared (ADR-0008: ``roots`` are ``{id, path}``, ``workspace`` the resolved working folder or
+        None). The entries may carry a credential: it goes to the gateway over its socket and nowhere else, and no message
+        here repeats the request."""
+        return self.request({
+            "op": "install", "providers": providers, "generation": generation,
+            "roots": list(roots or ()), "workspace": workspace,
+        })
+
+    def inspect(self, path: str, *, write_test: bool = False) -> dict:
+        """What the gateway sees at ``path`` (a folder as the containers see it): exists, directory, writable, mounted,
+        the mount and the free space. ``write_test`` also creates and removes a hidden file there (the explicit Check)."""
+        request: dict = {"op": "inspect", "path": path}
+        if write_test:
+            request["write_test"] = True
+        return self.request(request)
+
+    def browse(self, path: str | None) -> dict:
+        """The subdirectories of ``path`` inside a mounted volume; without a path, the mounted volumes."""
+        return self.request({"op": "browse", "path": path})
 
     def grant_egress(
         self, provider: str, targets: tuple[str, ...], ttl: float,

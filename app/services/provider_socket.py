@@ -25,6 +25,11 @@ the host paths it sends into the sandbox's:
 
 Results carry names relative to the workspace, as they do in loopback, so nothing comes back
 that needs translating.
+
+**The working folder is asked for only when a request needs it** (ADR-0008): a call that carries no
+workspace and no ``WorkspaceFile`` (a search, a lookup, a ``describe``) is sent as it is, so the providers
+register and answer while the working folder is not set; one that does need it raises the working folder's
+own refusal (``services.folders.FoldersNotReady``).
 """
 from __future__ import annotations
 
@@ -75,13 +80,31 @@ def _workspace_argument_positions() -> dict[str, int]:
 WORKSPACE_ARGUMENTS = _workspace_argument_positions()
 
 
+class Root:
+    """The host's workspace root, asked for once and only when something needs it. ``source`` is a path, or a callable
+    that gives it (the working folder is a setting, and may not be set)."""
+
+    def __init__(self, source: "Path | Callable[[], Path]") -> None:
+        self._source = source
+        self._value: Path | None = None
+
+    def get(self) -> Path:
+        if self._value is None:
+            self._value = Path(self._source() if callable(self._source) else self._source)
+        return self._value
+
+
 class Staging:
     """Where the files of other workspaces were put for one call, removed when it ends."""
 
-    def __init__(self, root: Path, provider: str) -> None:
-        self._root = root
+    def __init__(self, root: "Path | Root", provider: str) -> None:
+        self._root_source = root if isinstance(root, Root) else Root(root)
         self._provider = provider
         self.directories: list[Path] = []
+
+    @property
+    def _root(self) -> Path:
+        return self._root_source.get()
 
     def stage(self, source_workspace: str, name: str) -> Path:
         """Make ``name`` of the workspace ``source_workspace`` available in a folder of the
@@ -117,10 +140,14 @@ class Staging:
 class WorkspaceRewriter:
     """Rewrites the host paths of one request into the sandbox's."""
 
-    def __init__(self, root: Path, provider: str, staging: Staging) -> None:
-        self._root = Path(os.path.normpath(root))
-        self._base = self._root / provider
+    def __init__(self, root: "Path | Root", provider: str, staging: Staging) -> None:
+        self._root_source = root if isinstance(root, Root) else Root(root)
+        self._provider = provider
         self._staging = staging
+
+    @property
+    def _base(self) -> Path:
+        return Path(os.path.normpath(self._root_source.get())) / self._provider
 
     def sandbox_path(self, host_path: str) -> str | None:
         """The path inside the sandbox of a path in this provider's tree, else None."""
@@ -216,7 +243,7 @@ class SocketTransport:
         return connection
 
     def request(self, request: Frame) -> Iterator[Frame]:
-        root = Path(self._workspace_root())
+        root = Root(self._workspace_root)
         staging = Staging(root, self._provider)
         connection: socket.socket | None = None
         try:
