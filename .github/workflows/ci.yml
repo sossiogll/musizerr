@@ -36,7 +36,7 @@ jobs:
     name: backend (SQLite)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -59,14 +59,14 @@ jobs:
         shard: [0, 1, 2, 3]
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_PASSWORD: test
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -91,7 +91,7 @@ jobs:
     name: SDK
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -103,7 +103,7 @@ jobs:
     name: gateway
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -118,7 +118,7 @@ jobs:
       run:
         working-directory: musizerr-ui
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
@@ -132,7 +132,7 @@ jobs:
     name: frontend image (nginx proxy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Builds the production image, runs it against throwaway upstreams: the /api rewrite, the unbuffered progress stream,
       # a backend that is recreated or renamed (BACKEND_URL), nginx -t.
       - run: scripts/test-frontend-image.sh
@@ -145,7 +145,7 @@ jobs:
       AUTH_SECRET: ci-secret-of-at-least-thirty-two-characters
       CREDENTIALS_KEY: 3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ=
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: the files render
         run: |
           docker compose -f docker-compose.yaml config -q

@@ -33,7 +33,7 @@ The script:
    into the instance); `download-requests` needs it;
 3. creates or resets both accounts in the API container
    (`python -m scripts.e2e_user`);
-4. runs Playwright in `mcr.microsoft.com/playwright:v1.55.0-noble`, on the
+4. runs Playwright in `mcr.microsoft.com/playwright:v1.55.1-noble`, on the
    stack's network, against the Vite dev server (`http://frontend:5173`,
    allowed in `musizerr-ui/vite.config.ts`).
 
@@ -51,5 +51,5 @@ and the discover answers).
 Type-check the suite in the same container:
 
 ```sh
-docker run --rm -v "$PWD/e2e:/e2e" -v /e2e/node_modules -w /e2e mcr.microsoft.com/playwright:v1.55.0-noble sh -c 'corepack enable && pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store && pnpm typecheck'
+docker run --rm -v "$PWD/e2e:/e2e" -v /e2e/node_modules -w /e2e mcr.microsoft.com/playwright:v1.55.1-noble sh -c 'corepack enable && pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store && pnpm typecheck'
 ```
