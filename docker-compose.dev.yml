@@ -203,9 +203,7 @@ services:
       - gateway_state:/var/lib/musizeer-gateway
       - ${MUSIZEER_DOWNLOADS_DIR:-./data/downloads}:/downloads # the same folder as app: the workspaces live in it
       - ${MUSIZEER_LIBRARY_DIR:-./data/library}:/library # the library: mounted in the gateway only (ADR-0008)
-    environment:
-      # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md): the staging folder and the library.
-      MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: /downloads:/library
+    # No folder is configured here (ADR-0008): /downloads and /library are declared as root folders in the interface.
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.socket(socket.AF_UNIX).connect('/run/musizeer/gateway.sock')"]
       interval: 10s

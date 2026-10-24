@@ -18,8 +18,10 @@
 #      another domain; ftplib lists and downloads through the proxy with the data connection on a port the server picked, and
 #      a setting whose manifest allows only the control port gets the data port refused; a folder granted by a setting is
 #      bound at the same path (rw writable and visible on the host, ro really read-only), a changed setting restarts the
-#      sandbox with the new bind, a path outside the roots / a link out of the root / an unnormalized path is refused with
-#      the reason, and the workspace directory is hidden inside a granted library root.
+#      sandbox with the new bind, a path outside the accepted roots / a link out of the root / an unnormalized path is
+#      refused with the reason, and the working folder is hidden inside a granted root. The root folders (ADR-0008) are
+#      declared by the host and judged by the gateway's own mountinfo: a mounted volume is accepted, /etc and a missing
+#      folder are refused, the picker (browse) lists the volume, and the provider's /workspace is its part of the working folder.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -109,7 +111,7 @@ ctl list | grep -E '"(name|state)"' | head -2
 
 step "b. wildcard egress, raw TCP and folders from settings, end to end"
 host /repo/gateway/tests/integration/infra_host_check.py | tee "$TMP/check.txt"
-for marker in WILDCARD_OK FS_BEFORE_OK FS_RW_OK FS_STABLE_OK FS_CHANGE_OK FS_REFUSED_OK FS_MASK_OK TCP_OK; do
+for marker in WILDCARD_OK ROOTS_OK FS_BEFORE_OK FS_RW_OK FS_STABLE_OK FS_CHANGE_OK FS_REFUSED_OK FS_MASK_OK TCP_OK; do
   grep -q "^$marker" "$TMP/check.txt" || die "$marker is missing"
 done
 

@@ -381,6 +381,72 @@ def test_the_gateway_old_names_are_the_application_ones():
 
 
 # ---------------------------------------------------------------------------
+# The folder variables ADR-0008 retired
+# ---------------------------------------------------------------------------
+
+FOLDER_VARIABLES = ("WORKSPACE_DIR", "GATEWAY_WORKSPACE_DIR", "GATEWAY_FILESYSTEM_ROOTS")
+
+
+def test_no_registry_reads_a_folder_from_the_environment():
+    gateway = gateway_registry()
+    names = [entry.name for entry in (*environment.ENTRIES, *gateway.ENTRIES)]
+
+    assert not [name for name in names if "WORKSPACE" in name or "FILESYSTEM" in name]
+    assert not [e.name for e in environment.ENTRIES if e.old_name in FOLDER_VARIABLES]
+
+
+@pytest.mark.parametrize("variable", FOLDER_VARIABLES)
+def test_a_retired_folder_variable_that_is_set_is_an_error_naming_what_replaced_it_under_either_prefix(variable):
+    for name in (variable, "MUSIZEER_" + variable):
+        findings = environment.check({name: "/secret-looking-path"})
+
+        assert len(findings) == 1 and findings[0][0] == "error", findings
+        assert findings[0][1].startswith(f"{name} is no longer read: ") and "Administration" in findings[0][1]
+        assert "secret-looking-path" not in findings[0][1], "a value is never printed"
+
+
+def test_the_working_folder_variable_points_at_the_setting_and_the_roots_at_the_gateways_mounts():
+    assert "the working folder is a setting" in environment.RETIRED["WORKSPACE_DIR"]
+    assert "root folders are declared" in environment.RETIRED["GATEWAY_FILESYSTEM_ROOTS"]
+    assert "mounted" in environment.RETIRED["GATEWAY_FILESYSTEM_ROOTS"]
+
+
+def test_a_retired_variable_is_not_also_reported_as_a_typo_and_an_empty_one_is_nothing():
+    assert len(environment.check({"MUSIZEER_WORKSPACE_DIR": "/x"})) == 1
+    assert environment.check({"WORKSPACE_DIR": "", "MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": ""}) == []
+
+
+def test_the_gateway_retires_the_variables_that_concern_it_with_the_same_words():
+    gateway = gateway_registry()
+
+    assert set(gateway.RETIRED) == {name for name in environment.RETIRED if "GATEWAY" in name}
+    for name, text in gateway.RETIRED.items():
+        assert environment.RETIRED[name] == text
+
+
+def test_the_old_environment_is_reported_at_start_with_the_new_home_of_each_folder(caplog):
+    with caplog.at_level(logging.ERROR, logger="core.environment"):
+        environment.report_at_start({"WORKSPACE_DIR": "/a", "GATEWAY_FILESYSTEM_ROOTS": "/b"}, )
+
+    assert "WORKSPACE_DIR is no longer read: the working folder is a setting" in caplog.text
+    assert "GATEWAY_FILESYSTEM_ROOTS is no longer read" in caplog.text
+
+
+@pytest.mark.parametrize("name", ["docker-compose.yaml", "docker-compose.dev.yml"])
+def test_compose_passes_no_folder_variable_and_mounts_the_library_in_the_gateway_only(name):
+    text = "\n".join(line for line in compose_text(name).splitlines() if not line.lstrip().startswith("#"))
+
+    for variable in FOLDER_VARIABLES:
+        assert variable not in text
+    services = compose_services(name)
+    gateway_volumes = " ".join(map(str, services["provider-gateway"]["volumes"]))
+    assert ":/library" in gateway_volumes and ":/downloads" in gateway_volumes
+    for service, definition in services.items():
+        if service != "provider-gateway":
+            assert ":/library" not in " ".join(map(str, definition.get("volumes") or [])), service
+
+
+# ---------------------------------------------------------------------------
 # The compose files
 # ---------------------------------------------------------------------------
 
@@ -427,8 +493,6 @@ def test_compose_repeats_no_default_of_the_registry(name):
             expected = DEVELOPMENT_ONLY_DEFAULTS[(name, var)]
         elif var == "MUSIZEER_VERSION":
             expected = "latest"  # the tag compose runs; inside an image the version is "dev" (one entry, two roles)
-        elif var == "MUSIZEER_GATEWAY_FILESYSTEM_ROOTS":
-            continue  # removed by ADR-0008 with the variable: compose still defaults the roots to the staging folder
         elif environment.COMPOSE in entry.readers:
             expected = entry.default
         else:
@@ -540,7 +604,6 @@ def test_the_example_environment_lists_every_variable_an_operator_sets():
         "MUSIZEER_GATEWAY_STATE_DIR", "MUSIZEER_GATEWAY_RUN_DIR",             # the gateway image's folders and volumes
         "MUSIZEER_GATEWAY_SANDBOX_UID", "MUSIZEER_GATEWAY_SANDBOX_GID",
         "MUSIZEER_GATEWAY_SOCKET",                                            # the control socket in the run volume
-        "MUSIZEER_GATEWAY_WORKSPACE_DIR",                                     # compose sets it from MUSIZEER_WORKSPACE_DIR
     }
     missing = [e.name for e in environment.ENTRIES if e.group != environment.TOOLING and e.name not in wired and e.name not in example_names()]
 

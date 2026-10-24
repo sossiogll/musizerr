@@ -22,6 +22,7 @@ from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
 from musizeer_sdk.models import Lyrics
 from musizeer_sdk.permissions import FilesystemAccess, Permissions, TcpAccess
+from musizeer_sdk.settings import ProviderSetting
 
 net.route_module(ftplib)
 
@@ -71,6 +72,16 @@ class InfraLyricsProvider(LyricsProvider):
         filesystem_from_settings=(FilesystemAccess("rw_dir", "rw"), FilesystemAccess("ro_dir", "ro")),
         tcp_from_settings=(TcpAccess("ftp_host", "any"), TcpAccess("ftp_ctl", "2121")),
     )
+
+    def config_schema(self):
+        # The two folders are `folder` settings (ADR-0008): the administrator picks a root and a path, and this provider
+        # gets the absolute path in its settings. The hosts are plain strings (a protocol that is not a folder of this machine).
+        return [
+            ProviderSetting(key="rw_dir", type="folder", label="Read-write folder", required=False),
+            ProviderSetting(key="ro_dir", type="folder", label="Read-only folder", required=False),
+            ProviderSetting(key="ftp_host", type="string", label="FTP host (any port)", required=False),
+            ProviderSetting(key="ftp_ctl", type="string", label="FTP host (control port only)", required=False),
+        ]
 
     def validate_config(self, config: dict) -> bool:
         return True
