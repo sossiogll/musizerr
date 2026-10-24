@@ -41,7 +41,7 @@ depends_on: Union[str, Sequence[str], None] = None
 phase = "contract"  # removes a stored value the previous code reads, in a shape it cannot read back
 
 KEY = "legacy_workspace_dir"
-OLD_LEAF = ".musiz" + "err-work"  # the hidden name the old default working folder ended with (the old product name)
+OLD_LEAF = ".musizerr-work"  # the hidden name the old default working folder ended with (spelled with the old product name on purpose: test_product_name allows this file)
 OLD_DEFAULT = "/downloads/" + OLD_LEAF
 USED_TABLES = ("installed_providers", "downloads", "library_entries", "tracks")
 

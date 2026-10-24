@@ -516,7 +516,8 @@ Where the code differs from, or settles, what the record leaves open:
   itself still waits for the gateway. A provider's folder typed as a path is converted in place. The old absolute default of a
   provider's folder (the local library's `/downloads`) is NOT converted when no value was stored: the host knows no provider's
   default, and the new `default` of a folder setting is only a suggested relative path. An install that relied on it sets the
-  library folder once.
+  library folder once; the blocked state says so (`set the library folder of <storage provider> in Root folders`, in the reason
+  kept by the conversion and in `folders.library_folder.detail` of the viewer status).
 - **Readiness uses the host's copy of the verdict.** A root counts as not set when the gateway's last verdict on it is `refused`;
   `unchecked` (the gateway has not answered yet) does not block.
 - **The providers keep running without a working folder.** Search and metadata do not need it; the sandbox gets an empty private

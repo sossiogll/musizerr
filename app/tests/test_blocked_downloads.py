@@ -174,7 +174,19 @@ def test_a_library_folder_in_a_refused_root_counts_as_not_set(h):
     reply = h.call("admin", "POST", "/download/track", json={"provider": "catalog", "id": "t-1"})
 
     assert reply.status_code == 409 and reply.json()["detail"]["error_code"] == "library_folder_not_set"
-    assert reply.json()["detail"]["error_detail"] == "not a mounted volume"
+    assert reply.json()["detail"]["error_detail"] == "not a mounted volume; set the library folder of Foldered in Root folders"
+
+
+def test_the_blocked_state_of_an_unset_library_folder_says_where_to_set_it(h):
+    set_working_folder(h)
+    use_storage(h, "foldered")
+
+    detail = h.call("admin", "POST", "/download/track", json={"provider": "catalog", "id": "t-1"}).json()["detail"]
+    status = status_of(h, "admin")["library_folder"]
+
+    assert detail["error_detail"] == "set the library folder of Foldered in Root folders"
+    assert status["detail"] == "set the library folder of Foldered in Root folders" and status["setting"] == "provider.foldered.root_dir"
+    assert "detail" not in status_of(h, "user")["library_folder"], "the words are for administrators"
 
 
 def test_a_storage_without_a_declared_library_uses_its_only_folder_setting(h):

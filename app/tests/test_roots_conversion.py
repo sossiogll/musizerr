@@ -279,6 +279,49 @@ def test_a_provider_with_no_stored_folder_gets_no_default_not_even_the_old_one(s
     assert stored(session, LIBRARY_KEY) is None, "the library folder is the administrator's choice"
 
 
+def test_the_reason_kept_for_an_unset_library_folder_says_where_to_set_it(session, client, registry, engine):
+    put(session, "storage_provider", "foldered")
+    legacy(session)
+
+    report = roots.convert_legacy(session, client, registry)
+
+    expected = "set the library folder of Foldered in Root folders"
+    assert report.unset[LIBRARY_KEY] == expected
+    assert root_store.state_get(session, roots.CONVERSION_KEY)["unset"][LIBRARY_KEY] == expected
+    config = ConfigManager(engine=engine)
+    config.committed({"storage_provider": "foldered"})
+    assert folders.library_status(session, config, registry).status.detail == expected
+
+
+def test_the_hint_follows_the_reason_when_the_stored_library_path_could_not_be_kept(session, client, registry, gateway):
+    not_mounted(gateway, "/music")
+    put(session, "storage_provider", "foldered")
+    put(session, LIBRARY_KEY, "/music")
+    legacy(session)
+
+    report = roots.convert_legacy(session, client, registry)
+
+    assert report.unset[LIBRARY_KEY].endswith("; set the library folder of Foldered in Root folders")
+    assert "not a mounted volume" in report.unset[LIBRARY_KEY]
+
+
+def test_a_library_that_was_converted_needs_no_hint(session, client, registry):
+    put(session, "storage_provider", "foldered")
+    put(session, LIBRARY_KEY, "/library")
+    legacy(session)
+
+    report = roots.convert_legacy(session, client, registry)
+
+    assert LIBRARY_KEY not in report.unset
+
+
+def test_no_hint_when_the_active_storage_has_no_library_folder(session, client, registry):
+    put(session, "storage_provider", "remote")
+    legacy(session)
+
+    assert roots.convert_legacy(session, client, registry).unset == {}
+
+
 def test_running_it_again_changes_nothing(session, client, registry):
     legacy(session)
     put(session, LIBRARY_KEY, "/library")

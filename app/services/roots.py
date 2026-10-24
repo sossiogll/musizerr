@@ -305,6 +305,25 @@ class _Converter:
         self.report.converted[setting.key] = value.stored()
 
 
+def _note_unset_library(session: Session, registry, report: ConversionReport) -> None:
+    """After the conversion of an install that had folders, the library folder of the active storage provider may still be
+    unset (the host does not know a provider's old default, so a library that was never typed is not converted): the reason
+    kept for the blocked state says where to set it."""
+    from core.settings_resolver import namespace_provider_key
+
+    name = SettingsRepository(session).get_system("storage_provider")
+    provider = registry.get_storage_provider(name) if name else None
+    key = folders.library_setting_key(provider) if provider is not None else None
+    if key is None:
+        return
+    full = namespace_provider_key(provider.name, key)
+    if rules.value_or_none(SettingsRepository(session).get_system(full)) is not None or full in report.converted:
+        return
+    hint = folders.library_hint(provider)
+    previous = report.unset.get(full)
+    report.unset[full] = f"{previous}; {hint}" if previous else hint
+
+
 def pending(session: Session, registry) -> bool:
     """Is there a legacy value to convert? (cheap: it is asked at every check of the gateway)"""
     if root_store.state_get(session, LEGACY_KEY) is not None:
@@ -331,6 +350,7 @@ def convert_legacy(session: Session, client: GatewayClient, registry, on_written
     report = converter.report
     if isinstance(legacy, dict):
         root_store.state_delete(session, LEGACY_KEY)
+        _note_unset_library(session, registry, report)
     if report.changed or report.created_roots:
         previous = root_store.state_get(session, CONVERSION_KEY, {}) or {}
         unset = {**(previous.get("unset") or {}), **report.unset}

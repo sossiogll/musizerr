@@ -216,6 +216,11 @@ class LibraryStatus:
     setting: str | None = None  # the short key
 
 
+def library_hint(provider) -> str:
+    """What to do when the library folder of a storage provider is not set (the words of the blocked state)."""
+    return f"set the library folder of {provider.label} in Root folders"
+
+
 def library_status(session: Session, config, registry) -> LibraryStatus:
     provider = active_storage(config, registry)
     if provider is None:
@@ -227,8 +232,12 @@ def library_status(session: Session, config, registry) -> LibraryStatus:
 
     raw = SettingsRepository(session).get_system(namespace_provider_key(provider.name, key))
     status = judge(raw, roots_by_id(session))
-    if not status.is_set and not status.detail:
-        status = FolderStatus(status.state, _conversion_note(session, namespace_provider_key(provider.name, key)), status.root_id, status.path)
+    if not status.is_set:
+        # Why (a refused root, a value the conversion could not keep) and always what to do about it.
+        note = status.detail or _conversion_note(session, namespace_provider_key(provider.name, key))
+        hint = library_hint(provider)
+        detail = note if hint in note else "; ".join(part for part in (note, hint) if part)
+        status = FolderStatus(status.state, detail, status.root_id, status.path)
     return LibraryStatus(True, status, provider.name, key)
 
 
