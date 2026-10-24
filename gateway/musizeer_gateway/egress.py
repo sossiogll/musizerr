@@ -41,8 +41,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Mapping
 
-from musizerr_sdk.failures import EGRESS_HEADER, EGRESS_REFUSED, EGRESS_UNREACHABLE
-from musizerr_sdk.permissions import (
+from musizeer_sdk.failures import EGRESS_HEADER, EGRESS_REFUSED, EGRESS_UNREACHABLE
+from musizeer_sdk.permissions import (
     PermissionsError,
     TcpAccess,
     is_wildcard,
@@ -246,7 +246,7 @@ def _read_head(connection: socket.socket) -> tuple[bytes, bytes] | None:
 def _reply(connection: socket.socket, status: str, body: str = "", verdict: str | None = None) -> None:
     """An answer the proxy gives itself. ``verdict`` (``EGRESS_REFUSED`` or
     ``EGRESS_UNREACHABLE``) goes in ``EGRESS_HEADER``, so the provider's side
-    tells it from an answer of the destination (``musizerr_sdk.failures``)."""
+    tells it from an answer of the destination (``musizeer_sdk.failures``)."""
     payload = body.encode()
     marker = f"{EGRESS_HEADER}: {verdict}\r\n" if verdict else ""
     try:

@@ -6,8 +6,8 @@ import stat
 
 import pytest
 
-from musizerr_gateway.layers import LayerError, LayerStore, apply_layer, compose_rootfs, unpack_layer
-from musizerr_gateway.oci import Layer
+from musizeer_gateway.layers import LayerError, LayerStore, apply_layer, compose_rootfs, unpack_layer
+from musizeer_gateway.oci import Layer
 from support import LAYER_GZIP, Tar, digest
 
 GZIP = LAYER_GZIP

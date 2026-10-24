@@ -8,7 +8,7 @@ whenever the gateway restarted, and the gateway makes the running set match. One
 entry::
 
     {"name": "lrclib",
-     "image": "ghcr.io/sossiogll/musizerr-provider-lrclib",
+     "image": "ghcr.io/sossiogll/musizeer-provider-lrclib",
      "digest": "sha256:<64 hex>",
      "roles": ["lyrics"],
      "permissions": {"egress": ["lrclib.net:443"], "egress_from_settings": [],
@@ -32,8 +32,8 @@ import json
 import re
 from dataclasses import dataclass
 
-from musizerr_sdk.manifest import ROLES
-from musizerr_sdk.permissions import Permissions, PermissionsError, canonical, from_json
+from musizeer_sdk.manifest import ROLES
+from musizeer_sdk.permissions import Permissions, PermissionsError, canonical, from_json
 
 NAME = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")

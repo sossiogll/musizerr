@@ -7,15 +7,15 @@ import threading
 
 import pytest
 
-from musizerr_gateway import supervisor as sv
-from musizerr_gateway.config import GatewayConfig
-from musizerr_gateway.control import Control, ControlServer
-from musizerr_gateway.egress import EgressPolicy
-from musizerr_gateway.desired import DesiredProvider
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.labels import DeclaredManifest
-from musizerr_gateway.filesystem import Bind
-from musizerr_sdk.permissions import Permissions, TcpAccess
+from musizeer_gateway import supervisor as sv
+from musizeer_gateway.config import GatewayConfig
+from musizeer_gateway.control import Control, ControlServer
+from musizeer_gateway.egress import EgressPolicy
+from musizeer_gateway.desired import DesiredProvider
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.labels import DeclaredManifest
+from musizeer_gateway.filesystem import Bind
+from musizeer_sdk.permissions import Permissions, TcpAccess
 
 
 class Managed:
@@ -137,7 +137,7 @@ D = "sha256:" + "a" * 64
 
 def pushed(name="lrclib", **kwargs):
     return {
-        "name": name, "image": f"ghcr.io/sossiogll/musizerr-provider-{name}", "digest": D, "roles": ["lyrics"],
+        "name": name, "image": f"ghcr.io/sossiogll/musizeer-provider-{name}", "digest": D, "roles": ["lyrics"],
         "permissions": {"egress": ["lrclib.net:443"]}, **kwargs,
     }
 

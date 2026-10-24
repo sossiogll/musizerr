@@ -27,8 +27,8 @@ os.environ.setdefault("DATA_DIR", "/tmp/data")
 
 from services.database_init import init_db  # noqa: E402
 
-from musizerr_sdk.auth import AuthSession  # noqa: E402
-from musizerr_sdk.models import Track  # noqa: E402
+from musizeer_sdk.auth import AuthSession  # noqa: E402
+from musizeer_sdk.models import Track  # noqa: E402
 from services.gateway_client import GatewayClient, GatewayUnreachable  # noqa: E402
 from services.provider_registry import ProviderRegistry  # noqa: E402
 

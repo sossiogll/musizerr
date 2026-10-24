@@ -6,9 +6,9 @@ import threading
 
 import pytest
 
-from musizerr_gateway import egress
-from musizerr_gateway.egress import EgressPolicy, EgressServer, classify, resolve
-from musizerr_sdk.permissions import PermissionsError, TcpAccess
+from musizeer_gateway import egress
+from musizeer_gateway.egress import EgressPolicy, EgressServer, classify, resolve
+from musizeer_sdk.permissions import PermissionsError, TcpAccess
 
 
 # ------------------------------------------------------------------
@@ -281,7 +281,7 @@ def test_a_destination_that_cannot_be_connected_is_a_bad_gateway(proxy):
     ):
         reply = ask(path, request.encode())
         assert reply.startswith(b"HTTP/1.1 502")
-        assert b"\r\nX-Musizerr-Egress: unreachable\r\n" in reply.split(b"\r\n\r\n", 1)[0] + b"\r\n"
+        assert b"\r\nX-Musizeer-Egress: unreachable\r\n" in reply.split(b"\r\n\r\n", 1)[0] + b"\r\n"
 
 
 def test_a_refusal_is_marked_as_the_proxys_own_answer(proxy, upstream):
@@ -294,7 +294,7 @@ def test_a_refusal_is_marked_as_the_proxys_own_answer(proxy, upstream):
     ):
         reply = ask(path, request.encode())
         assert reply.startswith(b"HTTP/1.1 403")
-        assert b"\r\nX-Musizerr-Egress: refused\r\n" in reply.split(b"\r\n\r\n", 1)[0] + b"\r\n"
+        assert b"\r\nX-Musizeer-Egress: refused\r\n" in reply.split(b"\r\n\r\n", 1)[0] + b"\r\n"
     assert received == []
 
 
@@ -304,7 +304,7 @@ def test_an_answer_of_the_destination_carries_no_marker(proxy, upstream):
 
     reply = ask(path, f"GET http://api.example.org:{port}/ HTTP/1.1\r\nHost: api.example.org\r\n\r\n".encode())
 
-    assert b"X-Musizerr-Egress" not in reply
+    assert b"X-Musizeer-Egress" not in reply
 
 
 def test_the_proxy_socket_is_the_owners_alone(proxy):

@@ -45,7 +45,7 @@ import os
 import socketserver
 from pathlib import Path
 
-from musizerr_sdk.permissions import to_json
+from musizeer_sdk.permissions import to_json
 
 from .config import GatewayConfig
 from .desired import DesiredError, parse_set

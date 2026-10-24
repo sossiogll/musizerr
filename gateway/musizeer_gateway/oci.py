@@ -56,7 +56,7 @@ MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_LAYER_BYTES = 4 * 1024 * 1024 * 1024
 MAX_LAYERS = 128
 _MAX_REDIRECTS = 5
-_PLACEHOLDER_USER = "musizerr"
+_PLACEHOLDER_USER = "musizeer"
 _CHUNK = 256 * 1024
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -110,7 +110,7 @@ class StdlibHttp:
         if parts.query:
             target += "?" + parts.query
         try:
-            connection.request("GET", target, headers={"User-Agent": "musizerr-gateway", **headers})
+            connection.request("GET", target, headers={"User-Agent": "musizeer-gateway", **headers})
             response = connection.getresponse()
         except (OSError, http.client.HTTPException, ssl.SSLError, socket.timeout) as exc:
             connection.close()

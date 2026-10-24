@@ -3,7 +3,7 @@ From a desired entry to a root filesystem ready to run: resolve the pinned
 digest, check that the image describes itself as the entry says, fetch and unpack
 the layers (the ones already cached are not fetched), compose the root filesystem.
 
-An image is refused, with a reason, when its labels (``org.musizerr.provider.*``,
+An image is refused, with a reason, when its labels (``org.musizeer.provider.*``,
 read from its config BEFORE any layer is downloaded) disagree with the entry: another
 name, other roles, other permissions than the ones the admin approved, a provider API version that is not this gateway's SDK's, or labels
 that do not describe a provider at all.
@@ -18,9 +18,9 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.labels import DeclaredManifest, LabelError, declared_from_labels
-from musizerr_sdk.permissions import Permissions, canonical
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.labels import DeclaredManifest, LabelError, declared_from_labels
+from musizeer_sdk.permissions import Permissions, canonical
 
 from .config import GatewayConfig
 from .desired import DesiredProvider

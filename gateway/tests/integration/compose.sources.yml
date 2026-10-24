@@ -6,8 +6,8 @@ services:
     volumes: !override
       - ./gateway:/gateway
       - ./sdk:/sdk
-      - provider_sockets:/run/musizerr
-      - gateway_state:/var/lib/musizerr-gateway
+      - provider_sockets:/run/musizeer
+      - gateway_state:/var/lib/musizeer-gateway
       - downloads:/downloads
   oci-registry:
     ports: !override

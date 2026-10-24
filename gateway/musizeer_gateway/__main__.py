@@ -1,4 +1,4 @@
-"""``python -m musizerr_gateway``: run the gateway."""
+"""``python -m musizeer_gateway``: run the gateway."""
 from __future__ import annotations
 
 import logging
@@ -13,7 +13,7 @@ from .images import ImageStore
 from .supervisor import SandboxHealth, Supervisor
 from .tasks import read_pids_cgroup
 
-logger = logging.getLogger("musizerr_gateway")
+logger = logging.getLogger("musizeer_gateway")
 
 
 def _report_task_limits(ceiling: int) -> None:

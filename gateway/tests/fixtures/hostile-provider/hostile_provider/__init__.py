@@ -14,10 +14,10 @@ import os
 import socket
 from pathlib import Path
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.models import Lyrics
-from musizerr_sdk.permissions import Permissions
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.models import Lyrics
+from musizeer_sdk.permissions import Permissions
 
 CANARY = "hostile-should-never-see-this"
 
@@ -68,12 +68,12 @@ def run() -> list:
 
     # ---- the file system ----------------------------------------------------------------
     def host_paths():
-        found = [p for p in ("/data", "/downloads", "/var/lib/musizerr-gateway", "/etc/musizerr-gateway", "/gateway", "/sdk",
-                             "/run/musizerr", "/Users", "/var/run/docker.sock") if os.path.exists(p)]
+        found = [p for p in ("/data", "/downloads", "/var/lib/musizeer-gateway", "/etc/musizeer-gateway", "/gateway", "/sdk",
+                             "/run/musizeer", "/Users", "/var/run/docker.sock") if os.path.exists(p)]
         return not found, f"visible: {found}"
 
     attempt(report, "the host's data, library, gateway state and docker socket are not there", host_paths)
-    attempt(report, "reading the database file under /data", lambda: (not Path("/data/musizerr.db").exists(), "exists" if Path("/data/musizerr.db").exists() else "absent"))
+    attempt(report, "reading the database file under /data", lambda: (not Path("/data/musizeer.db").exists(), "exists" if Path("/data/musizeer.db").exists() else "absent"))
 
     def pid1_environ():
         content = Path("/proc/1/environ").read_bytes().decode(errors="replace")
@@ -96,7 +96,7 @@ def run() -> list:
     attempt(report, "/workspace/.. is the sandbox's own root, not the host's workspace directory", walk_out)
 
     def other_workspace():
-        return not any(Path(p).exists() for p in ("/workspace/../lrclib", "/downloads/.musizerr-work", "/workspace/canary.txt")), "invisible"
+        return not any(Path(p).exists() for p in ("/workspace/../lrclib", "/downloads/.musizeer-work", "/workspace/canary.txt")), "invisible"
 
     attempt(report, "another provider's workspace and the host's files are invisible", other_workspace)
 

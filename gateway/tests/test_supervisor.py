@@ -9,22 +9,22 @@ from pathlib import Path
 
 import pytest
 
-from musizerr_gateway import filesystem, supervisor as sv
-from musizerr_gateway.config import GatewayConfig
-from musizerr_gateway.images import PreparedImage
-from musizerr_gateway.desired import DesiredProvider
-from musizerr_gateway.filesystem import Bind
-from musizerr_gateway.oci import ImageConfig, ImageError, RegistryError
-from musizerr_gateway.sandbox import SandboxUnavailable
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.labels import DeclaredManifest
-from musizerr_sdk.permissions import FilesystemAccess, Permissions
+from musizeer_gateway import filesystem, supervisor as sv
+from musizeer_gateway.config import GatewayConfig
+from musizeer_gateway.images import PreparedImage
+from musizeer_gateway.desired import DesiredProvider
+from musizeer_gateway.filesystem import Bind
+from musizeer_gateway.oci import ImageConfig, ImageError, RegistryError
+from musizeer_gateway.sandbox import SandboxUnavailable
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.labels import DeclaredManifest
+from musizeer_sdk.permissions import FilesystemAccess, Permissions
 
 PERMISSIONS = Permissions(egress=("lrclib.net:443",))
 
 
 def desired(name="demo", digest="a"):
-    return DesiredProvider(name, "registry.test", f"musizerr/{name}", "sha256:" + digest * 64, ("lyrics",), PERMISSIONS)
+    return DesiredProvider(name, "registry.test", f"musizeer/{name}", "sha256:" + digest * 64, ("lyrics",), PERMISSIONS)
 
 
 ENTRY = desired()
@@ -293,7 +293,7 @@ def test_a_pull_that_fails_is_retried_with_the_credential_the_host_pushed_last(w
 
 
 def test_a_refused_image_is_tried_again_when_the_host_pushes_the_set_again(world):
-    images = Images(error=ImageError("the registry refuses the credential to musizerr/demo (401)"))
+    images = Images(error=ImageError("the registry refuses the credential to musizeer/demo (401)"))
     supervisor = world(images)
     supervisor.apply([ENTRY], {}, {"demo": "wrong"})
     assert wait_for(lambda: state_of(supervisor) == sv.REFUSED)
@@ -306,7 +306,7 @@ def test_a_refused_image_is_tried_again_when_the_host_pushes_the_set_again(world
 
 
 def test_the_credential_is_in_nothing_the_gateway_reports(world):
-    supervisor = world(Images(error=ImageError("the registry refuses the credential to musizerr/demo (401)")))
+    supervisor = world(Images(error=ImageError("the registry refuses the credential to musizeer/demo (401)")))
     supervisor.apply([ENTRY], {}, {"demo": "ghp_canary"})
     assert wait_for(lambda: state_of(supervisor) == sv.REFUSED)
     status = supervisor.get("demo").status

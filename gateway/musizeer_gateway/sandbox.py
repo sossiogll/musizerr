@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Mapping
 
-from musizerr_sdk.permissions import Permissions
+from musizeer_sdk.permissions import Permissions
 
 from .config import Ceilings
 from .filesystem import Bind
@@ -84,18 +84,18 @@ SANDBOX_HINTS: tuple[tuple[tuple[str, ...], str], ...] = (
      "EACCES: an AppArmor policy denies the user namespace its uid map (on Ubuntu, kernel.apparmor_restrict_unprivileged_userns); "
      "add apparmor=unconfined to the gateway's security_opt (never privileged)"),
     (("no permissions to creat", "namespace"),
-     "EPERM: the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...), or "
+     "EPERM: the seccomp profile of the container is not gateway/seccomp/musizeer-gateway.json (security_opt seccomp=...), or "
      "the kernel forbids unprivileged user namespaces (sysctl kernel.unprivileged_userns_clone=1 on Debian, user.max_user_namespaces > 0)"),
     (("kernel does not support user namespaces",),
      "EINVAL: the kernel has no user namespaces, or user.max_user_namespaces is 0 (sysctl user.max_user_namespaces=15000)"),
     (("can't mount proc",),
      "the container's /proc is masked: add systempaths=unconfined to the gateway's security_opt"),
     (("pivot_root",),
-     "the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...)"),
+     "the seccomp profile of the container is not gateway/seccomp/musizeer-gateway.json (security_opt seccomp=...)"),
     (("can't mount", "operation not permitted"),
-     "the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...)"),
+     "the seccomp profile of the container is not gateway/seccomp/musizeer-gateway.json (security_opt seccomp=...)"),
     (("operation not permitted",),
-     "EPERM: the seccomp profile of the container is not gateway/seccomp/musizerr-gateway.json (security_opt seccomp=...), or "
+     "EPERM: the seccomp profile of the container is not gateway/seccomp/musizeer-gateway.json (security_opt seccomp=...), or "
      "the kernel forbids unprivileged user namespaces (kernel.unprivileged_userns_clone, user.max_user_namespaces)"),
     (("permission denied",),
      "EACCES: probably AppArmor; add apparmor=unconfined to the gateway's security_opt (never privileged)"),

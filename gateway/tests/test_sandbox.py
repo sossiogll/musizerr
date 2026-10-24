@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from musizerr_gateway import sandbox, sandbox_filter as f
-from musizerr_gateway.config import Ceilings
-from musizerr_gateway.sandbox import (
+from musizeer_gateway import sandbox, sandbox_filter as f
+from musizeer_gateway.config import Ceilings
+from musizeer_gateway.sandbox import (
     Limits, SandboxSpec, SandboxUnavailable, build_command, explain_failure, limits_for,
 )
-from musizerr_sdk.permissions import Permissions, ResourceLimits
+from musizeer_sdk.permissions import Permissions, ResourceLimits
 
 
 @pytest.fixture(autouse=True)
@@ -22,9 +22,9 @@ def binaries(monkeypatch):
 
 def spec(**kwargs) -> SandboxSpec:
     defaults = dict(
-        rootfs=Path("/state/images/x/rootfs"), socket_dir=Path("/run/musizerr/providers/p"),
+        rootfs=Path("/state/images/x/rootfs"), socket_dir=Path("/run/musizeer/providers/p"),
         egress_dir=Path("/state/egress/p"), workspace_dir=Path("/downloads/.work/p"),
-        command=("python", "-m", "musizerr_sdk.runner", "--socket", "/run/provider/provider.sock"),
+        command=("python", "-m", "musizeer_sdk.runner", "--socket", "/run/provider/provider.sock"),
         limits=Limits(512, 256, 64), uid=10001, gid=10001, image_env={"PATH": "/opt/bin", "SECRET": "x", "LANG": "C.UTF-8"},
     )
     return SandboxSpec(**{**defaults, **kwargs})
@@ -46,14 +46,14 @@ def test_the_sandbox_has_every_namespace_a_read_only_root_and_nothing_inherited(
     assert pairs(command, "--tmpfs") == [("/tmp",)] and pairs(command, "--size") == [(str(256 * 1024 * 1024),)]
     assert command[command.index("--uid") + 1] == "10001" and command[command.index("--gid") + 1] == "10001"
     assert pairs(command, "--seccomp") == [("7",)]
-    assert command[-5:] == ["python", "-m", "musizerr_sdk.runner", "--socket", "/run/provider/provider.sock"]
+    assert command[-5:] == ["python", "-m", "musizeer_sdk.runner", "--socket", "/run/provider/provider.sock"]
 
 
 def test_only_the_providers_own_socket_workspace_and_egress_socket_are_mounted_in():
     command = build_command(spec(), 3)
 
     assert pairs(command, "--bind") == [
-        ("/run/musizerr/providers/p", "/run/provider"), ("/downloads/.work/p", "/workspace"),
+        ("/run/musizeer/providers/p", "/run/provider"), ("/downloads/.work/p", "/workspace"),
     ]
     assert ("/state/egress/p", "/run/egress") in pairs(command, "--ro-bind"), "the egress socket cannot be replaced from inside"
     assert len(pairs(command, "--ro-bind")) == 2, "nothing else of the host is visible"
@@ -125,11 +125,11 @@ KNOWN_FAILURES = [
     # EPERM: the container's seccomp profile, or the sysctl.
     ("bwrap: No permissions to create a new namespace", "unprivileged_userns_clone"),
     ("bwrap: No permissions to creating new namespace, likely because the kernel does not allow non-privileged user namespaces.",
-     "musizerr-gateway.json"),
+     "musizeer-gateway.json"),
     ("bwrap: Creating new namespace failed, likely because the kernel does not support user namespaces.", "max_user_namespaces"),
     ("bwrap: Can't mount proc on /newroot/proc: Operation not permitted", "systempaths=unconfined"),
-    ("bwrap: pivot_root: Operation not permitted", "musizerr-gateway.json"),
-    ("bwrap: Can't mount tmpfs on /newroot/tmp: Operation not permitted", "musizerr-gateway.json"),
+    ("bwrap: pivot_root: Operation not permitted", "musizeer-gateway.json"),
+    ("bwrap: Can't mount tmpfs on /newroot/tmp: Operation not permitted", "musizeer-gateway.json"),
 ]
 
 
@@ -266,7 +266,7 @@ def test_the_program_is_a_whole_number_of_instructions_with_short_jumps():
 
 
 def test_a_granted_folder_is_bound_at_the_same_path_read_write_or_read_only():
-    from musizerr_gateway.filesystem import Bind
+    from musizeer_gateway.filesystem import Bind
 
     command = build_command(spec(binds=(
         Bind("/real/music", "/downloads/music", "rw"), Bind("/real/cache", "/downloads/cache", "ro"),
@@ -279,7 +279,7 @@ def test_a_granted_folder_is_bound_at_the_same_path_read_write_or_read_only():
 
 
 def test_binds_come_after_the_image_and_in_path_order_and_the_workspace_directory_is_covered():
-    from musizerr_gateway.filesystem import Bind
+    from musizeer_gateway.filesystem import Bind
 
     command = build_command(spec(binds=(
         Bind("/real/lib/music", "/lib/music", "rw"),

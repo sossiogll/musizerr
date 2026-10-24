@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from musizerr_gateway.desired import DesiredError, parse_entry, parse_set
-from musizerr_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, canonical
+from musizeer_gateway.desired import DesiredError, parse_entry, parse_set
+from musizeer_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, canonical
 
 D = "sha256:" + "a" * 64
 PERMISSIONS = {"egress": ["lrclib.net:443"], "egress_from_settings": [], "filesystem_from_settings": [], "limits": {}}
@@ -12,7 +12,7 @@ PERMISSIONS = {"egress": ["lrclib.net:443"], "egress_from_settings": [], "filesy
 
 def entry(**kwargs):
     return {
-        "name": "lrclib", "image": "ghcr.io/sossiogll/musizerr-provider-lrclib", "digest": D,
+        "name": "lrclib", "image": "ghcr.io/sossiogll/musizeer-provider-lrclib", "digest": D,
         "roles": ["lyrics"], "permissions": PERMISSIONS, **kwargs,
     }
 
@@ -21,9 +21,9 @@ def test_an_entry_names_a_provider_a_registry_a_repository_a_digest_and_what_was
     parsed, credential = parse_entry(entry())
 
     assert (parsed.name, parsed.registry, parsed.repository, parsed.digest) == (
-        "lrclib", "ghcr.io", "sossiogll/musizerr-provider-lrclib", D,
+        "lrclib", "ghcr.io", "sossiogll/musizeer-provider-lrclib", D,
     )
-    assert parsed.reference == f"ghcr.io/sossiogll/musizerr-provider-lrclib@{D}"
+    assert parsed.reference == f"ghcr.io/sossiogll/musizeer-provider-lrclib@{D}"
     assert parsed.roles == ("lyrics",) and parsed.insecure is False and credential is None
     assert parsed.permissions == canonical(Permissions(egress=("lrclib.net:443",)))
 

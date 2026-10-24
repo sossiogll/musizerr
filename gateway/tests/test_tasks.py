@@ -10,13 +10,13 @@ from pathlib import Path
 
 import pytest
 
-from musizerr_gateway import supervisor as sv, tasks
-from musizerr_gateway.config import Ceilings
-from musizerr_gateway.control import provider_view
-from musizerr_gateway.sandbox import limits_for
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.labels import DeclaredManifest
-from musizerr_sdk.permissions import Permissions, ResourceLimits
+from musizeer_gateway import supervisor as sv, tasks
+from musizeer_gateway.config import Ceilings
+from musizeer_gateway.control import provider_view
+from musizeer_gateway.sandbox import limits_for
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.labels import DeclaredManifest
+from musizeer_sdk.permissions import Permissions, ResourceLimits
 
 from test_supervisor import ENTRY, Images, state_of, wait_for, world  # noqa: F401 — `world` is a fixture
 
@@ -216,7 +216,7 @@ def quick(monkeypatch):
 
 
 def test_a_provider_that_holds_more_tasks_than_its_limit_is_stopped_and_the_reason_says_so(world, quick, monkeypatch, caplog):
-    caplog.set_level(logging.ERROR, logger="musizerr_gateway.supervisor")
+    caplog.set_level(logging.ERROR, logger="musizeer_gateway.supervisor")
     monkeypatch.setattr(sv, "build_command", lambda spec, fd: [sys.executable, "-c", THREADS_RUNNER, str(spec.socket_dir / "provider.sock"), "30"])
     supervisor = world(Images(declared=declared_with(10)))
 
@@ -270,7 +270,7 @@ def test_two_samples_in_a_row_over_the_limit_stop_it(world, quick, monkeypatch):
 
 
 def test_a_provider_that_says_it_cannot_create_a_thread_is_logged_with_the_numbers(world, monkeypatch, caplog):
-    caplog.set_level(logging.INFO, logger="musizerr_gateway.supervisor")
+    caplog.set_level(logging.INFO, logger="musizeer_gateway.supervisor")
     script = (
         "import os, socket, sys, time\n"
         "server = socket.socket(socket.AF_UNIX); server.bind(sys.argv[1]); server.listen(5)\n"

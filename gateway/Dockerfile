@@ -1,5 +1,5 @@
 # The provider gateway. Build context: the root of the repository.
-#   docker build -f gateway/Dockerfile --target production -t musizerr-gateway .
+#   docker build -f gateway/Dockerfile --target production -t musizeer-gateway .
 #
 # bubblewrap makes the sandboxes; util-linux (prlimit) sets their resource limits. The
 # container runs as an unprivileged user: it needs the seccomp profile and the
@@ -11,9 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends bubblewrap util
 
 # Same uid as the application's user, so the sockets and workspaces they share need
 # no widening of permissions.
-RUN useradd -u 1000 -m musizerr \
-    && mkdir -p /var/lib/musizerr-gateway /run/musizerr /downloads \
-    && chown 1000:1000 /var/lib/musizerr-gateway /run/musizerr /downloads
+RUN useradd -u 1000 -m musizeer \
+    && mkdir -p /var/lib/musizeer-gateway /run/musizeer /downloads \
+    && chown 1000:1000 /var/lib/musizeer-gateway /run/musizeer /downloads
 
 ENV PYTHONUNBUFFERED=1
 
@@ -23,8 +23,8 @@ FROM base AS development
 COPY sdk /sdk
 COPY gateway /gateway
 RUN pip install --no-cache-dir -e /sdk -e /gateway
-USER musizerr
-CMD ["python", "-m", "musizerr_gateway"]
+USER musizeer
+CMD ["python", "-m", "musizeer_gateway"]
 
 
 FROM base AS production
@@ -35,5 +35,5 @@ ENV MUSIZERR_VERSION=$MUSIZERR_VERSION MUSIZERR_COMMIT=$MUSIZERR_COMMIT
 COPY sdk /tmp/sdk
 COPY gateway /tmp/gateway
 RUN pip install --no-cache-dir /tmp/sdk /tmp/gateway && rm -rf /tmp/sdk /tmp/gateway
-USER musizerr
-CMD ["python", "-m", "musizerr_gateway"]
+USER musizeer
+CMD ["python", "-m", "musizeer_gateway"]

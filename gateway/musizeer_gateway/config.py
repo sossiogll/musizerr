@@ -30,13 +30,13 @@ class Ceilings:
 @dataclass(frozen=True)
 class GatewayConfig:
     # Everything the gateway keeps: layer cache, unpacked images, egress sockets.
-    state_dir: Path = Path("/var/lib/musizerr-gateway")
+    state_dir: Path = Path("/var/lib/musizeer-gateway")
     # Shared with the application and the workers: the control socket and, under
     # ``providers/<name>/``, the socket of each provider.
-    run_dir: Path = Path("/run/musizerr")
+    run_dir: Path = Path("/run/musizeer")
     # The host's workspace directory (its ``workspace_dir`` setting): each sandbox
     # sees only ``<workspace_dir>/<provider>``, at ``/workspace``.
-    workspace_dir: Path = Path("/downloads/.musizerr-work")
+    workspace_dir: Path = Path("/downloads/.musizeer-work")
     # The uid/gid the provider sees itself as inside its sandbox (the only one).
     sandbox_uid: int = 10001
     sandbox_gid: int = 10001

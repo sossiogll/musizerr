@@ -3,7 +3,7 @@ The seccomp filter the sandboxed provider runs under, on top of the container's.
 
 Why it exists. The gateway container needs ``unshare``, ``clone`` with namespace
 flags, ``mount``, ``umount2`` and ``pivot_root`` for bubblewrap to build a sandbox
-as an unprivileged user (``seccomp/musizerr-gateway.json``). A seccomp filter is
+as an unprivileged user (``seccomp/musizeer-gateway.json``). A seccomp filter is
 inherited and cannot be removed, so without more the PROVIDER would hold the very
 same permissions inside its sandbox: it could create a nested user namespace and
 mount in it. This filter takes them away again. Bubblewrap loads it (``--seccomp

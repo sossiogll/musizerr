@@ -1,7 +1,7 @@
 """
 Derives the gateway container's seccomp profile from Docker's default one.
 
-    python derive.py moby-default.json > musizerr-gateway.json
+    python derive.py moby-default.json > musizeer-gateway.json
 
 The profile is Docker's default profile (``moby-default.json``, copied verbatim
 from the vendored ``github.com/moby/profiles/seccomp`` of moby tag
@@ -24,7 +24,7 @@ not given a capability.
 
 The processes the gateway starts INHERIT this profile (a seccomp filter cannot
 be removed), so the sandbox adds its own filter on top of it that takes these
-syscalls away again from the provider (``musizerr_gateway/sandbox_filter.py``).
+syscalls away again from the provider (``musizeer_gateway/sandbox_filter.py``).
 """
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
-"""``python -m musizerr_gateway.ctl [list|health|install|grant]``: ask the running gateway over its control socket.
+"""``python -m musizeer_gateway.ctl [list|health|install|grant]``: ask the running gateway over its control socket.
 
 Prints the JSON reply and exits with 0 for ``ok``, 1 for an error reply, 2 if the gateway does not answer.
-For an operator (``docker compose exec provider-gateway python -m musizerr_gateway.ctl health``) and the
+For an operator (``docker compose exec provider-gateway python -m musizeer_gateway.ctl health``) and the
 integration tests. ``install`` reads ``{"providers": [...], "generation": "..."}`` from standard input
 and pushes it as the desired set, exactly as the host does (the database of the application is what
 normally decides: this is for tests and for debugging a gateway on its own). ``grant`` reads
@@ -24,7 +24,7 @@ def main(argv: list[str] | None = None, stdin=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     operation = argv[0] if argv else "health"
     if operation not in OPERATIONS:
-        print(f"usage: python -m musizerr_gateway.ctl [{'|'.join(OPERATIONS)}]", file=sys.stderr)
+        print(f"usage: python -m musizeer_gateway.ctl [{'|'.join(OPERATIONS)}]", file=sys.stderr)
         return 2
     request: dict = {"op": "egress" if operation == "grant" else operation}
     if operation in ("install", "grant"):

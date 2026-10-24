@@ -46,7 +46,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Mapping
 
-from musizerr_sdk.labels import DeclaredManifest
+from musizeer_sdk.labels import DeclaredManifest
 
 from . import tasks
 from .config import GatewayConfig
