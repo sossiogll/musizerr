@@ -154,7 +154,7 @@ attached to the library folder (ADR-0008 steps 5 and 6).
   `ghcr.io/sossiogll/musizeer`. **The new names are published as new packages**, created by the first push of the release
   (step 4). **There is no retention period**: the old packages are deleted once the maintainer has verified the server
   (step 6 of the table), by us, under the standing permission. A new package is **private** (nothing sets its visibility,
-  and GitHub has no API for it): we give each new package the visibility of the old one (the app, gateway, frontend, base and public providers public; the private providers private) in the GitHub package settings, and check that the
+  and GitHub has no API for it): we give each new package the visibility of the old one in the GitHub package settings, and check that the
   repository is linked to each one (the `org.opencontainers.image.source` label names it). Because the old packages go,
   a rollback does not pull old images: it rebuilds them from the last tag before the rename (§7).
 - **The redirect does not cover the catalog fetch either**: the host fetches a catalog without following redirects
