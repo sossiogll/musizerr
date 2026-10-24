@@ -243,11 +243,44 @@ docker compose up -d
 `init` migrates the database before the API and the workers start, so an upgrade is a restart. Read the release's
 *Upgrade notes* first (the releases page, and the notice at the top of Administration once the daily update check has seen the release): they say what to
 change in your compose file or `.env`. When a release changes `docker-compose.yaml` or the seccomp profile, download the two files of
-that release again (the profile and the compose file always travel together). Back up the database and `.env` before a major upgrade:
+that release again (the profile and the compose file always travel together).
+
+### The backup `init` takes, and going back
+
+Before it applies a migration `init` **backs the database up** (only when something is pending: a restart with nothing
+new takes none) into `/data/backups`, the `data` volume, and does not migrate if the backup fails:
 
 ```sh
-docker compose exec postgres pg_dump -U musizerr musizerr > musizerr-$(date +%F).sql
+docker compose run --rm --no-deps init ls -l /data/backups
+# premigration-20261024T101500Z-from-0042_open_mode_accounts-to-0043_schema_info.dump
 ```
+
+The name says when it was taken and which revisions the migration went from and to. The last 5 are kept
+(`MIGRATION_BACKUPS_KEEP`); `MIGRATION_BACKUP=off` in `.env` skips the backup if you back the database up yourself. PostgreSQL is
+dumped with `pg_dump` (the image carries the client of the `postgres:17` the compose file runs), SQLite with its online backup.
+The files are readable by the owner only and hold the whole database, so keep a copy off the machine, together with
+`CREDENTIALS_KEY` ([credentials.md](credentials.md)), which the backup does not contain. Keep `.env` too.
+
+- **Going back one minor or patch** (for example `1.5.2` to `1.5.0`): set the previous `MUSIZERR_VERSION` and
+  `docker compose up -d`. Releases within a major only *add* to the schema, so the previous one runs on it and nothing is
+  restored. The previous release then says in its log that the database is ahead of it and starts. (The first release that has
+  this guard is the exception: a release before it does not know the table it adds, see
+  [migrations.md](migrations.md#the-start-check).)
+- **Going back across a MAJOR, or after a migration that went wrong**: the release notes list the *contract migrations* of a
+  MAJOR, which the previous release cannot run on. Restore the backup `init` took and start the previous version:
+
+  ```sh
+  docker compose stop app worker worker-jobs worker-maintenance beat
+  docker compose run --rm init python -m scripts.restore_backup /data/backups/<file> --apply
+  # set the previous MUSIZERR_VERSION in .env, then
+  docker compose up -d
+  ```
+
+  `scripts.restore_backup` without `--apply` only checks the file. With it, the database as it is now is copied to
+  `/data/backups/pre-restore-<time>` first, and what was written after the backup is lost. The commands for PostgreSQL and
+  SQLite by hand are in [migrations.md](migrations.md#restoring-a-backup).
+- An app that finds a database it cannot use (behind it, or migrated by a later MAJOR) **refuses to start** and logs why and
+  what to do (`docker compose logs app`); the same for the workers.
 
 ## Do not override `dns:` on Musizerr's services
 
@@ -272,7 +305,8 @@ it is given with *its* resolver.
 | `ctl health` says `sandbox unavailable: ...` | The hint at the end of the message; [gateway.md, Troubleshooting](gateway.md#troubleshooting). |
 | A provider fails with `can't start new thread` or `Connection reset by peer`, or `ctl health` mentions `Resource temporarily unavailable` | The numbers in the gateway's log and `ctl list` (`container`, `tasks`): [Processes and threads](#processes-and-threads-of-the-providers), [gateway.md](gateway.md#troubleshooting). |
 | The web app answers 502 | The API is not up: `docker compose logs app`. nginx finds it again by itself (a few seconds) when it comes back. |
-| `init` is `Exited (1)` and nothing else starts | `docker compose logs init`: usually `CREDENTIALS_KEY` invalid, or the database not reachable. |
+| `init` is `Exited (1)` and nothing else starts | `docker compose logs init`: usually `CREDENTIALS_KEY` invalid, the database not reachable, or "The database was NOT migrated because its backup failed" (the message says why: disk full, `/data/backups` not writable; fix it and `docker compose up -d` again). |
+| `app` or a worker exits at start with "The database is behind" or "cannot run on this database" | The schema is not one this version can use: [The backup `init` takes, and going back](#the-backup-init-takes-and-going-back). |
 | The browser is sent to `localhost` after signing in at a service | `PUBLIC_URL` is not set ([The public URL](#the-public-url)). |
 | A provider cannot read or write files | `WORKSPACE_DIR` / `GATEWAY_WORKSPACE_DIR` differ, or the folder is outside a root ([Folders](#folders)). |
 | The existing library is not imported | The *System routines* page: *Import the existing library* says `waiting` until a storage provider is installed, configured and answering. |
