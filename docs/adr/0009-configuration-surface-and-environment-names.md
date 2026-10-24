@@ -1,7 +1,7 @@
 # ADR-0009: The configuration surface: deployment versus application, and the `MUSIZEER_` environment names
 
-**Status:** Proposed
-**Date:** 2026-10-24 (revised the same day after the maintainer's decisions)
+**Status:** Accepted by the maintainer on 2026-10-25
+**Date:** 2026-10-25 (drafted 2026-10-24)
 **Deciders:** @sossiogll (maintainer)
 **Related:** ADR-0010 (the rename to Musizeer, one breaking release with no compatibility window: this record's names take
 effect in it, and its former staged rename is gone), ADR-0008 (root folders and folder settings: the first user of the
@@ -264,15 +264,17 @@ so each can be reviewed alone.
 - The owner rewrites `.env` once (ADR-0010 §6 says how, for a dedicated `.env` and for one shared with other services); the same step removes four lines.
 - Documentation and scripts churn once, inside the rename.
 
-## Questions for the maintainer
+## Decisions of the maintainer (2026-10-25)
 
-1. **`APP_PORT` becomes `MUSIZEER_PORT`.** *Recommended:* yes (it is the variable that collides in Kubernetes).
-2. **The safety net fails the start only when the new variable is required.** For a variable that has a default (the public
-   URL, say) the process starts with the default and logs the error, so a forgotten rename is visible but does not take the
-   site down. *Recommended:* yes.
+All the questions of the draft are answered; none is open.
+
+1. **`APP_PORT` becomes `MUSIZEER_PORT`** (it is the variable that collides in Kubernetes).
+2. **The safety net** (§3) fails the start only when the new variable is one the process requires; otherwise it logs the
+   error and starts with the default.
 3. **Developer compose names:** `MUSIZEER_DOWNLOADS_DIR` and `MUSIZEER_LIBRARY_DIR` replace `MUSIC_DIR`, the ports become
-   `MUSIZEER_DEV_*`. *Recommended:* yes, in the same pull request as the production compose.
-4. **No prefixed override of `DATABASE_URL` and `REDIS_URL`** (§2). *Recommended:* yes, none.
-5. **The production compose gets a second named volume, `library`, at `/library` in the gateway** so that a new install has
-   the two folders of ADR-0008 without an override file. *Recommended:* yes; an administrator swaps in a bind mount in the
-   override file as today.
+   `MUSIZEER_DEV_*`, in the same pull request as the production compose.
+4. **No prefixed override** of `DATABASE_URL` and `REDIS_URL` (§2).
+5. **The production compose gets a second named volume, `library`, at `/library` in the gateway**, so a new install has the
+   two folders of ADR-0008 without an override file; an administrator swaps in a bind mount in the override file as today.
+6. **No environment ceiling on the gateway's folders.** The bound is the declared roots (ADR-0008), which must lie on
+   mounted volumes.

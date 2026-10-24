@@ -1,7 +1,7 @@
 # ADR-0008: Root folders and folder settings: where the work happens and where the music lives
 
-**Status:** Proposed
-**Date:** 2026-10-24 (revised the same day after the maintainer's decisions)
+**Status:** Accepted by the maintainer on 2026-10-25
+**Date:** 2026-10-25 (drafted 2026-10-24)
 **Deciders:** @sossiogll (maintainer)
 **Related:** ADR-0003 (workspaces), ADR-0006 (gateway, `filesystem_from_settings`), ADR-0007 (the SDK major is the contract
 version), ADR-0002 (provider instances, still Proposed), ADR-0009 (configuration surface and environment names, the
@@ -111,9 +111,10 @@ Rules:
 - **A root in use cannot be deleted**: the call answers 409 and lists the folder settings that point at it. Changing the
   `path` of a root in use is allowed after a confirmation that lists those settings (a mount that moved), and restarts the
   providers whose granted folders change.
+- **A root can be any folder mounted in the containers.** The rule is the mount, not a name or a place.
 - **Where the first roots come from.** A new install has none. The shipped compose mounts the conventional targets
-  `/downloads` and `/library` (ADR-0009), the first-run step lists the mounted volumes the gateway reports, and the
-  administrator declares what they want. The paths `/downloads` and `/library` are a convention of the compose file, not a
+  `/downloads` and `/library` (ADR-0009), the picker lists the mounted volumes the gateway reports, and the administrator
+  declares what they want; until they do, the product is in the "not set up" state of §3. The paths `/downloads` and `/library` are a convention of the compose file, not a
   setting and not code.
 
 ### 3. Folder settings: a root and a relative path
@@ -126,17 +127,25 @@ A new setting type **`folder`**, in the settings catalog (`SettingType`, `settin
   joined with it, normalized. If the folder exists where the host runs, its real path must lie inside the real path of the
   root (a link that leaves the root is refused). The gateway repeats the containment check for every folder it grants
   (the existing rule, `filesystem.py:89-90`, now against the declared roots), because it sees mounts the host does not.
-- **The SYSTEM setting "working folder"** (the old `workspace_dir`, same key) is a `folder` setting. Its default is the
-  first root plus `.musizeer-work`. The held uploads and the per-provider workspaces stay under it exactly as ADR-0003
-  says: `<working folder>/<provider>/<random>` and `<working folder>/held-uploads`. With no root yet there is no working
-  folder, and a download is refused with a clear error until the first-run step is done. It must lie in a root that is
-  mounted at the same path in the application, the workers and the gateway (the host checks its own side; the gateway
-  reports its own).
+- **The SYSTEM setting "working folder"** (the old `workspace_dir`, same key) is a `folder` setting. **It has no default:**
+  it is whatever the administrator sets, a root plus a path (any root, any path inside it). The held uploads and the
+  per-provider workspaces stay under it exactly as ADR-0003 says: `<working folder>/<provider>/<random>` and
+  `<working folder>/held-uploads`. It must lie in a root that is mounted at the same path in the application, the workers
+  and the gateway (the host checks its own side; the gateway reports its own).
 - **A PROVIDER setting can be of type `folder` too.** The local storage provider's library folder (`root_dir`) is one. The
   UI renders a **root selector plus a sub-path field** (with the picker limited to the root). A provider folder setting has
-  **no default root**: until an administrator picks one the setting is unset and the provider says it is not configured
-  (a default of "the first root" could put the library in the downloads folder). The `default` of the setting is only the
-  suggested relative path.
+  **no default root either**: the `default` of the setting is only the suggested relative path.
+- **While a folder is not set, the product is blocked, not guessing** (the way Lidarr behaves with no root folder):
+  - **Working folder not set:** the one gate every download goes through (`services/downloads.py`, after
+    `request_download`) and every other entry that needs a workspace (streaming a stored file, the full-sync probe, the
+    library scan) refuses with the error code **`working_folder_not_set`**: a download answers 409 with it, **nothing is
+    queued**, no approval request is recorded.
+  - **Library folder not set** (the active storage provider declares a library folder setting, §7, and it holds no
+    value): the same gate refuses downloads with **`library_folder_not_set`**, since nothing downloaded could be stored;
+    `store()` is never called without one. A task that was queued before the setting was cleared checks again before it
+    downloads and ends `failed`, `retriable`, with the same code.
+  - **The UI shows it** (§UI): the viewer status carries which of the two is missing, the shell shows a persistent warning
+    to administrators with a link to the setting, and the download actions are disabled for everyone with the reason.
 - **A provider still receives a plain absolute path string** through its context (`self.context.setting("root_dir")`): the
   host resolves a folder value when it builds the context snapshot (`HostProviderContext.snapshot()`), so provider code
   does not know about roots and the Host Boundary holds.
@@ -303,7 +312,8 @@ on every change of a root, of the working folder or of a provider folder, as it 
   inside a mounted volume, never files, symlinks resolved and refused when they lead out; this is the picker of Lidarr's
   "Add root folder").
 
-There is no environment ceiling. The security argument: a provider never chooses a folder; only an administrator declares a
+**Decided (2026-10-25): there is no environment ceiling.** The bound is the declared roots, which must lie on mounted
+volumes. The security argument: a provider never chooses a folder; only an administrator declares a
 root, and what can be declared is bounded by what Docker mounted into the gateway. Before the host has pushed anything the
 gateway runs no provider (unchanged), so there is no window in which it has a workspace the host does not know.
 
@@ -326,6 +336,7 @@ This record does **not** need ADR-0002 and is written not to prejudice it:
 | Check | Done by | Reference layout |
 |---|---|---|
 | each root exists, is writable and is a mounted volume | gateway `inspect` | `/downloads`, `/library`: ok |
+| the working folder and the library folder are set (otherwise downloads are blocked, §3) | host | both set |
 | the working folder exists, is inside a root and is the gateway's | host asks `list` | Downloads + `.musizeer-work`: ok |
 | the working folder is not inside the library folder | host | ok (the installs converted from the old default are flagged: see the conversion) |
 | the library folder exists, is writable by the storage provider and mounted in the gateway | gateway `inspect` + `test_connection` | Library + empty path: ok |
@@ -366,9 +377,9 @@ already holds, when it can be expressed as roots and folder values:
   provider's `root_dir`): if a declared root contains it, it becomes that root plus the remainder; else a root at the path
   itself is created (label from the last component). The old default `/downloads` of the local library becomes the root
   created for the working folder with an empty path, which is the "working folder inside the library" shape: it works as
-  it did, the check of §11 flags it, and the first-run step proposes a separate library.
-- Anything the gateway refuses (not mounted, not writable, cannot be expressed) is left **unset**, and the first-run
-  checklist (Administration › Providers) says which setting and why.
+  it did and the check of §11 flags it.
+- Anything the gateway refuses (not mounted, not writable, cannot be expressed) is left **unset**, which is the blocked
+  state of §3 with its persistent warning, and the warning says which setting and why.
 - Labels are the last path component, capitalised; the administrator can rename them.
 
 The owner's server, converted: the working folder gives the root `/downloads` ("Downloads") and `.musizeer-work`; the local
@@ -389,7 +400,12 @@ Administration › **Root folders** (admin only), modelled on Lidarr's Settings 
 - A table **Other tools** (the mappings): one row per delegate or music server: "Lidarr imports into `/music`", mapped to
   the library, with **Verify**; "Navidrome reads the library", with the result of the full-sync verification (and a
   one-line reminder not to give the music server the downloads folder).
-- First-run checklist (Administration › Providers): "Choose where your music lives" opens the same dialog.
+- **A persistent warning while a folder is not set**, as Lidarr shows when no root folder exists: a banner in the shell for
+  administrators ("Downloads are blocked: the working folder is not set", "Nothing can be stored: the library folder is not
+  set") with a link to the setting, which opens the same dialog; it stays until the setting is valid (a root that the
+  gateway refuses counts as not set, and the warning gives the reason). For other users the download buttons are disabled
+  with "Downloads are not set up yet; ask an administrator". The state comes from the viewer status, and the refusals carry
+  `working_folder_not_set` / `library_folder_not_set`, worded in one place by error code like the other failures.
 
 Strings are keys in the dictionaries; no provider name is in the page (the lists come from `/providers` and the declared
 capabilities).
@@ -405,8 +421,10 @@ minors after it.
 2. **Host: data and folders**: the table `root_folders`, the `folder` setting type, `services/folders.py`
    (resolution), `services/roots.py` (validation, conversion of today's values), `GET/POST/PATCH/DELETE /roots`,
    `app/openapi.yaml`; the host pushes roots and working folder; `held_uploads`, `workspace`, `library_scan` take the working
-   folder from the setting.
-3. **UI**: Root folders page, the folder control, first-run step, e2e spec.
+   folder from the setting; the blocked state: `working_folder_not_set` and `library_folder_not_set` at the download gate and
+   at every entry that needs a workspace (documented in the OpenAPI spec), and the missing folders in the viewer status.
+3. **UI**: Root folders page, the folder control, the persistent warning with its link, the disabled download actions, e2e
+   spec.
 4. **SDK 6 and providers**: `ProviderSetting(type="folder")`, the conformance rule, `library_folder_setting()`, the
    documented atomicity of `store`; the local provider declares a `folder` setting and implements the atomic copy of §6
    (providers repository, catalog entry).
@@ -439,6 +457,9 @@ Later records: `LibraryLayout`/naming and import blocks (§12), several librarie
   host (and the workers) write access to the library and takes the folder-granting model of ADR-0003/0006 apart. Rejected.
 - **"Measure first", then decide how a file moves.** Replaced by a decision: the measurement could only choose between two
   correct behaviours, and the copy is correct on every layout (§6).
+- **A default working folder** (the first root plus a hidden name, or the old `/downloads/.musizerr-work`). A guess the
+  administrator did not make: it can put work files in the library, or in a root that was never meant for it. Rejected
+  by the maintainer: the folder is set explicitly, and until it is, downloads are blocked with a visible warning.
 - **Make ADR-0002 option C a prerequisite.** Delays the work the owner needs for a decision nobody has asked for.
 
 ## Consequences
@@ -446,6 +467,8 @@ Later records: `LibraryLayout`/naming and import blocks (§12), several librarie
 - The facts the owner kept equal in six places are declared once; the gateway and the storage provider follow by
   construction; the drift between the setting and the gateway cannot happen.
 - A provider's folder is chosen as a root and a path, never typed as an absolute path, and cannot leave its root.
+- A fresh install cannot download until an administrator sets the working folder and the library folder: the product
+  says so with a persistent warning and a precise error code instead of picking a place.
 - The page of checks says whether each folder is usable, whether the music server reads the library (the existing
   full-sync verification) and whether the delegate writes to the same library (the mapping and its verification). The
   owner's layout is expressible and verifiable.
@@ -457,25 +480,24 @@ Later records: `LibraryLayout`/naming and import blocks (§12), several librarie
 - One library per install until ADR-0002 is settled; several are a later decision, not a rewrite.
 - A contract addition (`folder`, `library_folder_setting()`) breaks every provider, which the SDK 6 of ADR-0010 absorbs.
 
-## Questions for the maintainer
+## Decisions of the maintainer (2026-10-25)
 
-1. **No environment ceiling on the gateway.** The bound is what Docker mounts into it plus the mount rule. *Recommended:*
-   accept; the deployment guide says to mount only the music folders into the gateway.
-2. **Defaults.** The working folder defaults to the first root plus `.musizeer-work`; a provider's folder setting has no
-   default root and stays unset until chosen. *Recommended:* yes (the first-run step asks for both, so the working-folder
-   default rarely applies).
-3. **Nested roots.** Allowed and noted in the checks, the same path twice refused. *Recommended:* yes.
-4. **`StorageProvider.library_folder_setting()`**, the declaration that tells the host which of a storage provider's folder
-   settings is its library (for the mapping's display and staleness). *Recommended:* yes; the alternative, treating the
-   only read-write folder setting as the library, breaks the first time a provider has two.
-5. **The marker for the mapping verification** is a tiny file in a `Musizeer Probe <random>` folder of the real library,
-   written through the storage provider and removed in a `finally`. *Recommended:* yes, with the folder name fixed and
-   documented so that Lidarr's and Navidrome's logs are explicable.
-6. **Mapping by probe, not by typing.** The verification (marker, `locate_in_import_roots`) is the primary way and the typed
-   path the fallback. *Recommended:* yes.
-7. **Is the library mounted in the API at all?** Not needed. *Recommended:* no; ask the gateway (`inspect`).
-8. **Installs converted from the old default** end with the working folder inside the library folder. *Recommended:* accept it
-   with the warning of §11 and let the first-run step offer a separate library; forbidding it would break every install made
-   so far (there is one).
-9. **Changing the path of a root in use**: allowed after a confirmation that lists what depends on it, or only by deleting and
-   recreating. *Recommended:* allowed with the confirmation (a mount that moved is the normal reason).
+All the questions of the draft are answered; the points below are decided and none is open.
+
+1. **No environment ceiling on the gateway.** The bound is the declared roots, which must lie on mounted volumes (§9). The
+   deployment guide says to mount only the music folders into the gateway.
+2. **No default folders.** The working folder is whatever the administrator sets (a root plus a path); a provider's folder
+   setting has no default root. While one is not set, downloads or storing are blocked with a clear error code and a
+   persistent warning (§3, §UI). The conversion of an existing install may still fill both from the old values (conversion
+   section).
+3. **Nested roots** are allowed and noted in the checks; the same path twice is refused (§2).
+4. **`StorageProvider.library_folder_setting()`** is part of SDK 6: it tells the host which of a storage provider's folder
+   settings is its library (§7).
+5. **The marker of the mapping verification** is a tiny file in a `Musizeer Probe <random>` folder of the real library,
+   written through the storage provider and removed in a `finally`; the folder name is fixed and documented so that
+   Lidarr's and Navidrome's logs are explicable (§7).
+6. **Mapping by probe, not by typing**: the verification is the primary way, the typed path the fallback (§7).
+7. **The library is not mounted in the API**; the host asks the gateway (`inspect`) (§1, §11).
+8. **Installs converted from the old default** end with the working folder inside the library folder: accepted, with the
+   warning of §11 (forbidding it would break every install made so far, and there is one).
+9. **Changing the path of a root in use** is allowed after a confirmation that lists what depends on it (§2).

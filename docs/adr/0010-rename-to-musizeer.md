@@ -1,7 +1,7 @@
 # ADR-0010: Rename the product from Musizerr to Musizeer, in one breaking release
 
-**Status:** Proposed
-**Date:** 2026-10-24
+**Status:** Accepted by the maintainer on 2026-10-25
+**Date:** 2026-10-25 (drafted 2026-10-24)
 **Deciders:** @sossiogll (maintainer)
 **Related:** ADR-0007 (what a MAJOR is; the provider contract is the SDK major), ADR-0009 (the `MUSIZEER_` environment
 names; its former §5, a staged rename, is superseded by this record), ADR-0008 (root folders and the `folder` setting
@@ -90,8 +90,9 @@ product. The local folder names of the owner's checkouts are the owner's busines
 
 **The licence attribution (row 2)** is the owner's own additional terms, so it changes with the name: from this release on
 the notice reads "Based on Musizeer — https://github.com/sossiogll/musizeer", in the README and on the About page as
-the terms require. Copies already conveyed keep the notice they were conveyed with. The owner confirms the wording of `NOTICE.md` before
-the release; this record does not give legal advice.
+the terms require. Copies already conveyed keep the notice they were conveyed with. **Decided: the name is Musizeer,
+the `NOTICE.md` and attribution text included** (the maintainer confirmed it on 2026-10-25); this record does not give
+legal advice.
 
 ### 3. The contract: SDK 6
 
@@ -138,9 +139,10 @@ attached to the library folder (ADR-0008 steps 5 and 6).
 |---|---|---|
 | 1 | The pull request of §4 into `dev`, reviewed and merged; it publishes nothing (images are built on a merge into master) | the maintainer reviews; the work is done in the repository |
 | 2 | The three provider repositories rebuilt on SDK 6: `musizeer_provider_<name>` packages, imports, `FROM …/musizeer-provider-base:6`, the local provider on the `folder` type and an atomic `store`, versions raised, tests, and a trial through `scripts/dev-catalog.sh` against the checkout of step 1. One pull request per repository | the work is done in the repositories; the maintainer reviews |
-| 3 | **Renaming on GitHub and GHCR (below).** These are actions on the owner's account: the owner does them, or an agent does them only with the owner's explicit confirmation of each one | the owner |
-| 4 | The release: merge `dev` into `master` (the workflow tags the MAJOR, pushes `musizeer`, `musizeer-gateway`, `musizeer-frontend` and the base image `:6`, creates the release with its assets); publish the providers (`scripts/publish.sh` of each providers repository) and pin the digests in the catalogs | the owner triggers; the scripts do the rest |
-| 5 | **The owner's server (§6)** | the owner |
+| 3 | **Renaming on GitHub and GHCR (below).** The maintainer delegated these: we rename the four repositories, publish the new packages and set them public, with the maintainer's standing permission (no confirmation per action) | us |
+| 4 | The release: merge `dev` into `master` (the workflow tags the MAJOR, pushes `musizeer`, `musizeer-gateway`, `musizeer-frontend` and the base image `:6`, creates the release with its assets); publish the providers (`scripts/publish.sh` of each providers repository) and pin the digests in the catalogs | the maintainer merges `dev` into `master`; the scripts do the rest |
+| 5 | **The maintainer's server (§6)**: the new block is added, the data moved and verified. Deleting the old block, volumes, `.env` lines and images on the server is done by the maintainer, or by us with the maintainer's explicit go | the maintainer, with us |
+| 6 | **After the maintainer says the server is verified:** the old GHCR packages are deleted (by us, under the standing permission of step 3) | us |
 
 **Step 3 in detail.**
 
@@ -150,11 +152,11 @@ attached to the library folder (ADR-0008 steps 5 and 6).
 - **The redirect does not cover GHCR, and a container package cannot be renamed at all.** Renaming a repository does not
   rename its packages, and GitHub offers no rename for a package, so `ghcr.io/sossiogll/musizerr` never becomes
   `ghcr.io/sossiogll/musizeer`. **The new names are published as new packages**, created by the first push of the release
-  (step 4); **the old packages are deleted by the owner after the retention period** (question 5), never by a script.
-  A new package is **private** (nothing sets its visibility): the owner makes the 16 packages public in the GitHub
-  package settings, and checks that the repository is linked to each one (the `org.opencontainers.image.source` label
-  names it). The old packages stay where they are and stay pullable until the owner deletes them, which is what keeps the
-  rollback of §7 possible.
+  (step 4). **There is no retention period**: the old packages are deleted once the maintainer has verified the server
+  (step 6 of the table), by us, under the standing permission. A new package is **private** (nothing sets its visibility,
+  and GitHub has no API for it): we make the 16 packages public in the GitHub package settings, and check that the
+  repository is linked to each one (the `org.opencontainers.image.source` label names it). Because the old packages go,
+  a rollback does not pull old images: it rebuilds them from the last tag before the rename (§7).
 - **The redirect does not cover the catalog fetch either**: the host fetches a catalog without following redirects
   (`app/services/sources.py:106`, `follow_redirects=False`, on purpose). The catalog URL of the old source stops answering.
   The procedure adds the new URL as a new source.
@@ -181,7 +183,8 @@ its own it is the same steps on the whole file (and `down` is then harmless, bec
   renamed by **declaring new volume keys** (`musizeer_data`, `musizeer_downloads`, ...), which Compose prefixes with the
   project name like the old ones; its services and `container_name`s get the new names in the same way.
 - **Nothing assumes a folder or a project name.** Step 0 finds them.
-- The old block stays in the file, stopped, until the clean-up. It is the rollback.
+- The old block stays in the file, stopped, only until the maintainer has verified the new one (step 9); then it is
+  deleted (step 10). There is no retention period. After that the rollback is the old code and the dump (§7).
 - **The credentials key does not change: sealed credentials stay readable** (the `enc:v1:` rows do not carry the name, and
   `MUSIZEER_CREDENTIALS_KEY` takes the same value). New volume keys mean **new volumes**.
 
@@ -208,7 +211,7 @@ ones are `musizeer_data`... giving `homeserver_musizeer_data`...; the containers
    web app, Redis, PostgreSQL, the gateway) and the new names you will give them. The commands below use `<old …>` and `<new …>`
    for these lists.
 1. **Prepare.** Copy the compose file and `.env` aside (`cp docker-compose.yml docker-compose.yml.pre-musizeer`, the same for
-   `.env`) and note the version the old block runs. Check that the release is published, that the 16 new packages are
+   `.env`), create `/home/sossiogll/docker/backups` (mode 700) for the dump, and note the version the old block runs. Check that the release is published, that the 16 new packages are
    public and that the catalogs are published.
 2. **Add the new block beside the old one** in the same file, from the release's `docker-compose.yaml` as the template: new
    service keys and `container_name`s (`musizeer-*`), new volume keys (`musizeer_*`), the **same bind mounts as today** for
@@ -228,8 +231,8 @@ ones are `musizeer_data`... giving `homeserver_musizeer_data`...; the containers
 4. **Stop the old writers, dump the database, stop the rest of the old block.** Only the old services, by name:
    ```sh
    docker compose stop <old web app> <old application> <old workers> <old beat>
-   docker exec <old postgres container> pg_dump -U musizerr -Fc musizerr > ~/musizerr-$(date +%F).dump
-   pg_restore --list ~/musizerr-$(date +%F).dump | head          # it reads: the dump is not empty
+   docker exec <old postgres container> pg_dump -U musizerr -Fc musizerr > /home/sossiogll/docker/backups/musizerr-pre-musizeer-$(date +%F).dump
+   pg_restore --list /home/sossiogll/docker/backups/musizerr-pre-musizeer-$(date +%F).dump | head          # it reads: the dump is not empty
    docker compose stop <old gateway> <old redis> <old postgres>  # stop, not rm: the containers and volumes stay
    ```
    Look inside the old data volume once (`docker run --rm -v homeserver_musizerr_data:/d alpine ls -la /d`): with PostgreSQL it
@@ -237,7 +240,7 @@ ones are `musizeer_data`... giving `homeserver_musizeer_data`...; the containers
 5. **Create the new database and restore it.**
    ```sh
    docker compose up -d --no-deps <new postgres>
-   docker exec -i <new postgres container> pg_restore -U musizeer -d musizeer --no-owner --no-acl < ~/musizerr-YYYY-MM-DD.dump
+   docker exec -i <new postgres container> pg_restore -U musizeer -d musizeer --no-owner --no-acl < /home/sossiogll/docker/backups/musizerr-pre-musizeer-YYYY-MM-DD.dump
    ```
 6. **Start the new block**, listing its services: `docker compose pull <new services>` then `docker compose up -d <new services>`.
    `docker compose logs <new init>` shows the migrations (the `origin` value, the roots). A variable of the old table that
@@ -260,26 +263,34 @@ ones are `musizeer_data`... giving `homeserver_musizeer_data`...; the containers
    counts; a provider that needs an account still says "connected"; one download completes and appears in the library; a
    track streams; a delegated download is accepted by Lidarr and its webhook arrives; the full-sync verification passes; the
    update notice at the top of Administration shows the new version; the other services of the file were never restarted
-   (`docker compose ps` shows their uptime).
-10. **Clean up only after the retention period** (question 5): remove the old block and the old variables from the file and
-    `.env`, `docker compose rm <old services>`, `docker volume rm` the six old `homeserver_musizerr_*` volumes, remove the
-    old images, and delete the old GHCR packages (they cannot be renamed, so they are simply deleted by the owner; the new
-    ones are separate packages). Keep the dump.
+   (`docker compose ps` shows their uptime). The maintainer says when this is done.
+10. **Delete the old, with the maintainer's go** (or by the maintainer): remove the old block and the old variables from the
+    file and `.env`, `docker compose rm <old services>`, `docker volume rm` the six old `homeserver_musizerr_*` volumes, remove
+    the old images. Then the old GHCR packages are deleted (they cannot be renamed; the new ones are separate packages).
+    **There is no retention period.** Keep the dump (below).
+
+**The dump is the one thing that is kept.** It is taken in step 4 to
+`/home/sossiogll/docker/backups/musizerr-pre-musizeer-YYYY-MM-DD.dump` on the server (mode 600), and copied to a second
+machine of the maintainer, together with the value of `CREDENTIALS_KEY` (the dump holds the credentials sealed, so it is
+useless for the accounts without the key; the key goes where the maintainer keeps secrets, never next to the dump in
+clear). It is not deleted by the clean-up.
 
 ### 7. Rollback
 
-Until step 10 the old block is intact: its volumes were never written to (the dump only read them), its containers are
-stopped and not removed, its images are still published under the old names, and its lines are still in the file and
-`.env`.
+**Before step 10** the old block is intact and the rollback is two commands: its volumes were never written to (the dump
+only read them), its containers are stopped and not removed, its lines are still in the file and `.env`.
 
 1. `docker compose stop <new services>` (never run both blocks at the same time: same ports, same library, same Navidrome,
    same delegate webhook).
 2. `docker compose start <old services>`; if a delegate or a proxy was pointed at the new name in step 6, point it back.
 
-What is lost: whatever the new block did meanwhile in the database (downloads, favorites, new accounts). The files it put
-in the library stay, and the library scan and reconciliation find them again. The new volumes can stay for a second
-attempt. After step 10 the way back is the dump: restore it into a PostgreSQL of the old block and run the old images,
-which only exist while the old GHCR packages are kept.
+**After step 10** the old images, volumes and packages are gone on purpose, and the rollback is **the old code and the
+dump**: check out the last tag before the rename (the repository keeps its history under the new name), build the images
+from it (`docker-compose.build.yml`), put the old compose block back, start a PostgreSQL, restore the dump
+(`pg_restore`, role and database `musizerr`) and start the services. This takes the database back to the moment of step 4.
+
+What is lost in either case: whatever the new block did in the database after that (downloads, favorites, new accounts).
+The files it put in the library stay, and the library scan and reconciliation find them again.
 
 ## Alternatives considered
 
@@ -306,25 +317,24 @@ which only exist while the old GHCR packages are kept.
 - Everyone signs in again once, and the browsers forget their local preferences once.
 - No alias code, deprecation notice or removal question is left behind (the removal question of ADR-0009 disappears).
 - The 16 GHCR packages are new (packages cannot be renamed): they start private and with no pull history, and the old
-  ones are deleted by the owner after the retention period.
+  ones are deleted once the server is verified, with no retention period. After that the way back is the old code and the
+  dump, not old images.
 - ADR-0007's overlap machinery is not built; the next contract major will need it if there is a user base by then.
-- The database guard of ADR-0007 step 3 is not a prerequisite of this release: the migrations run on a restored copy, the
-  old volume is the rollback. The guard stays necessary before any later contract migration on a live database.
+- The database guard of ADR-0007 step 3 is not a prerequisite of this release: the migrations run on a restored copy, and
+  the dump taken before them is the rollback. The guard stays necessary before any later contract migration on a live database.
 
-## Questions for the maintainer
+## Decisions of the maintainer (2026-10-25)
 
-1. **Old records keep the old name.** ADR-0001 to ADR-0007 are history and say Musizerr. *Recommended:* yes; the index says
-   so.
-2. **Bundle the `folder` setting type into SDK 6.0.** *Recommended:* yes (§3): a second break would repeat this
-   procedure.
-3. **Pin `name: musizeer` in the release compose file** so that volumes and containers do not depend on the folder name. A
-   shared compose file keeps its own project name and renames its volumes with new volume keys (§6). *Recommended:* yes.
-   The cost is that two copies of the release compose on one host need `-p`.
-4. **PostgreSQL by dump and restore, not by copying the volume.** *Recommended:* yes (§6).
-5. **Keep the old GHCR packages and the old volumes for how long?** The old packages cannot be renamed, only deleted, by the
-   owner. *Recommended:* at least two weeks of normal use of the new block, then delete them and the old volumes; keep the
-   dump for good.
-6. **The wording of the licence notice** (`NOTICE.md`, the About page): the owner confirms the text of row 2 before the
-   release. *Recommended:* the replacement above, nothing else.
-7. **Providers reinstalled by hand or by `scripts/provider_sources.py`.** The release notes can print the twelve commands.
-   *Recommended:* print them.
+Every question of the draft is answered; none is open.
+
+1. **The name is Musizeer**, the `NOTICE.md` and attribution text included (§2).
+2. **No retention period.** Only the maintainer uses the product. After the maintainer has verified the new block, the
+   old volumes, the old block, the old `.env` lines, the old images and the old GHCR packages are deleted, by the
+   maintainer or by us with the maintainer's explicit go. The rollback after that is the old code and the dump (§7). The
+   dump is kept, at the place §6 names.
+3. **The renames are delegated to us**, under the maintainer's standing permission: the four repositories, the new GHCR
+   packages and setting them public, and the deletion of the old packages once the server is verified (§5).
+4. As recommended in the draft, and not contradicted: ADR-0001 to ADR-0007 keep the old name (the index says so); the
+   `folder` setting type is bundled into SDK 6.0 (§3); the release compose pins `name: musizeer` while a shared file keeps
+   its own project name and renames its volumes with new volume keys (§6); the database moves by dump and restore; the
+   release notes print the commands that reinstall the twelve providers (`scripts/provider_sources.py`).
