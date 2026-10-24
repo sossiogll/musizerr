@@ -23,5 +23,5 @@ docker exec -e E2E_USERNAME -e E2E_PASSWORD -e E2E_ADMIN_USERNAME -e E2E_ADMIN_P
 docker run --rm --network "$E2E_NETWORK" --ipc=host \
   -v "$PWD:/e2e" -v /e2e/node_modules -w /e2e \
   -e E2E_BASE_URL -e E2E_USERNAME -e E2E_PASSWORD -e E2E_ADMIN_USERNAME -e E2E_ADMIN_PASSWORD -e CI=true -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-  mcr.microsoft.com/playwright:v1.55.0-noble \
+  mcr.microsoft.com/playwright:v1.55.1-noble \
   sh -c 'corepack enable >/dev/null && pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store --config.confirmModulesPurge=false >/dev/null && pnpm exec playwright test "$@"' e2e "$@"
