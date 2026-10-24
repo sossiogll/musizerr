@@ -176,7 +176,7 @@ def test_without_a_usable_key_it_is_not_done(old_world, monkeypatch, key):
 
     code, report = _run("--apply")
 
-    assert code == 2 and "Not done" in report and "CREDENTIALS_KEY" in report
+    assert code == 2 and "Not done" in report and "MUSIZEER_CREDENTIALS_KEY" in report
     assert _stored(old_world) == before
 
 

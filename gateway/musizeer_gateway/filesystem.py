@@ -7,7 +7,7 @@ the egress grant (``control.py``); the gateway decides here whether each may be 
 A path is bound ONLY if all of this holds:
 
 - it is absolute and normalized (no ``..``, no ``//``, no trailing ``/``) and is not ``/``;
-- it lies inside one of the roots the operator configured (``GATEWAY_FILESYSTEM_ROOTS``) and so does
+- it lies inside one of the roots the operator configured (``MUSIZEER_GATEWAY_FILESYSTEM_ROOTS``) and so does
   what it resolves to (a link inside the root that leads out of it is refused);
 - it exists and is a directory;
 - it is not, and does not hold, the gateway's own state or sockets, and it is not inside the workspace
@@ -74,7 +74,7 @@ def validate_grant(
         raise PathRefused("not an absolute, normalized path (no '..', '//' or trailing '/', and not '/')")
     roots = tuple(roots)
     if not any(inside(value, root) for root in roots):
-        raise PathRefused("not inside a folder this gateway may grant" if roots else "this gateway grants no folder (GATEWAY_FILESYSTEM_ROOTS is empty)")
+        raise PathRefused("not inside a folder this gateway may grant" if roots else "this gateway grants no folder (MUSIZEER_GATEWAY_FILESYSTEM_ROOTS is empty)")
     for mounted in (RESERVED if reserved is None else reserved):
         if inside(value, mounted) or inside(mounted, value):
             raise PathRefused(f"collides with {mounted}, which every sandbox mounts itself")

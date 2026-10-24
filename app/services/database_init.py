@@ -10,28 +10,27 @@ Bringing the database to the schema of this code, and refusing to run on one it 
 - :func:`require_current_schema` is the start check of the API and the workers: they never migrate, they
   refuse to start on a schema that is behind (``init`` has not run) or that they cannot use.
 
-``MIGRATION_BACKUP=off`` turns the backup off for whoever backs the database up otherwise;
-``MIGRATION_BACKUPS_KEEP`` (default 5) is how many are kept; they live in ``DATA_DIR/backups``.
+``MUSIZEER_MIGRATION_BACKUP=off`` turns the backup off for whoever backs the database up otherwise;
+``MUSIZEER_MIGRATION_BACKUPS_KEEP`` (default 5) is how many are kept; they live in ``MUSIZEER_DATA_DIR/backups``.
 """
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
 from sqlalchemy.engine import Engine
 
-from core import schema_guard
+from core import environment, schema_guard
 from core.schema_guard import PHASE_CONTRACT, PHASE_EXPAND, SchemaRecord, Verdict
 from db import migration_backup, schema_state
-from db.engine import DEFAULT_DATA_DIR, SQLITE, engine, upgrade_to_head
+from db.engine import SQLITE, engine, upgrade_to_head
 from services import app_version
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BACKUPS_KEEP = 5
+DEFAULT_BACKUPS_KEEP = int(environment.default("MUSIZEER_MIGRATION_BACKUPS_KEEP"))
 _OFF = {"off", "0", "false", "no"}
 
 
@@ -41,22 +40,22 @@ class SchemaError(RuntimeError):
 
 
 def backups_enabled() -> bool:
-    return os.environ.get("MIGRATION_BACKUP", "").strip().lower() not in _OFF
+    return environment.get("MUSIZEER_MIGRATION_BACKUP").strip().lower() not in _OFF
 
 
 def backups_keep() -> int:
-    raw = os.environ.get("MIGRATION_BACKUPS_KEEP", "").strip()
-    if not raw:
-        return DEFAULT_BACKUPS_KEEP
+    raw = environment.get("MUSIZEER_MIGRATION_BACKUPS_KEEP").strip()
     try:
         return max(1, int(raw))
     except ValueError:
-        logger.warning("MIGRATION_BACKUPS_KEEP=%r is not a number: keeping %d backups.", raw, DEFAULT_BACKUPS_KEEP)
+        logger.warning(
+            "MUSIZEER_MIGRATION_BACKUPS_KEEP=%r is not a number: keeping %d backups.", raw, DEFAULT_BACKUPS_KEEP,
+        )
         return DEFAULT_BACKUPS_KEEP
 
 
 def backups_directory() -> Path:
-    return Path(os.environ.get("DATA_DIR", DEFAULT_DATA_DIR)) / "backups"
+    return Path(environment.data_dir()) / "backups"
 
 
 def _verdict(db_engine: Engine, version: str, directory: Path) -> tuple[Verdict, SchemaRecord | None, frozenset[str]]:
@@ -133,7 +132,7 @@ def init_db(
     except Exception:
         logger.error(
             "The migration failed.%s", f" The database as it was before it is in {backup}: see docs/migrations.md "
-            "to restore it." if backup else " No backup was taken (MIGRATION_BACKUP=off, or an empty database).",
+            "to restore it." if backup else " No backup was taken (MUSIZEER_MIGRATION_BACKUP=off, or an empty database).",
         )
         raise
     _record(db_engine, version, record, ran_contract=bool(contract))
@@ -144,7 +143,7 @@ def _back_up(db_engine: Engine, applied: frozenset[str], directory: Path, now: d
     """The backup before the migration; None when none is due (switched off, or nothing in the database).
     A backup that fails stops the migration."""
     if not backups_enabled():
-        logger.warning("MIGRATION_BACKUP=off: the database is migrated without a backup.")
+        logger.warning("MUSIZEER_MIGRATION_BACKUP=off: the database is migrated without a backup.")
         return None
     if not schema_state.has_tables(db_engine):
         logger.info("The database is empty: nothing to back up.")
@@ -156,7 +155,7 @@ def _back_up(db_engine: Engine, applied: frozenset[str], directory: Path, now: d
     except migration_backup.BackupError as exc:
         raise SchemaError(
             f"The database was NOT migrated because its backup failed: {str(exc).rstrip('.')}. Fix that and run "
-            "init again, or, if you back the database up yourself, set MIGRATION_BACKUP=off."
+            "init again, or, if you back the database up yourself, set MUSIZEER_MIGRATION_BACKUP=off."
         ) from exc
     if path is None:
         logger.info("The database is in memory: nothing to back up.")

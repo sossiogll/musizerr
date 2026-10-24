@@ -141,7 +141,7 @@ def test_a_database_migrated_by_an_older_version_must_go_through_the_minimum_fir
     problem = guard.upgrade_path_problem(record(app_version="1.4.2"), "2.0.0", "1.9.0")
 
     assert problem is not None
-    assert "1.9.0" in problem and "1.4.2" in problem and "MUSIZERR_VERSION=1.9.0" in problem
+    assert "1.9.0" in problem and "1.4.2" in problem and "MUSIZEER_VERSION=1.9.0" in problem
 
 
 def test_a_database_from_before_the_guard_is_older_than_any_minimum():

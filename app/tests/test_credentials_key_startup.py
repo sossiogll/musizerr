@@ -1,5 +1,5 @@
 """
-The application, the workers and beat refuse to start without a usable ``CREDENTIALS_KEY``
+The application, the workers and beat refuse to start without a usable ``MUSIZEER_CREDENTIALS_KEY``
 (docs/credentials.md), before the database is touched; the compose files require it for every
 service that reads the database, and for none that does not.
 
@@ -55,7 +55,7 @@ def _run_lifespan(monkeypatch, key, ran: list[str], *, auth_enabled: bool = Fals
 @pytest.mark.parametrize("key", REFUSED)
 def test_the_application_does_not_start_without_a_usable_key_whatever_the_authentication(key, auth_enabled, monkeypatch):
     ran: list[str] = []
-    with pytest.raises(credential_cipher.CredentialsKeyError, match="CREDENTIALS_KEY"):
+    with pytest.raises(credential_cipher.CredentialsKeyError, match="MUSIZEER_CREDENTIALS_KEY"):
         _run_lifespan(monkeypatch, key, ran, auth_enabled=auth_enabled)
 
     assert ran == [], "nothing ran: not the schema check, not the rest"
@@ -78,10 +78,10 @@ def test_a_previous_key_does_not_replace_the_key(monkeypatch):
 
 def _import_celery_app(tmp_path, key: str | None) -> subprocess.CompletedProcess:
     """A worker, and beat, start by importing this module (`celery -A workers.celery_app.celery`)."""
-    env = {k: v for k, v in os.environ.items() if k not in ("CREDENTIALS_KEY", "CREDENTIALS_KEY_PREVIOUS", "DATABASE_URL")}
-    env.update(DATA_DIR=str(tmp_path), PYTHONDONTWRITEBYTECODE="1", REDIS_URL="redis://localhost:6379/0")
+    env = {k: v for k, v in os.environ.items() if k not in ("MUSIZEER_CREDENTIALS_KEY", "MUSIZEER_CREDENTIALS_KEY_PREVIOUS", "DATABASE_URL")}
+    env.update(MUSIZEER_DATA_DIR=str(tmp_path), PYTHONDONTWRITEBYTECODE="1", REDIS_URL="redis://localhost:6379/0")
     if key is not None:
-        env["CREDENTIALS_KEY"] = key
+        env["MUSIZEER_CREDENTIALS_KEY"] = key
     return subprocess.run(
         [sys.executable, "-c", "import workers.celery_app"], cwd=APP_ROOT, env=env, capture_output=True, text=True, timeout=120,
     )
@@ -92,7 +92,7 @@ def test_a_worker_and_beat_do_not_start_without_a_usable_key(tmp_path, key):
     result = _import_celery_app(tmp_path, key)
 
     assert result.returncode != 0
-    assert "CredentialsKeyError" in result.stderr and "CREDENTIALS_KEY" in result.stderr
+    assert "CredentialsKeyError" in result.stderr and "MUSIZEER_CREDENTIALS_KEY" in result.stderr
     if key:
         assert key not in result.stderr
 
@@ -126,8 +126,8 @@ def test_every_service_that_reads_the_database_must_be_given_the_key(name):
     assert {"init", "app"} <= readers and any(n.startswith("worker") for n in readers)
     for service in readers:
         environment = services[service]["environment"]
-        assert environment["CREDENTIALS_KEY"].startswith("${CREDENTIALS_KEY:?"), f"{service}: required, like AUTH_SECRET"
-        assert environment["CREDENTIALS_KEY_PREVIOUS"] == "${CREDENTIALS_KEY_PREVIOUS:-}", f"{service}: optional"
+        assert environment["MUSIZEER_CREDENTIALS_KEY"].startswith("${MUSIZEER_CREDENTIALS_KEY:?"), f"{service}: required, like MUSIZEER_AUTH_SECRET"
+        assert environment["MUSIZEER_CREDENTIALS_KEY_PREVIOUS"] == "${MUSIZEER_CREDENTIALS_KEY_PREVIOUS:-}", f"{service}: optional"
 
 
 @pytest.mark.parametrize("name", COMPOSE_FILES)
@@ -135,13 +135,13 @@ def test_the_gateway_and_the_other_services_never_get_the_key(name):
     for service, definition in _services(name).items():
         if "DATABASE_URL" in (definition.get("environment") or {}):
             continue
-        assert "CREDENTIALS_KEY" not in str(definition.get("environment")), service
+        assert "MUSIZEER_CREDENTIALS_KEY" not in str(definition.get("environment")), service
 
 
 def test_the_production_compose_gives_beat_the_key_too():
     environment = _services("docker-compose.yaml")["beat"]["environment"]
 
-    assert environment["CREDENTIALS_KEY"].startswith("${CREDENTIALS_KEY:?")
+    assert environment["MUSIZEER_CREDENTIALS_KEY"].startswith("${MUSIZEER_CREDENTIALS_KEY:?")
 
 
 def test_the_example_environment_says_how_to_make_the_key():
@@ -150,5 +150,5 @@ def test_the_example_environment_says_how_to_make_the_key():
         pytest.skip(".env.example is not next to the application")
     text = path.read_text()
 
-    assert "CREDENTIALS_KEY" in text and "Fernet.generate_key()" in text and "CREDENTIALS_KEY_PREVIOUS" in text
-    assert "\nCREDENTIALS_KEY=" not in text, "no value is shipped, not even a placeholder"
+    assert "MUSIZEER_CREDENTIALS_KEY" in text and "Fernet.generate_key()" in text and "MUSIZEER_CREDENTIALS_KEY_PREVIOUS" in text
+    assert "\nMUSIZEER_CREDENTIALS_KEY=" not in text, "no value is shipped, not even a placeholder"

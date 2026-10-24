@@ -30,6 +30,7 @@ import os
 import threading
 from typing import Callable
 
+from core import environment
 from services.config_manager import get_config
 from services.gateway_client import GatewayClient, GatewayUnreachable
 from services.gateway_sync import GatewaySync
@@ -43,7 +44,7 @@ RECONNECT_SECONDS = 2.0
 
 
 def redis_url() -> str:
-    return os.environ.get("REDIS_URL", "redis://redis:6379/0")
+    return environment.redis_url()
 
 
 def announce_changed() -> None:
@@ -192,7 +193,7 @@ class GatewayWatcher:
         """The host and the gateway must name the same workspace folder: the gateway mounts
         ``<folder>/<provider>`` in each sandbox and the host creates its call folders in ITS folder,
         so with two different ones every call that carries a file fails, far from the cause. Said once
-        per pair of values, in the log (the setting and ``GATEWAY_WORKSPACE_DIR`` come from ``WORKSPACE_DIR``)."""
+        per pair of values, in the log (the setting and ``MUSIZEER_GATEWAY_WORKSPACE_DIR`` come from ``MUSIZEER_WORKSPACE_DIR``)."""
         try:
             mine = os.path.normpath(str(self._workspace_dir()))
         except Exception:  # noqa: BLE001 — the settings may not be readable yet; the next check looks again
@@ -204,8 +205,8 @@ class GatewayWatcher:
         if self._workspace_warned != (mine, theirs):
             self._workspace_warned = (mine, theirs)
             logger.error(
-                "The workspace folder of the host (setting workspace_dir: %s) is not the gateway's (GATEWAY_WORKSPACE_DIR: %s): "
-                "providers cannot exchange files with Musizeer. Set both from WORKSPACE_DIR, or change the setting to the gateway's "
+                "The workspace folder of the host (setting workspace_dir: %s) is not the gateway's (MUSIZEER_GATEWAY_WORKSPACE_DIR: %s): "
+                "providers cannot exchange files with Musizeer. Set both from MUSIZEER_WORKSPACE_DIR, or change the setting to the gateway's "
                 "value (docs/deployment.md).", mine, theirs,
             )
 

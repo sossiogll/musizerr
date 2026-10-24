@@ -1,11 +1,11 @@
 from __future__ import annotations
-import os
 import time
 from typing import TYPE_CHECKING, Callable
 from urllib.parse import urlencode
 
 import httpx
 
+from . import environment
 from .auth import AccountTarget, StoredCredential
 from .auth_strategies import build_fallback_session, build_request_session, build_token_request
 from musizeer_sdk.auth import AuthFlow, AuthSession
@@ -13,7 +13,7 @@ from musizeer_sdk.auth import AuthFlow, AuthSession
 if TYPE_CHECKING:
     from musizeer_sdk.interfaces import BaseProvider
 
-_APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000").rstrip("/")
+_APP_BASE_URL = environment.app_base_url()
 
 
 class AuthError(Exception):

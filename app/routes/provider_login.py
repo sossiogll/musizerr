@@ -7,7 +7,6 @@ sign-in, and a sign-in is finished here (``finish_callback``)."""
 from __future__ import annotations
 
 import logging
-import os
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -15,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from core import environment
 from core import provider_login as rules
 from core import user_auth
 from musizeer_sdk.auth import AuthFlow
@@ -27,7 +27,7 @@ from .users_auth import TokenResponse, cookie_is_secure
 
 logger = logging.getLogger(__name__)
 
-_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+_FRONTEND_URL = environment.frontend_url()
 # Where the browser lands when the authorization ends: the page that exchanges
 # the one-time code for a session, or shows why there is none.
 _LANDING = "/login/provider"

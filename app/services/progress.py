@@ -8,16 +8,15 @@ sono pubbliche proprio perche' condivise tra i due lati.
 from __future__ import annotations
 import json
 import logging
-import os
 
 from sqlmodel import Session
 
-from core import download_states as ds
+from core import download_states as ds, environment
 from db.engine import engine
 
 logger = logging.getLogger(__name__)
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+REDIS_URL = environment.redis_url()
 PROGRESS_CHANNEL = "musizeer:progress"
 
 

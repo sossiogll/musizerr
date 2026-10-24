@@ -8,12 +8,15 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
+
+from core import environment
+
+AUTH_SECRET = "MUSIZEER_AUTH_SECRET"
 
 _ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
@@ -28,23 +31,23 @@ PLACEHOLDER_SECRETS = frozenset({"change-me-in-production", "change-me", "secret
 
 
 class InsecureAuthSecret(RuntimeError):
-    """``AUTH_SECRET`` cannot sign sessions: it is missing, too short or a published placeholder.
+    """``MUSIZEER_AUTH_SECRET`` cannot sign sessions: it is missing, too short or a published placeholder.
     The message says what is wrong and how to fix it, and never contains the value."""
 
 
 def _get_secret() -> str:
-    secret = os.environ.get("AUTH_SECRET", "")
+    secret = environment.get(AUTH_SECRET)
     if not secret:
-        raise RuntimeError("AUTH_SECRET environment variable is not set")
+        raise RuntimeError(f"{AUTH_SECRET} environment variable is not set")
     return secret
 
 
 def require_strong_secret() -> None:
-    """Raise ``InsecureAuthSecret`` unless ``AUTH_SECRET`` is safe to sign sessions with: set, at
+    """Raise ``InsecureAuthSecret`` unless ``MUSIZEER_AUTH_SECRET`` is safe to sign sessions with: set, at
     least ``MIN_SECRET_LENGTH`` characters and not one of ``PLACEHOLDER_SECRETS``. The one rule,
     asked when authentication is on at startup (``main.lifespan``) and before a write turns it on
     (the ``guard_on`` of the ``auth_enabled`` setting)."""
-    secret = os.environ.get("AUTH_SECRET", "").strip()
+    secret = environment.get(AUTH_SECRET).strip()
     if not secret:
         problem = "is not set or is empty"
     elif secret.lower() in PLACEHOLDER_SECRETS:
@@ -53,10 +56,13 @@ def require_strong_secret() -> None:
         problem = f"is too short ({len(secret)} characters, at least {MIN_SECRET_LENGTH} are required)"
     else:
         return
+    # A secret that is still under its old name is the likely cause of "is not set": say so (ADR-0009 section 3).
+    moved = environment.moved_hint(AUTH_SECRET)
     raise InsecureAuthSecret(
-        f"AUTH_SECRET {problem}. Sessions are signed with it. "
-        f"Set AUTH_SECRET to a long random value (at least {MIN_SECRET_LENGTH} characters), e.g. in .env: "
-        "AUTH_SECRET=$(openssl rand -hex 32). Every user will have to sign in again."
+        f"{AUTH_SECRET} {problem}. Sessions are signed with it. "
+        + (f"{moved}. " if moved else "")
+        + f"Set {AUTH_SECRET} to a long random value (at least {MIN_SECRET_LENGTH} characters), e.g. in .env: "
+        f"{AUTH_SECRET}=$(openssl rand -hex 32). Every user will have to sign in again."
     )
 
 

@@ -1,9 +1,9 @@
 """
 Moving the stored credentials to a new key (docs/credentials.md, ``scripts/rotate_credentials_key.py``).
 
-A rotation is: make the new key ``CREDENTIALS_KEY``, keep the one it replaces in
-``CREDENTIALS_KEY_PREVIOUS`` (the application then reads both and seals with the new one), run this to
-seal every value again with the new key, then take the old key off ``CREDENTIALS_KEY_PREVIOUS``. This
+A rotation is: make the new key ``MUSIZEER_CREDENTIALS_KEY``, keep the one it replaces in
+``MUSIZEER_CREDENTIALS_KEY_PREVIOUS`` (the application then reads both and seals with the new one), run this to
+seal every value again with the new key, then take the old key off ``MUSIZEER_CREDENTIALS_KEY_PREVIOUS``. This
 module does the middle step, for every place a sealed value lives: ``provider_credentials.data``,
 ``provider_sources.credential`` and the settings rows whose value is a sealed envelope (the secret
 settings of the catalog and of the providers).

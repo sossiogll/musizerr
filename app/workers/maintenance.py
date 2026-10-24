@@ -14,7 +14,6 @@ Task di manutenzione, provider-agnostici, che compongono più domini di provider
 from __future__ import annotations
 
 import logging
-import os
 import random
 import time
 from uuid import uuid4
@@ -33,7 +32,7 @@ from musizeer_sdk.models import Track
 from core.settings_resolver import namespace_provider_key
 from core.backoff import retry_delay
 from core.tagging import make_probe_audio
-from core import download_states as ds
+from core import download_states as ds, environment
 from services.auth import auth_manager_for
 from services.credentials import has_own_account, own_store, shared_store
 from services.delegation import poll_for_requested_track
@@ -51,7 +50,7 @@ logger = logging.getLogger(__name__)
 # qui SOLO come lock leggero e a scadenza per far coesistere lo sweep di
 # sicurezza (sweep_delegations) con le chain di riconciliazione già vive
 # senza duplicarle. Vedi start_reconciliation/sweep_delegations più sotto.
-_REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+_REDIS_URL = environment.redis_url()
 _redis_client = redis_lib.Redis.from_url(_REDIS_URL)
 
 

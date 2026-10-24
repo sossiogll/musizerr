@@ -1,18 +1,17 @@
 """
 Prefisso con cui il frontend raggiunge l'API (variabile d'ambiente
-``PUBLIC_API_PREFIX``, default ``/api``) applicato ai costruttori di
+``MUSIZEER_PUBLIC_API_PREFIX``, default ``/api``) applicato ai costruttori di
 ``musizeer_sdk.urls`` e ``core/urls.py``.
 """
 from __future__ import annotations
 
-import os
 
-from core import urls
+from core import environment, urls
 from musizeer_sdk import urls as provider_urls
 
 
 def api_prefix() -> str:
-    return os.environ.get("PUBLIC_API_PREFIX", "/api")
+    return environment.get("MUSIZEER_PUBLIC_API_PREFIX")
 
 
 def cover_url(provider: str, cover_id: str) -> str:

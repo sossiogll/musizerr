@@ -105,7 +105,7 @@ def test_a_link_to_the_root_of_the_host_is_refused(library):
 
 
 def test_without_roots_nothing_is_granted(library):
-    with pytest.raises(PathRefused, match="GATEWAY_FILESYSTEM_ROOTS is empty"):
+    with pytest.raises(PathRefused, match="MUSIZEER_GATEWAY_FILESYSTEM_ROOTS is empty"):
         validate_grant(str(library), "rw", [], (), str(library / ".work"), reserved=())
 
 
@@ -190,15 +190,15 @@ def test_a_file_in_the_image_cannot_be_a_mount_point(tmp_path):
 
 def test_the_roots_come_from_the_environment():
     assert from_environment({}).filesystem_roots == ()
-    config = from_environment({"GATEWAY_FILESYSTEM_ROOTS": "/downloads:/music/library: :/downloads"})
+    config = from_environment({"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": "/downloads:/music/library: :/downloads"})
     assert config.filesystem_roots == ("/downloads", "/music/library")
 
 
 @pytest.mark.parametrize("value", ["/", "relative", "/downloads/../etc", "/proc/1", "/var/lib/musizeer-gateway", "/var/lib/musizeer-gateway/x", "/var"])
 def test_a_root_that_could_expose_the_gateway_stops_it_from_starting(value):
-    with pytest.raises(ConfigError, match="GATEWAY_FILESYSTEM_ROOTS"):
-        from_environment({"GATEWAY_FILESYSTEM_ROOTS": value})
+    with pytest.raises(ConfigError, match="MUSIZEER_GATEWAY_FILESYSTEM_ROOTS"):
+        from_environment({"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": value})
 
 
 def test_a_folder_next_to_the_roots_is_not_a_reason_to_refuse_them():
-    assert from_environment({"GATEWAY_FILESYSTEM_ROOTS": "/var/lib/other"}).filesystem_roots == ("/var/lib/other",)
+    assert from_environment({"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": "/var/lib/other"}).filesystem_roots == ("/var/lib/other",)

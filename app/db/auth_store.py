@@ -37,7 +37,7 @@ class CredentialStore:
     Unico punto di accesso alle credenziali dei provider.
     AuthManager dipende da questa classe — non accede mai al DB direttamente.
 
-    Every credential is stored SEALED (``db/credential_cipher.py``, ``CREDENTIALS_KEY``): a write
+    Every credential is stored SEALED (``db/credential_cipher.py``, ``MUSIZEER_CREDENTIALS_KEY``): a write
     seals, a read opens. One that the configured keys cannot open (the key is gone or wrong, the
     text was altered, or it is in clear) is, for every reader, a credential that is not there: the
     account is "not connected", the app has no OAuth client, the API key is not set. Connecting it

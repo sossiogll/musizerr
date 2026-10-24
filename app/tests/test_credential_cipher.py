@@ -34,7 +34,7 @@ def test_an_unusable_key_is_refused_with_the_way_to_make_one(key, monkeypatch):
         credential_cipher.require_credentials_key()
 
     message = str(refused.value)
-    assert "CREDENTIALS_KEY" in message and "Fernet.generate_key()" in message
+    assert "MUSIZEER_CREDENTIALS_KEY" in message and "Fernet.generate_key()" in message
     if key and len(key.strip()) > 8:
         assert key.strip() not in message, "the value is never echoed"
 
@@ -51,13 +51,13 @@ def test_a_bad_previous_key_is_refused_and_named(monkeypatch):
     with pytest.raises(CredentialsKeyError) as refused:
         credential_cipher.require_credentials_key()
 
-    assert "CREDENTIALS_KEY_PREVIOUS" in str(refused.value) and "item 2 of 2" in str(refused.value)
+    assert "MUSIZEER_CREDENTIALS_KEY_PREVIOUS" in str(refused.value) and "item 2 of 2" in str(refused.value)
     assert "nonsense-key-value" not in str(refused.value)
 
 
 def test_the_previous_keys_are_optional(monkeypatch):
     use_keys(monkeypatch, KEY)
-    monkeypatch.setenv("CREDENTIALS_KEY_PREVIOUS", "  ")
+    monkeypatch.setenv("MUSIZEER_CREDENTIALS_KEY_PREVIOUS", "  ")
 
     credential_cipher.require_credentials_key()
 
@@ -94,7 +94,7 @@ def test_an_unreadable_value_is_reported_once_without_any_secret(caplog):
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
     text = warnings[0].getMessage()
-    assert "provider 'orbit'" in text and "CREDENTIALS_KEY" in text
+    assert "provider 'orbit'" in text and "MUSIZEER_CREDENTIALS_KEY" in text
     for forbidden in ("canary-plaintext", sealed, sealed.split(":")[-1], KEY, OTHER_KEY, THIRD_KEY):
         assert forbidden not in text and forbidden not in caplog.text
 

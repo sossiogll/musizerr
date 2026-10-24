@@ -39,7 +39,7 @@ JSON_COLUMNS = {
     ("library_job_runs", "providers"), ("library_job_runs", "result"), ("duplicate_groups", "deleted_paths"),
     ("installed_providers", "types"), ("routine_runs", "progress"),
 }
-# The columns that hold a credential: sealed with CREDENTIALS_KEY (docs/credentials.md).
+# The columns that hold a credential: sealed with MUSIZEER_CREDENTIALS_KEY (docs/credentials.md).
 SEALED_COLUMNS = {("provider_credentials", "data"), ("provider_sources", "credential")}
 VALUES = {
     ("settings", "scope"): ["system", "user", "user"],
@@ -119,14 +119,14 @@ def target():
 
 @pytest.fixture
 def config_json(tmp_path, monkeypatch) -> dict:
-    """A ``config.json`` in ``DATA_DIR``, as every real install has: migration 0010 imports it into
+    """A ``config.json`` in ``MUSIZEER_DATA_DIR``, as every real install has: migration 0010 imports it into
     ``settings`` on whatever database it runs on, the source's and the target's. Request it BEFORE
     ``source``, so the source is migrated with it too."""
     config = {"search_limit": 7, "metadata_provider_priority": ["first", "second"], "auth_enabled": False, "name": "Café"}
     data = tmp_path / "data"
     data.mkdir()
     (data / "config.json").write_text(json.dumps(config))
-    monkeypatch.setenv("DATA_DIR", str(data))
+    monkeypatch.setenv("MUSIZEER_DATA_DIR", str(data))
     return config
 
 
@@ -262,7 +262,7 @@ def test_without_the_key_the_copy_is_refused_before_anything_is_read(source, tar
     for apply in (False, True):
         report = tool.migrate(source, target.url, apply=apply)
 
-        assert report.exit_code == 2 and "CREDENTIALS_KEY" in report.problems[0]
+        assert report.exit_code == 2 and "MUSIZEER_CREDENTIALS_KEY" in report.problems[0]
         assert not report.committed and _tables(target) == set()
 
 
@@ -273,7 +273,7 @@ def test_credentials_the_configured_key_cannot_open_stop_the_copy_and_leave_the_
     report = tool.migrate(source, target.url, apply=True)
 
     assert not report.ok and report.exit_code == 1 and not report.committed
-    assert "cannot be opened with the configured CREDENTIALS_KEY" in report.problems[0]
+    assert "cannot be opened with the configured MUSIZEER_CREDENTIALS_KEY" in report.problems[0]
     with target.connect() as connection:
         assert connection.execute(sa.text("SELECT COUNT(*) FROM provider_credentials")).scalar() == 0
 
@@ -405,7 +405,7 @@ def test_the_report_says_how_many_seeded_rows_the_source_replaced(config_json, s
 def test_only_what_the_migrations_always_write_is_reported_as_seeded_without_a_config_json(
     source, target, monkeypatch, tmp_path,
 ):
-    monkeypatch.setenv("DATA_DIR", str(tmp_path / "no-config-here"))
+    monkeypatch.setenv("MUSIZEER_DATA_DIR", str(tmp_path / "no-config-here"))
 
     report = tool.migrate(source, target.url, apply=True)
 

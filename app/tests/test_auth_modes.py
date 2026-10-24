@@ -5,7 +5,7 @@ The two authentication modes, seen from the API:
   can register, and the status no longer says they can);
 - Administration › Users creates accounts, with authentication on AND off (``POST /admin/users``);
 - authentication cannot be turned on while nobody can sign in (``no_admin_account``), on top of the
-  ``AUTH_SECRET`` rule, in the same ``guard_on`` every writer of the setting passes through.
+  ``MUSIZEER_AUTH_SECRET`` rule, in the same ``guard_on`` every writer of the setting passes through.
 """
 from __future__ import annotations
 
@@ -261,9 +261,9 @@ def test_an_administrator_created_through_the_api_is_what_turning_it_on_needs(wo
 def test_the_secret_rule_still_applies_with_an_administrator_and_is_reported_first_without_one(world, monkeypatch, secret):
     world.set_authentication(False)
     if secret is None:
-        monkeypatch.delenv("AUTH_SECRET")
+        monkeypatch.delenv("MUSIZEER_AUTH_SECRET")
     else:
-        monkeypatch.setenv("AUTH_SECRET", secret)
+        monkeypatch.setenv("MUSIZEER_AUTH_SECRET", secret)
 
     assert _turn_on(world).json()["detail"]["error_code"] == "auth_secret_insecure"  # no administrator yet
     world.account("root", role="admin")
@@ -275,7 +275,7 @@ def test_turning_it_off_never_asks_for_an_administrator_nor_a_secret(world, monk
     from services.settings import SettingsService
 
     world.set_authentication(True)  # no account at all, and no good secret: nobody could sign in
-    monkeypatch.delenv("AUTH_SECRET")
+    monkeypatch.delenv("MUSIZEER_AUTH_SECRET")
     stand_in = User(id="stand-in", username="stand-in", password_hash="x", role="admin")
 
     with world.session() as session:

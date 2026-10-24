@@ -49,7 +49,7 @@ CDN_PREVIEW = "https://cdn.example.com/previews/abc.mp3"
 
 @pytest.fixture(params=["/api", "/music/api"])
 def prefix(request, monkeypatch):
-    monkeypatch.setenv("PUBLIC_API_PREFIX", request.param)
+    monkeypatch.setenv("MUSIZEER_PUBLIC_API_PREFIX", request.param)
     return request.param
 
 
@@ -366,7 +366,7 @@ def test_migration_is_idempotent(engine_at_0018):
 
 def test_downgrade_restores_public_urls_with_the_current_prefix(engine_at_0018, monkeypatch):
     engine, cfg = engine_at_0018
-    monkeypatch.setenv("PUBLIC_API_PREFIX", "/api")
+    monkeypatch.setenv("MUSIZEER_PUBLIC_API_PREFIX", "/api")
     with engine.begin() as conn:
         _seed_for_migration(conn)
 

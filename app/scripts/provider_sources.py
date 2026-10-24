@@ -26,7 +26,6 @@ printed. Exit status: 0 done, 1 refused (the code and the reason are printed), 2
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import Callable, Mapping, TextIO
@@ -35,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlmodel import Session  # noqa: E402
 
+from core import environment  # noqa: E402
 from db import credential_cipher  # noqa: E402
 from services.sources import SourceError, SourceManager  # noqa: E402
 
@@ -319,7 +319,7 @@ def main(
 ) -> int:
     args = _parser().parse_args(argv)
     out, stdin = out or sys.stdout, stdin or sys.stdin
-    environ = os.environ if environ is None else environ
+    environ = environment.snapshot() if environ is None else environ
     try:
         credential_cipher.require_credentials_key()  # a source's token is stored sealed (docs/credentials.md)
     except credential_cipher.CredentialsKeyError as refused:

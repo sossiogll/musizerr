@@ -169,7 +169,7 @@ def upgrade_path_problem(record: Optional[SchemaRecord], app_version: str,
     migrated = f"Musizeer {last}" if last is not None else "a release older than the database guard"
     return (
         f"This version (Musizeer {app_version}) upgrades databases last migrated by Musizeer {wanted} or later, and "
-        f"this one was last migrated by {migrated}. Start Musizeer {wanted} first (set MUSIZERR_VERSION={wanted}, "
+        f"this one was last migrated by {migrated}. Start Musizeer {wanted} first (set MUSIZEER_VERSION={wanted}, "
         "let init finish), then this version."
     )
 

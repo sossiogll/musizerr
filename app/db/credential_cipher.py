@@ -4,7 +4,7 @@ from, the refusal to start without it, and the two operations the stores need (s
 unseal on a read).
 
 The format and the cryptography are ``core/secret_box.py``. This module is the only one that reads
-``CREDENTIALS_KEY`` (the key that seals) and ``CREDENTIALS_KEY_PREVIOUS`` (older keys, comma
+``MUSIZEER_CREDENTIALS_KEY`` (the key that seals) and ``MUSIZEER_CREDENTIALS_KEY_PREVIOUS`` (older keys, comma
 separated, used only to open: what a rotation leaves behind, ``scripts/rotate_credentials_key.py``)
 from the process environment. The provider gateway never has them: a provider receives the
 credential it is to use for a call, never the key that sealed it.
@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import threading
 
+from core import environment
 from core.secret_box import InvalidKey, SecretBox, Unreadable, check_key, split_keys
 
 logger = logging.getLogger(__name__)
 
-ENV_KEY = "CREDENTIALS_KEY"
-ENV_PREVIOUS = "CREDENTIALS_KEY_PREVIOUS"
+ENV_KEY = "MUSIZEER_CREDENTIALS_KEY"
+ENV_PREVIOUS = "MUSIZEER_CREDENTIALS_KEY_PREVIOUS"
 
 _GENERATE = (
     'docker run --rm musizeer-app python -c "from cryptography.fernet import Fernet; '
@@ -41,7 +41,7 @@ _reported_lock = threading.Lock()
 
 
 class CredentialsKeyError(RuntimeError):
-    """``CREDENTIALS_KEY`` cannot seal the stored credentials: it is missing, empty or not a key.
+    """``MUSIZEER_CREDENTIALS_KEY`` cannot seal the stored credentials: it is missing, empty or not a key.
     The message says what is wrong and how to fix it, and never contains a key."""
 
 
@@ -53,7 +53,7 @@ _current: tuple[tuple[str, str], SecretBox] | None = None
 def box() -> SecretBox:
     """The box of the configured keys; ``CredentialsKeyError`` when they are not usable."""
     global _current
-    material = (os.environ.get(ENV_KEY, ""), os.environ.get(ENV_PREVIOUS, ""))
+    material = (environment.get(ENV_KEY), environment.get(ENV_PREVIOUS))
     held = _current
     if held is not None and held[0] == material:
         return held[1]
@@ -65,8 +65,10 @@ def box() -> SecretBox:
 def _build(primary: str, previous: str) -> SecretBox:
     primary = primary.strip()
     if not primary:
+        # A key that is still under its old name is the likely cause: the refusal names the new one (ADR-0009 section 3).
+        moved = environment.moved_hint(ENV_KEY)
         raise CredentialsKeyError(
-            f"{ENV_KEY} is not set or is empty. The credentials Musizeer stores (provider accounts, tokens, "
+            f"{ENV_KEY} is not set or is empty. " + (f"{moved}. " if moved else "") + "The credentials Musizeer stores (provider accounts, tokens, "
             f"API keys, secret settings, source tokens) are encrypted with it. Set {ENV_KEY} in .env to a "
             f"Fernet key, generated once with: {_GENERATE} . Keep it with the database backups: without it the "
             "stored credentials cannot be read and every account has to be connected again."
