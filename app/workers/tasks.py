@@ -30,7 +30,7 @@ from db import library_job_store as job_store
 from services import library_jobs
 from services.credentials import account_holders, has_own_account, own_store, shared_store
 from services import downloads as download_service
-from services import favorites, library_scan, playlist_monitor, playlist_sync, routines, sync_index
+from services import favorites, library_scan, playlist_monitor, playlist_sync, provider_order, routines, sync_index
 from services.download_requests import liked_elsewhere_spec, request_download
 from services.enrichment import cross_enrich_track
 from services.errors import public_error
@@ -144,7 +144,7 @@ def download_task(
         resolver = DownloadResolver(
             registry=registry,
             auth_manager=auth_manager,
-            provider_order=config.download_provider_order,
+            provider_order=provider_order.effective_download_order(registry, config, session),
             slots=RedisProviderSlots(
                 lease_seconds=config.download_hard_time_limit_seconds,
                 wait_seconds=config.provider_slot_wait_seconds,

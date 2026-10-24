@@ -21,6 +21,7 @@ from db.models import SYSTEM_USER_ID, User
 from services.auth import auth_manager_for
 from services.capabilities import Viewer, favorite_on_arrival
 from services.credentials import shared_store, user_store
+from services import provider_order
 from services.provider_cooldown import RedisProviderCooldown
 from services.gateway_sync import GatewaySync
 from services.provider_events import GatewayWatcher, ProviderReloader
@@ -308,16 +309,23 @@ StreamAdminDep = Annotated[User, Depends(require_stream_admin)]
 # Aggregated dependencies
 # ------------------------------------------------------------------
 
-def resolve_metadata_priority(user: User, config: ConfigManager, session: Session) -> list[str]:
-    """Per-user override of config.metadata_provider_priority, falling back to
-    the global default when the user has none set. Admins always edit the
-    global default directly (see PATCH /config), so this is effectively a
-    no-op for them. The personal override is a row of the `settings` table
-    (scope 'user')."""
-    override = SettingsRepository(session).get_user("metadata_provider_priority", user.id)
-    if override:
-        return override
-    return config.metadata_provider_priority
+def get_metadata_priority(
+    registry: RegistryDep, config: ConfigDep, session: SessionDep, user: OptionalUserDep,
+) -> list[str]:
+    """The order in which the VIEWER asks the metadata providers: ``services/provider_order``,
+    the one place that computes it (their own stored order else the system default, restricted
+    to the registered providers, the rest appended in installation order)."""
+    return provider_order.effective_metadata_priority(registry, config, session, user.id if user else None)
+
+
+def get_system_metadata_priority(registry: RegistryDep, config: ConfigDep, session: SessionDep) -> list[str]:
+    """The same order for no one in particular (the system default): for what is cached and shared
+    across viewers."""
+    return provider_order.effective_metadata_priority(registry, config, session)
+
+
+MetadataPriorityDep = Annotated[list[str], Depends(get_metadata_priority)]
+SystemMetadataPriorityDep = Annotated[list[str], Depends(get_system_metadata_priority)]
 
 
 def get_search_aggregator(
@@ -325,6 +333,7 @@ def get_search_aggregator(
     config: ConfigDep,
     session: SessionDep,
     user: CurrentUserDep,
+    priority: MetadataPriorityDep,
 ) -> SearchAggregator:
     auth_manager = auth_manager_for(user_store(session, user.id))
     limits = {}
@@ -336,7 +345,7 @@ def get_search_aggregator(
     return SearchAggregator(
         registry=registry,
         auth_manager=auth_manager,
-        provider_priority=resolve_metadata_priority(user, config, session),
+        provider_priority=priority,
         provider_search_limits=limits,
         search_budget_seconds=config.search_provider_budget_seconds,
         default_search_limit=config.search_default_limit,

@@ -25,6 +25,7 @@ from db.engine import get_session
 from db.models import User
 from routes import deps
 from routes.system.routines import router as routines_router
+from tests.conftest import FakeRegistry
 
 
 
@@ -45,7 +46,7 @@ def client(engine, monkeypatch):
     # Mai usato dai path sotto test (include_providers=False in tutte le
     # chiamate a SettingsService da routes/system/routines.py) — un None
     # basta, evita di istanziare un ProviderRegistry reale (discovery).
-    app.dependency_overrides[deps.get_registry] = lambda: None
+    app.dependency_overrides[deps.get_registry] = lambda: FakeRegistry()
 
     with TestClient(app) as c:
         yield c, engine

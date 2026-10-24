@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Response
 from core.discography import group_releases
 
 from core.serialization import serialize_item, serialize_release_group
-from routes.deps import AuthManagerDep, ConfigDep, DownloaderDep, RegistryDep, SessionDep, ViewerDep
+from routes.deps import AuthManagerDep, ConfigDep, DownloaderDep, MetadataPriorityDep, RegistryDep, SessionDep, ViewerDep
 from services.download_requests import album_spec, request_download
 from services.provider_calls import provider_call
 from services.enrichment import cross_enrich_album, enrich_tracks_with_stream_url, fill_missing_artist
@@ -42,7 +42,7 @@ EDITIONS_SCAN_LIMIT = 50
 
 
 @router.get("/album/{provider}/{id}/editions")
-def get_album_editions(provider: str, id: str, registry: RegistryDep, auth_manager: AuthManagerDep, config: ConfigDep):
+def get_album_editions(provider: str, id: str, registry: RegistryDep, auth_manager: AuthManagerDep, priority: MetadataPriorityDep):
     """Le edizioni della stessa uscita (standard, deluxe, remaster...) sul
     provider dell'album, raggruppate come nella discografia dell'artista
     (core.discography.group_releases). Nessun arricchimento cross-provider:
@@ -60,7 +60,7 @@ def get_album_editions(provider: str, id: str, registry: RegistryDep, auth_manag
         releases = [album, *releases]
     fill_missing_artist(releases, album.artist, album.artist_provider_id)
     group = next(
-        (g for g in group_releases(releases, config.metadata_provider_priority) if any(e.provider_id == id for e in g.editions)),
+        (g for g in group_releases(releases, priority) if any(e.provider_id == id for e in g.editions)),
         None,
     )
     editions = serialize_release_group(group)["editions"] if group else []
