@@ -101,6 +101,32 @@ components:
 
   schemas:
     # ── Reusable primitives ─────────────────────────────────────────
+    SchemaStatus:
+      type: object
+      description: >
+        Which schema the database is at (ADR-0007), for admins: the revisions it is at now and what the last
+        migration run recorded in `schema_info`. The recorded fields are null for a database migrated by hand
+        or before the table existed.
+      required: [revision, migrated_by, min_app_version, contract_revision, phase, migrated_at]
+      properties:
+        revision:
+          type: string
+          description: The Alembic revision(s) the database is at, "+"-joined when there are several.
+        migrated_by:
+          type: [string, "null"]
+          description: The version that last migrated it ("dev" for a development build).
+        min_app_version:
+          type: [string, "null"]
+          description: The oldest version that can run on it; raised by a contract migration, null until one is recorded.
+        contract_revision:
+          type: [string, "null"]
+          description: The newest contract migration applied.
+        phase:
+          type: [string, "null"]
+          enum: [expand, contract, null]
+          description: "`contract` when the last migration run applied a contract migration."
+        migrated_at: {type: [string, "null"], format: date-time}
+
     DownloadStatus:
       type: string
       description: State of a download (core.download_states), most advanced first.
@@ -5339,6 +5365,9 @@ paths:
                   commit:
                     type: string
                     description: Admins only. The commit the images were built from; empty for the development stack.
+                  schema:
+                    description: Admins only, and only when the database answers and has been migrated. The schema the database is at.
+                    $ref: "#/components/schemas/SchemaStatus"
                   db:
                     type: string
                     enum: [ok, error]
@@ -7403,10 +7432,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [current, commit, development, check_enabled, checked_at, last_check_failed, release_info_unavailable, updates, latest]
+                required: [current, commit, schema, development, check_enabled, checked_at, last_check_failed, release_info_unavailable, updates, latest]
                 properties:
                   current: {type: string}
                   commit: {type: string}
+                  schema:
+                    description: The schema the database is at and what migrated it (ADR-0007); null when it cannot be read.
+                    oneOf:
+                      - $ref: "#/components/schemas/SchemaStatus"
+                      - type: "null"
                   development:
                     type: boolean
                     description: A development build, with no version to compare.

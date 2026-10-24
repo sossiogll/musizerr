@@ -114,6 +114,11 @@ migration run:
 | `phase` | `contract` when that run applied one, else `expand` |
 | `migrated_at` | when |
 
+Admins see it: `GET /health` carries a `schema` object (the revisions the database is at now, `migrated_by`,
+`min_app_version`, `contract_revision`, `phase`, `migrated_at`; admins only, like the version, and absent while the
+database does not answer), and so does `GET /admin/updates`, which the About page reads (Database, and the oldest version
+that can use it once a contract migration is recorded).
+
 ## The start check
 
 The API (`main.lifespan`) and every worker (`workers.celery_app`, at `worker_init`)

@@ -10,6 +10,7 @@ from sqlmodel import text
 from core import user_auth
 from db.engine import engine
 from services import app_version
+from services.schema_status import schema_status
 from routes.deps import ConfigDep, get_registry
 
 router = APIRouter()
@@ -52,6 +53,10 @@ def health(
         # The version that runs (ADR-0007 §2): admins only, like the providers. Telling everyone would
         # tell who looks for a vulnerable version which instances run it.
         status["version"], status["commit"] = app_version.VERSION, app_version.COMMIT
+        # The schema the database is at (ADR-0007 §2), when it can be read: not while the database is down.
+        schema = schema_status(engine) if status["db"] == "ok" else None
+        if schema is not None:
+            status["schema"] = schema
         try:
             registry = get_registry()
             status["providers"] = {

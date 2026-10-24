@@ -806,9 +806,22 @@ export interface AvailableUpdate {
   reasons: UpdateReason[];
 }
 
+export interface SchemaStatus {
+  /** The Alembic revision(s) the database is at, "+"-joined. */
+  revision: string;
+  /** The version that last migrated it; null for a database migrated by hand. */
+  migrated_by: string | null;
+  min_app_version: string | null;
+  contract_revision: string | null;
+  phase: "expand" | "contract" | null;
+  migrated_at: string | null;
+}
+
 export interface UpdatesInfo {
   current: string;
   commit: string;
+  /** The schema the database is at and what migrated it (ADR-0007); null when it cannot be read. */
+  schema: SchemaStatus | null;
   /** A development build: nothing to compare. */
   development: boolean;
   check_enabled: boolean;

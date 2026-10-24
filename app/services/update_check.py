@@ -27,6 +27,7 @@ from core.versions import InstalledContract, assess_update, parse_version, updat
 from db.models import InstalledProvider
 from db.routine_run_store import STATUS_ERROR, STATUS_OK, finished_runs, latest_run
 from services import app_version
+from services.schema_status import schema_status
 from services.routines import run_result
 
 ROUTINE = "check_for_updates"
@@ -191,6 +192,8 @@ def view(session: Session, *, check_enabled: bool, current: str = app_version.VE
     return {
         "current": current,
         "commit": app_version.COMMIT,
+        # The schema the database is at and what migrated it (ADR-0007 §2), or None when it cannot be read.
+        "schema": schema_status(session.get_bind()),
         "development": running is None,
         "check_enabled": check_enabled,
         "checked_at": utc_iso(ok_run.finished_at) if ok_run is not None else None,

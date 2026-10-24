@@ -61,7 +61,8 @@ Every versioned thing follows semantic versioning, with these meanings:
   and the FastAPI application the same version (the documentation it serves).
 - The About page shows everyone the version of the web app, and admins the server's (with its commit); a
   web app and a server of different versions (a cached page, a server not restarted) are pointed out. The
-  provider contracts and the schema revision join it with phases 2 and 3.
+  provider contracts and the schema revision join it with phases 2 and 3 (the schema: *done* with phase 3, `/health`
+  `schema` and the Database row of the About page, admins only; the provider contracts: with phase 6).
 
 ### 3. The provider contract
 

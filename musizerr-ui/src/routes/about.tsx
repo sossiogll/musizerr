@@ -70,6 +70,23 @@ function VersionSection() {
             </dd>
           </>
         )}
+        {data?.schema && (
+          <>
+            <dt className="text-muted-foreground">{t("about.databaseSchema")}</dt>
+            <dd className="font-mono">
+              {data.schema.revision}
+              {data.schema.migrated_by && (
+                <span className="text-muted-foreground"> ({t("about.schemaMigratedBy")} {data.schema.migrated_by})</span>
+              )}
+            </dd>
+            {data.schema.min_app_version && (
+              <>
+                <dt className="text-muted-foreground">{t("about.schemaMinVersion")}</dt>
+                <dd className="font-mono">{data.schema.min_app_version}</dd>
+              </>
+            )}
+          </>
+        )}
         {data?.release_info_unavailable && (
           <>
             <dt className="text-muted-foreground">{t("about.releaseInfo")}</dt>
