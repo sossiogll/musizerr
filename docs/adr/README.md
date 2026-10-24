@@ -2,7 +2,8 @@
 
 One file per decision, numbered in the order they were written. A record is never deleted; a later one supersedes it
 and says so. **Status** is the one in the record's own header. Records written before ADR-0010 keep the name the product
-had then (Musizerr): they are history, and are not edited for the rename.
+had then (Musizerr): they are history, and are not edited for the rename. For the picture these decisions add up to, see
+the [architecture overview](../architecture.md).
 
 | ADR | Title | Status |
 |---|---|---|

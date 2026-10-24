@@ -21,7 +21,8 @@ itself knows none of them by name.
   asks for (its network destinations, folders, limits) and installs it.
 - **The web app**: React, made for phones as much as for desktops; administration included.
 
-The architecture, its rules and its patterns are described in the guide at the root of the repository and in
+[`docs/architecture.md`](docs/architecture.md) is the map: the processes, the provider gateway and its sandboxes, and the
+main flows. The architecture, its rules and its patterns are described in the guide at the root of the repository and in
 [`docs/`](docs/); the decisions in [`docs/adr/`](docs/adr/).
 
 ## Run it
@@ -79,7 +80,7 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
    A private catalog is added with a token that can read it. Then configure the providers in Administration ›
    Providers and connect your accounts in Settings.
 
-More: [the deployment guide](docs/deployment.md), [PostgreSQL and moving from SQLite](docs/postgresql.md), [workers](docs/workers.md),
+More: [the architecture overview](docs/architecture.md), [the deployment guide](docs/deployment.md), [PostgreSQL and moving from SQLite](docs/postgresql.md), [workers](docs/workers.md),
 [users and permissions](docs/permissions.md), [signing in through a provider](docs/provider-login.md),
 [playlists](docs/playlists.md), [sources and catalogs](docs/catalog.md), [the gateway](docs/gateway.md),
 [migrations](docs/migrations.md), [the push callback of delegated downloads](docs/delegation-webhook.md).
