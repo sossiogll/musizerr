@@ -73,6 +73,22 @@ jobs:
           cache: pip
           cache-dependency-path: requirements*.txt
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      # pg_dump and pg_restore for the backup tests (test_database_guard, test_restore_backup): the client must be of the
+      # server's major (17, as the image's postgresql-client-17), and the runner's own apt has 16, which pg_dump refuses
+      # a newer server with. From the PostgreSQL project's apt repository (PGDG), its key checked against the published
+      # fingerprint, and put first on PATH (the runner has other majors installed).
+      - name: PostgreSQL 17 client
+        run: |
+          set -euo pipefail
+          key=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o "$key" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          gpg --show-keys --with-colons "$key" | grep -q '^fpr:::::::::B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8:'
+          echo "deb [signed-by=$key] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+      - run: pg_dump --version
       - run: pip install -q -r requirements-dev.txt -e sdk
       # One database per test makes this suite slow: four runners take a quarter of the test files each.
       - name: the shard's test files

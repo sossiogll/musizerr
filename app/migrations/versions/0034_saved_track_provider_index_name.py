@@ -24,6 +24,9 @@ down_revision: Union[str, None] = "0033_file_sizes_bigint"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "expand"  # renames an index no code names
+
 _TABLE = "user_saved_track_providers"
 _OLD = "ix_ustp_saved_track_id"
 _NEW = "ix_user_saved_track_providers_saved_track_id"

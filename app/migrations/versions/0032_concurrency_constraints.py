@@ -37,6 +37,9 @@ down_revision: Union[str, None] = "0031_routine_run_progress"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # deletes duplicate rows and adds unique constraints (tightens)
+
 _NO_USER = sa.text("user_id IS NULL")
 
 

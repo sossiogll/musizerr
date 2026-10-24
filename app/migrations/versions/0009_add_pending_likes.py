@@ -18,6 +18,9 @@ down_revision: Union[str, None] = "0008_delegation_handle"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "expand"  # adds a table
+
 
 def upgrade() -> None:
     op.create_table(

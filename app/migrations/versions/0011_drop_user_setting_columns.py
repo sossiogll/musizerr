@@ -64,6 +64,9 @@ down_revision: Union[str, None] = "0010_settings_store"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # drops two columns of users
+
 _AUTO_LIKE_KEY = "auto_like_on_sync"
 _PRIORITY_KEY = "metadata_provider_priority"
 

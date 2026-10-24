@@ -20,7 +20,7 @@ beforeEach(() => {
   mode = "guest";
   getUpdates.mockClear();
   updates = {
-    current: "dev", commit: "", development: true, check_enabled: true, checked_at: null,
+    current: "dev", commit: "", schema: null, development: true, check_enabled: true, checked_at: null,
     last_check_failed: false, release_info_unavailable: null, updates: [], latest: null,
   };
 });
@@ -64,6 +64,32 @@ describe("AboutPage", () => {
     const section = (await screen.findByRole("heading", { name: "Version" })).parentElement!;
     expect(await within(section).findByText("Server")).toBeInTheDocument();
     expect(within(section).getByText(/1\.2\.0/)).toHaveTextContent("1.2.0 (abc1234)");
+  });
+
+  it("an admin sees the schema the database is at and what migrated it", async () => {
+    mode = "admin";
+    updates = {
+      ...updates, current: "1.5.0", development: false,
+      schema: {
+        revision: "0043_schema_info", migrated_by: "1.5.0", min_app_version: "1.0.0",
+        contract_revision: "0042_open_mode_accounts", phase: "expand", migrated_at: "2026-10-24T10:15:00Z",
+      },
+    };
+    renderAbout();
+    const section = (await screen.findByRole("heading", { name: "Version" })).parentElement!;
+    expect(await within(section).findByText("Database")).toBeInTheDocument();
+    expect(within(section).getByText(/0043_schema_info/)).toHaveTextContent("0043_schema_info (migrated by 1.5.0)");
+    expect(within(section).getByText("Oldest version that can use it")).toBeInTheDocument();
+    expect(within(section).getByText("1.0.0")).toBeInTheDocument();
+  });
+
+  it("shows no database row when the schema cannot be read", async () => {
+    mode = "admin";
+    updates = { ...updates, current: "1.5.0", development: false, schema: null };
+    renderAbout();
+    const section = (await screen.findByRole("heading", { name: "Version" })).parentElement!;
+    await within(section).findByText("Server");
+    expect(within(section).queryByText("Database")).not.toBeInTheDocument();
   });
 
   it("an admin is told when the release information is unavailable, and why", async () => {

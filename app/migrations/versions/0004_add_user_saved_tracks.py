@@ -17,6 +17,9 @@ down_revision: Union[str, None] = "b5431e08b0b9"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "expand"  # adds tables
+
 
 def upgrade() -> None:
     op.create_table(

@@ -34,6 +34,9 @@ down_revision: Union[str, None] = "0020_favorites"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # moves user_library_syncs into library_job_runs and drops the old table
+
 _FAILED_MESSAGE = "The library sync failed."
 _LOST_MESSAGE = "The worker stopped before the job finished."
 

@@ -43,6 +43,10 @@ down_revision: Union[str, None] = "0040_storage_provider_explicit"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # seals the stored credentials, a form the previous code cannot read; the downgrade needs the key and may refuse
+irreversible = True  # its downgrade cannot be relied on to restore the previous state
+
 logger = logging.getLogger("alembic.runtime.migration")
 
 # The secret settings of the catalog (``core.settings_catalog``) when this migration was written.

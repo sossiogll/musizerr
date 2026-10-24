@@ -17,8 +17,9 @@ and give `DATABASE_URL` to `init`, `app` and every worker, which wait for the
 database to be healthy. To stay on SQLite, remove the `postgres` service, the
 `<<: *database` lines and the `depends_on` on it.
 
-The schema is Alembic's (`app/migrations`) on both: `init_db()` runs
-`alembic upgrade head` at start, on whichever database `DATABASE_URL` names.
+The schema is Alembic's (`app/migrations`) on both: the `init` step (`services/database_init.py`) runs
+`alembic upgrade head` at start, on whichever database `DATABASE_URL` names, after backing it up
+([migrations.md](migrations.md)); the API and the workers only check that it is current.
 
 ## Switching an existing SQLite install
 
@@ -111,8 +112,13 @@ reverse copy.
 
 ## Running it
 
-- Back up PostgreSQL with `pg_dump` (`docker compose exec postgres pg_dump -U
+- `init` dumps the database (`pg_dump`, custom format) into `/data/backups` before every
+  migration, and keeps the last 5; [migrations.md](migrations.md#restoring-a-backup) restores one. That is a safety net
+  for a migration, not a backup plan: back PostgreSQL up on a schedule too (`docker compose exec postgres pg_dump -U
   musizerr musizerr > musizerr.sql`).
+- The image carries `postgresql-client-17`, the major of the `postgres:17` the compose files run. If you run another
+  major, `pg_dump` refuses a server newer than itself and `init` stops with that message; use a 17 server, or
+  build the image with the matching client.
 - A write that waits more than `DB_BUSY_TIMEOUT_MS` for a lock, a deadlock, a
   serialization failure and a query cancelled by the statement timeout all
   answer **503 `database_busy`** with `Retry-After`, never a 500.

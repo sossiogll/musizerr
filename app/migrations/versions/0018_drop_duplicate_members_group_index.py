@@ -20,6 +20,9 @@ down_revision: Union[str, None] = "0017_retry_unidentified_fingerprints"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "expand"  # drops only a duplicate index no code names
+
 
 def upgrade() -> None:
     op.drop_index("ix_duplicate_members_group", table_name="duplicate_members")

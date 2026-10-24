@@ -38,6 +38,9 @@ down_revision: Union[str, None] = "0006"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # re-homes saved tracks onto tracks, drops columns and tightens a foreign key
+
 
 def upgrade() -> None:
     import json

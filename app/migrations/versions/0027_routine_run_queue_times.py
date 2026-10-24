@@ -25,6 +25,9 @@ down_revision: Union[str, None] = "0026_removed_favorites"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # makes routine_runs.queued_at NOT NULL, changes the status default and loosens started_at
+
 
 def upgrade() -> None:
     with op.batch_alter_table("routine_runs") as batch:

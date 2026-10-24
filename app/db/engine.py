@@ -202,14 +202,6 @@ def upgrade_to_head(db_engine: Engine) -> None:
     command.upgrade(cfg, "head")
 
 
-def init_db() -> None:
-    """Bring the application's database up to head via alembic."""
-    url = database_url()
-    if url.get_backend_name() == SQLITE and url.database not in (None, "", ":memory:"):
-        Path(url.database).parent.mkdir(parents=True, exist_ok=True)
-    upgrade_to_head(engine)
-
-
 def get_session():
     """Dependency FastAPI: fornisce una sessione DB per request."""
     with Session(engine) as session:

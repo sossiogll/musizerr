@@ -86,6 +86,8 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git tag -a "v$version" -m "Musizerr $version"
             git push origin "v$version"
+            # What this release does to the database (ADR-0007 §4): the migrations it adds since the last tag, by phase.
+            python3 app/scripts/migration_phases.py ${last:+--since "$last"} > "$notes/migrations.json"
             build=$version
             echo "release v$version ($bump)"
           else
@@ -218,6 +220,7 @@ jobs:
             section feature "Features"
             section fix "Fixes"
             section chore "Other changes"
+            scripts/release-database-notes.sh "$notes/migrations.json" "$GITHUB_REPOSITORY" "$VERSION"
             echo "## Images"
             echo
             for image in musizerr musizerr-frontend musizerr-gateway; do
@@ -230,10 +233,10 @@ jobs:
             echo
             echo "To install without cloning the repository, download \`docker-compose.yaml\`, \`musizerr-gateway.seccomp.json\` and \`env.example\` (below) into one folder: [deployment guide](https://github.com/$GITHUB_REPOSITORY/blob/v$VERSION/docs/deployment.md)."
           } > "$RUNNER_TEMP/notes.md"
-          # What an instance's update check reads (ADR-0007 §5.1). The contract migrations join it with phase 3.
+          # What an instance's update check reads (ADR-0007 §5.1): the migrations of the release by phase
+          # (app/scripts/migration_phases.py) and the oldest version it upgrades from (core/schema_guard.py).
           manual=$([ -s "$notes/upgrade.md" ] && echo true || echo false)
-          jq -n --arg version "$VERSION" --argjson contract "$contract" --argjson images "$images" --argjson manual "$manual" \
-            '{version: $version, provider_contracts: [$contract], images: $images, manual_steps: $manual}' > "$RUNNER_TEMP/release.json"
+          scripts/release-json.sh "$VERSION" "$contract" "$images" "$manual" "$notes/migrations.json" > "$RUNNER_TEMP/release.json"
           cat "$RUNNER_TEMP/release.json"
           # The compose file and the seccomp profile it reads from the host, side by side (a profile cannot come from an image).
           scripts/package-release-assets.sh "$RUNNER_TEMP/assets"

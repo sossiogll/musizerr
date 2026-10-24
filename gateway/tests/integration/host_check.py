@@ -24,7 +24,8 @@ import time
 
 os.environ.setdefault("DATA_DIR", "/tmp/data")
 
-from db.engine import engine, init_db  # noqa: E402
+from db.engine import engine  # noqa: E402
+from services.database_init import init_db  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 
 from core.settings_resolver import namespace_provider_key  # noqa: E402

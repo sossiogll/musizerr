@@ -61,7 +61,8 @@ Every versioned thing follows semantic versioning, with these meanings:
   and the FastAPI application the same version (the documentation it serves).
 - The About page shows everyone the version of the web app, and admins the server's (with its commit); a
   web app and a server of different versions (a cached page, a server not restarted) are pointed out. The
-  provider contracts and the schema revision join it with phases 2 and 3.
+  provider contracts and the schema revision join it with phases 2 and 3 (the schema: *done* with phase 3, `/health`
+  `schema` and the Database row of the About page, admins only; the provider contracts: with phase 6).
 
 ### 3. The provider contract
 
@@ -194,6 +195,17 @@ workers, the gateway, the web app) is always updated by hand.
    inside it) is a one-off breaking release with no expand/contract window. It does not need this step: the owner's only
    install moves its database by dump and restore and the migrations run on the copy, so the old volume is the rollback.
    The guard is still necessary before any later contract migration on a live database.
+   *Done* (2026-10-24, [docs/migrations.md](../migrations.md)): `init` (`services/database_init.py`) takes the backup
+   (`pg_dump` custom format with the `postgresql-client-17` of the image; for SQLite the online backup API rather than a
+   copy of the file, which would miss the WAL) into `DATA_DIR/backups`, keeps `MIGRATION_BACKUPS_KEEP` (5), stops on a
+   failure, `MIGRATION_BACKUP=off` skips it; only `init` migrates, and the API and the workers refuse to start on a schema
+   that is behind or that holds a contract migration they lack. Decisions the text above leaves open: the "too old" rule
+   is decided by revisions, not by version alone (`schema_info.contract_revision`, the newest contract migration applied,
+   must be one the code has; `min_app_version` is recorded and checked too, but a development build has no version to
+   compare), so it needs no rule per release; the 45 existing migrations were classified once (`phase` in each module,
+   six marked `irreversible`, `release.json` carries `contract_migrations` and `min_upgrade_from`); `scripts/restore_backup.py`
+   is §5's restore. The guard cannot reach back: a release before `0043` does not know the table and stops at Alembic's
+   "Can't locate revision", so the way back past the first release with the guard is its backup.
 4. **Releases** (§6): labels and their check, automatic releases with `release.json` (*done*); still to do: SDK
    tags, and the provider base image published once per SDK version, never pushed again under a published tag.
 5. **Updates** (§5.1): the check and its page in Administration, and the automatic updates of providers.

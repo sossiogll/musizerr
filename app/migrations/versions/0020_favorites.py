@@ -32,6 +32,9 @@ down_revision: Union[str, None] = "0019_host_url_refs"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# ADR-0007 section 4: what this migration is for the release that ships it (docs/migrations.md).
+phase = "contract"  # tightens pending_likes to one intent per track, deletes rows and renames settings
+
 REMOVED_SETTING = "auto_like_on_sync"
 RENAMED_SETTINGS = {
     "autolike_reconcile_interval_seconds": "like_reconcile_interval_seconds",

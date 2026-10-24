@@ -792,3 +792,26 @@ class PlaylistSync(SQLModel, table=True):
     remote_id: str
     content_hash: str = Field(default="")
     synced_at: datetime = Field(sa_type=UTCDateTime, default_factory=_now)
+
+
+SCHEMA_INFO_KEY = "schema"
+
+
+class SchemaInfo(SQLModel, table=True):
+    """What the last migration left behind (ADR-0007 §4): ONE row, key ``schema``. The code that migrated writes
+    it (``services/database_init.py``) and every start reads it (``core/schema_guard.py`` judges): an app whose
+    code does not know a revision of the database runs on it only when what it does not know is expand-only.
+
+    ``revision``: the revisions the database was at after that run ("+"-joined when there are several);
+    ``app_version``: the version that ran it; ``min_app_version``: the oldest version that can run on the
+    result (raised by a contract migration, ``None`` until one is recorded); ``contract_revision``: the newest
+    contract migration applied; ``phase``: ``contract`` when that run applied one, else ``expand``."""
+    __tablename__ = "schema_info"
+
+    id: str = Field(default=SCHEMA_INFO_KEY, primary_key=True)
+    revision: str
+    app_version: str
+    min_app_version: Optional[str] = Field(default=None)
+    contract_revision: Optional[str] = Field(default=None)
+    phase: str = Field(default="expand")
+    migrated_at: datetime = Field(sa_type=UTCDateTime, default_factory=_now)

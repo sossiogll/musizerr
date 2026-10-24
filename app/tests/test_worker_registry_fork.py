@@ -253,6 +253,7 @@ def test_threads_of_one_process_share_one_registry_and_one_reloader(gateway, wor
 def test_the_parent_of_a_worker_builds_no_registry_and_starts_no_reloader(worker, monkeypatch):
     """``worker_init`` runs in the parent (and in the maintenance worker started with ``-B``, so does
     its beat): what a task needs is built by the processes that run tasks."""
+    monkeypatch.setattr(celery_app, "_require_schema", lambda: None)  # the start check has its own tests
     monkeypatch.setattr(celery_app, "_reap_orphaned_running_downloads", lambda: 0)
     monkeypatch.setattr(celery_app, "_reap_orphaned_library_jobs", lambda: 0)
     monkeypatch.setattr(celery_app, "_config", None)  # restored afterwards: the signal handler sets both
