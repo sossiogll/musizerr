@@ -239,7 +239,7 @@ describe("Catalog browser and install", () => {
     expect(within(dialog).getByText("Can read and write the folder you set in “music_dir”")).toBeInTheDocument();
     expect(within(dialog).getByText("Memory limit: 256 MB")).toBeInTheDocument();
     expect(within(dialog).getByText("Lyrics")).toBeInTheDocument();
-    expect(within(dialog).getByText(`ghcr.io/owner/musizerr-provider-demo@${"a".repeat(12)}`)).toBeInTheDocument();
+    expect(within(dialog).getByText(`ghcr.io/owner/musizeer-provider-demo@${"a".repeat(12)}`)).toBeInTheDocument();
     expect(within(dialog).queryByText(/token of this source/)).not.toBeInTheDocument();
     expect(mockInstall).not.toHaveBeenCalled();
 
@@ -308,7 +308,7 @@ describe("Installed providers", () => {
     expect(within(row).getByText("Lyrics")).toBeInTheDocument();
     expect(await within(row).findByText("Running")).toBeInTheDocument();
     expect(within(row).getByText(/From Team catalog/)).toBeInTheDocument();
-    expect(within(row).getByText(`ghcr.io/owner/musizerr-provider-demo@${"a".repeat(12)}`)).toBeInTheDocument();
+    expect(within(row).getByText(`ghcr.io/owner/musizeer-provider-demo@${"a".repeat(12)}`)).toBeInTheDocument();
   });
 
   it("a provider the gateway refused shows the state and the reason", async () => {
@@ -341,13 +341,13 @@ describe("Installed providers", () => {
     expect(await screen.findByText("No sandbox can be made on this server, so no provider is running: no user namespaces")).toBeInTheDocument();
   });
 
-  it("what the gateway refused to take and what Musizerr refused to register is said next to the provider", async () => {
+  it("what the gateway refused to take and what Musizeer refused to register is said next to the provider", async () => {
     installedList = [installed()];
     gatewayState = gateway({ rejected: { demo: "a digest is required" }, host_rejected: { demo: "what it says of itself differs from its image" } });
     renderSources();
 
     expect(await screen.findByText("The gateway refused Demo provider: a digest is required")).toBeInTheDocument();
-    expect(screen.getByText("Running but not used by Musizerr: what it says of itself differs from its image")).toBeInTheDocument();
+    expect(screen.getByText("Running but not used by Musizeer: what it says of itself differs from its image")).toBeInTheDocument();
   });
 
   it("uninstalling asks first", async () => {

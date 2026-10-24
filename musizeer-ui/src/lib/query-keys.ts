@@ -46,7 +46,7 @@ export const queryKeys = {
   adminUsers: ["admin-users"] as const,
   /** The number of requests waiting for an admin: the badge. */
   pendingRequestCount: ["pending-request-count"] as const,
-  /** The version that runs and the newer releases of Musizerr (admin). */
+  /** The version that runs and the newer releases of Musizeer (admin). */
   updates: ["updates"] as const,
   /** The general download approval policy (admin). */
   downloadPolicy: ["download-policy"] as const,

@@ -834,7 +834,7 @@ export interface UpdatesInfo {
   latest: string | null;
 }
 
-/** GET /admin/updates: the version that runs and the newer releases of Musizerr (admin, ADR-0007). */
+/** GET /admin/updates: the version that runs and the newer releases of Musizeer (admin, ADR-0007). */
 export const getUpdates = () => http.get<UpdatesInfo>("/admin/updates").then((r) => r.data);
 
 /**
@@ -1010,9 +1010,9 @@ export interface DuplicateMember {
   sync_id: string;
   /** The path the sync provider shows: often virtual, two files can share it. */
   path: string;
-  /** Where the file really is on the storage, when Musizerr knows it. */
+  /** Where the file really is on the storage, when Musizeer knows it. */
   storage_path: string | null;
-  /** When the Musizerr download of this file landed. */
+  /** When the Musizeer download of this file landed. */
   added_at: string | null;
   /** The download provider that brought it. */
   downloaded_via: string | null;
@@ -1032,7 +1032,7 @@ export interface DuplicateMember {
   /** Plays THIS file (admin); null once deleted. */
   stream_url: string | null;
   fingerprint_score: number | null;
-  /** "musizerr" when this app put the file there; only those can be deleted. */
+  /** "musizeer" when this app put the file there; only those can be deleted. */
   origin: string;
   deletable: boolean;
   is_keeper: boolean;

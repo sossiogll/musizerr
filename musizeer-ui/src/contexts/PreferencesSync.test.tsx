@@ -61,8 +61,8 @@ beforeEach(() => {
 
 describe("PreferencesSync", () => {
   it("signed out: theme/locale keep coming from local storage, untouched", () => {
-    localStorage.setItem("musizerr-theme", "dark");
-    localStorage.setItem("musizerr-lang", "it");
+    localStorage.setItem("musizeer-theme", "dark");
+    localStorage.setItem("musizeer-lang", "it");
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("guest"), user: null });
 
     renderWithSync();
@@ -71,7 +71,7 @@ describe("PreferencesSync", () => {
   });
 
   it("auth disabled: the owner of the instance syncs like any account, with the settings stored for the instance's user", async () => {
-    localStorage.setItem("musizerr-theme", "light");
+    localStorage.setItem("musizeer-theme", "light");
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("open"), user: null });
     mockGetSettingsValues.mockResolvedValue({ theme: "dark", language: "it" });
 
@@ -93,7 +93,7 @@ describe("PreferencesSync", () => {
   });
 
   it("signed in: a server value overrides what's cached in local storage", async () => {
-    localStorage.setItem("musizerr-theme", "light");
+    localStorage.setItem("musizeer-theme", "light");
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("user"), user: { id: "u1" } });
     mockGetSettingsValues.mockResolvedValue({ theme: "dark", language: "it" });
 
@@ -102,11 +102,11 @@ describe("PreferencesSync", () => {
     await waitFor(() => expect(screen.getByTestId("probe").textContent).toBe("dark:it"));
     expect(mockPatchSettings).not.toHaveBeenCalled();
     // The server value also becomes the device's cache, for next load's first paint.
-    expect(localStorage.getItem("musizerr-theme")).toBe("dark");
+    expect(localStorage.getItem("musizeer-theme")).toBe("dark");
   });
 
   it("first sign-in: adopts the local value once, because the key is missing from GET /settings/values", async () => {
-    localStorage.setItem("musizerr-theme", "dark"); // this device already had a preference
+    localStorage.setItem("musizeer-theme", "dark"); // this device already had a preference
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("user"), user: { id: "u1" } });
     mockGetSettingsValues.mockResolvedValue({ language: "en" }); // no "theme" key: never chosen
     mockPatchSettings.mockResolvedValue({ language: "en", theme: "dark" });
@@ -121,7 +121,7 @@ describe("PreferencesSync", () => {
     // This is the bug the presence-based check fixes: a user who genuinely
     // chose "system" (the declared default) must not have it clobbered by a
     // stale/different local cache on a device that used to show "dark".
-    localStorage.setItem("musizerr-theme", "dark");
+    localStorage.setItem("musizeer-theme", "dark");
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("user"), user: { id: "u1" } });
     mockGetSettingsValues.mockResolvedValue({ theme: "system", language: "en" }); // present: chosen explicitly
 

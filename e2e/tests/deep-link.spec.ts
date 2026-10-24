@@ -7,7 +7,7 @@ import { REFRESH_KEY, adminAccount, login } from "./support";
 // it. The page has to stay where it was asked for, never pass through sign-in.
 
 /** Where the frontend keeps its offline copy (lib/query-persistence.ts). */
-const CACHE_KEY = "musizerr.query-cache";
+const CACHE_KEY = "musizeer.query-cache";
 
 test("a deep link to an administration page right after the session is restored does not go to sign in", async ({ browser }) => {
   const admin = adminAccount();

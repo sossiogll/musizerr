@@ -198,7 +198,7 @@ describe("BackgroundCanvas", () => {
     const { rerender } = render(<BackgroundCanvas {...props} kind="typography" />);
     frame(1000);
     expect(ctx.fillText).toHaveBeenCalled();
-    expect(ctx.fillText.mock.calls.every(([text]) => text === "MUSIZERR")).toBe(true);
+    expect(ctx.fillText.mock.calls.every(([text]) => text === "MUSIZEER")).toBe(true);
     const before = (requestAnimationFrame as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
     rerender(<BackgroundCanvas kind="typography" playing title="Blue Monday" artist="New Order" />);
     expect((requestAnimationFrame as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(before);
@@ -233,7 +233,7 @@ describe("scenes", () => {
     palette: FALLBACK_PALETTE,
     title: null,
     artist: null,
-    appName: "Musizerr",
+    appName: "Musizeer",
     audio: null,
     ...over,
   });
@@ -289,7 +289,7 @@ describe("following the playback", () => {
       palette: FALLBACK_PALETTE,
       title: null,
       artist: null,
-      appName: "Musizerr",
+      appName: "Musizeer",
       audio: null,
     });
     return c.roundRect.mock.calls.map(([, , , bar]) => bar as number);
@@ -365,7 +365,7 @@ describe("following the sound", () => {
     palette: FALLBACK_PALETTE,
     title: null,
     artist: null,
-    appName: "Musizerr",
+    appName: "Musizeer",
     audio,
     ...over,
   });
@@ -540,7 +540,7 @@ describe("with the audio, nothing moves by the clock", () => {
     palette: FALLBACK_PALETTE,
     title: null,
     artist: null,
-    appName: "Musizerr",
+    appName: "Musizeer",
     audio,
   });
   const steady = (count: number): SceneAudio => ({

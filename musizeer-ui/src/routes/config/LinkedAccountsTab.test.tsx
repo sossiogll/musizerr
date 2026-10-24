@@ -60,7 +60,7 @@ function renderTab() {
 
 beforeEach(() => {
   localStorage.clear();
-  localStorage.setItem("musizerr-lang", "en");
+  localStorage.setItem("musizeer-lang", "en");
   mockGetLinkedAccounts.mockReset().mockResolvedValue([account()]);
   mockGetOAuthAuthorizeUrl.mockReset().mockResolvedValue("");
   mockRevokeAuth.mockReset().mockResolvedValue({ ok: true });
@@ -220,7 +220,7 @@ describe("Settings › Linked accounts — sign-in through an account", () => {
     renderTab();
 
     expect(await screen.findByText("You can sign in with this account.")).toBeInTheDocument();
-    expect(screen.getByText(/Enables: sign in to Musizerr/)).toBeInTheDocument();
+    expect(screen.getByText(/Enables: sign in to Musizeer/)).toBeInTheDocument();
   });
 
   it("asks to reconnect an account that was linked before sign-in existed", async () => {

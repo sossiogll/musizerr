@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {t("shell.skipToContent")}
       </a>
       <aside
-        aria-label="Musizerr"
+        aria-label="Musizeer"
         className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col gap-6 border-r bg-card/60 px-3 py-5 xl:flex"
       >
         <div className="px-2">

@@ -12,7 +12,7 @@ import { PERSISTED_QUERY_ROOTS, VIEWER_QUERY_ROOTS } from "./query-keys";
  * recognised, or on sign-out, it is thrown away.
  */
 
-export const STORAGE_KEY = "musizerr.query-cache";
+export const STORAGE_KEY = "musizeer.query-cache";
 export const CACHE_VERSION = 1;
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const WRITE_THROTTLE_MS = 1_000;

@@ -19,7 +19,7 @@ interface InstalledListProps {
   installed: InstalledProvider[];
   /** What the gateway says of each provider, by name (absent: it has not heard of it yet). */
   states: ReadonlyMap<string, GatewayProviderState>;
-  /** Providers this Musizerr refused to register although the gateway runs them, by name. */
+  /** Providers this Musizeer refused to register although the gateway runs them, by name. */
   hostRejected: Record<string, string>;
   /** Entries the gateway refused to take, by name. */
   gatewayRejected: Record<string, string>;

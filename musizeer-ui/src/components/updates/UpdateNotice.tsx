@@ -14,9 +14,9 @@ const REASON_KEYS: Record<UpdateReason["code"], MessageKey> = {
 };
 
 /**
- * "Musizerr X is available" at the top of Administration (ADR-0007 §5.1): the newest release newer than
+ * "Musizeer X is available" at the top of Administration (ADR-0007 §5.1): the newest release newer than
  * the one that runs, how to update to it by hand and, when pulling its images is not all it takes, why.
- * Musizerr never updates itself. Renders nothing when there is no newer release.
+ * Musizeer never updates itself. Renders nothing when there is no newer release.
  */
 export function UpdateNotice({ className }: { className?: string }) {
   const { t, locale } = useI18n();

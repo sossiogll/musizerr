@@ -37,7 +37,7 @@ export const entry = (overrides: Partial<CatalogEntry> = {}): CatalogEntry => ({
   label: "Demo provider",
   description: "Does demo things",
   homepage: null,
-  image: "ghcr.io/owner/musizerr-provider-demo",
+  image: "ghcr.io/owner/musizeer-provider-demo",
   registry: "ghcr.io",
   digest: "sha256:" + "a".repeat(64),
   provider_api_version: 5,
@@ -71,7 +71,7 @@ export const emptyDiff: PermissionsDiff = {
 export const installed = (overrides: Partial<InstalledProvider> = {}): InstalledProvider => ({
   name: "demo",
   label: "Demo provider",
-  image: "ghcr.io/owner/musizerr-provider-demo",
+  image: "ghcr.io/owner/musizeer-provider-demo",
   registry: "ghcr.io",
   digest: "sha256:" + "a".repeat(64),
   provider_api_version: 5,

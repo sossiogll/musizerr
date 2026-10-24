@@ -20,7 +20,7 @@ export const MAX_DPR = 1.5;
 /** The instant a still frame (reduced motion) shows: arbitrary, but a pleasant one. */
 const STILL_TIME = 6;
 const STILL_ENERGY = 0.5;
-const APP_NAME = "Musizerr";
+const APP_NAME = "Musizeer";
 
 /**
  * How fast the energy follows play and pause, per second: it rises in about

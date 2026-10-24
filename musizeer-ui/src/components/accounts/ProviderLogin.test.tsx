@@ -52,7 +52,7 @@ function renderLogin(redirect?: string) {
 
 beforeEach(() => {
   localStorage.clear();
-  localStorage.setItem("musizerr-lang", "en");
+  localStorage.setItem("musizeer-lang", "en");
   mockGetLoginProviders.mockReset().mockResolvedValue([OAUTH, FORM]);
   mockLoginWithCredentials.mockReset().mockResolvedValue({ access_token: "a", refresh_token: "r", token_type: "bearer" });
   mockStartSession.mockReset().mockResolvedValue(undefined);

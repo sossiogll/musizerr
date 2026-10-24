@@ -76,7 +76,7 @@ describe("AppGate — fail-closed", () => {
     renderGate();
     act(() => connectivityMock.set({ online: false }));
 
-    expect(await screen.findByText("Musizerr can't reach the server")).toBeInTheDocument();
+    expect(await screen.findByText("Musizeer can't reach the server")).toBeInTheDocument();
     expect(screen.queryByText(/^app:/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retry now" }));
     expect(connectivityMock.checkNow).toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe("AppGate — fail-closed", () => {
     mockGetAuthConfig.mockRejectedValue(new AxiosError("Bad", "500"));
     renderGate();
 
-    expect(await screen.findByText("Musizerr can't reach the server")).toBeInTheDocument();
+    expect(await screen.findByText("Musizeer can't reach the server")).toBeInTheDocument();
     expect(screen.queryByText(/^app:off/)).not.toBeInTheDocument();
   });
 

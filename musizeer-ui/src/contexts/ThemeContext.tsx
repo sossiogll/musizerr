@@ -9,7 +9,7 @@ export type Theme = "light" | "dark" | "system";
 // bridge, which reuses this constant to spot "server hasn't got a value").
 export const DEFAULT_THEME: Theme = "system";
 
-export const THEME_STORAGE_KEY = "musizerr-theme";
+export const THEME_STORAGE_KEY = "musizeer-theme";
 
 interface ThemeContextValue {
   theme: Theme;

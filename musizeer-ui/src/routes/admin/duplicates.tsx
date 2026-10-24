@@ -116,11 +116,11 @@ function GroupCard({ group }: { group: DuplicateGroup }) {
   const open = OPEN.has(group.status);
   const head = group.members[0];
 
-  // What "resolve" would delete: every other member Musizerr downloaded.
+  // What "resolve" would delete: every other member Musizeer downloaded.
   const toDelete = useMemo(() => group.members.filter((m) => m.id !== keep && m.deletable && !m.deleted_at), [group.members, keep]);
 
-  // Nothing to delete (every other file was added outside Musizerr, or the
-  // one kept is the only one Musizerr downloaded): resolving would only
+  // Nothing to delete (every other file was added outside Musizeer, or the
+  // one kept is the only one Musizeer downloaded): resolving would only
   // close the group, so it is offered as that, never as a deletion. When no
   // file can be deleted at all, any of them can be the one "kept".
   const nothingDeletable = !group.members.some((m) => m.deletable && !m.deleted_at);
@@ -235,11 +235,11 @@ function MemberRow({
   const details = useMemberDetails()(member);
   const path = shownPath(member);
   const origin =
-    member.origin !== "musizerr"
+    member.origin !== "musizeer"
       ? t("duplicates.origin_unknown")
       : member.downloaded_via
         ? t("duplicates.originVia", { provider: providerLabel(member.downloaded_via) })
-        : t("duplicates.origin_musizerr");
+        : t("duplicates.origin_musizeer");
 
   return (
     <div

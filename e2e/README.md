@@ -35,7 +35,7 @@ The script:
    (`python -m scripts.e2e_user`);
 4. runs Playwright in `mcr.microsoft.com/playwright:v1.55.1-noble`, on the
    stack's network, against the Vite dev server (`http://frontend:5173`,
-   allowed in `musizerr-ui/vite.config.ts`).
+   allowed in `musizeer-ui/vite.config.ts`).
 
 Nothing is installed on the host: Node, pnpm and the browsers live in the
 container (`node_modules` is an anonymous volume, the pnpm store stays in

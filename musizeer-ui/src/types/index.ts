@@ -467,7 +467,7 @@ export interface CredentialField {
 export interface PersonalAccountState {
   connected: boolean;
   username: string | null;
-  /** Capabilities (sdk/src/musizerr_sdk/capabilities.py) the own connection was not granted the permission for: reconnecting grants them. */
+  /** Capabilities (sdk/src/musizeer_sdk/capabilities.py) the own connection was not granted the permission for: reconnecting grants them. */
   missing_permissions: string[];
   /** What an own account enables, declared by the provider. */
   capabilities: string[];
@@ -547,7 +547,7 @@ export interface ProviderInfo {
   // e download separati) — vedi the admin providers page.
   also_registered_in?: string[];
   // Metadata providers only: the optional capabilities it declares
-  // (sdk/src/musizerr_sdk/capabilities.py).
+  // (sdk/src/musizeer_sdk/capabilities.py).
   capabilities?: string[];
 }
 
@@ -647,7 +647,7 @@ export interface CatalogEntry {
   provider_api_version: number;
   roles: string[];
   permissions: ProviderPermissions;
-  /** It implements this Musizerr's provider API version; if not, it cannot be installed. */
+  /** It implements this Musizeer's provider API version; if not, it cannot be installed. */
   compatible: boolean;
   incompatibility: string | null;
 }
@@ -722,7 +722,7 @@ export interface ProviderGatewayState {
   providers: GatewayProviderState[];
   /** Entries of the pushed set the gateway refused, by name. */
   rejected: Record<string, string>;
-  /** Providers the gateway runs that this Musizerr refused to register, by name. */
+  /** Providers the gateway runs that this Musizeer refused to register, by name. */
   host_rejected: Record<string, string>;
 }
 
@@ -871,7 +871,7 @@ export interface ViewerCapabilities {
   favorite: boolean;
   stream_full: boolean;
   library: boolean;
-  /** The viewer's own playlists (GET /playlists): private, kept by Musizerr. */
+  /** The viewer's own playlists (GET /playlists): private, kept by Musizeer. */
   playlists: boolean;
   settings_personal: boolean;
   /** Connect your own provider accounts (GET /auth/linked-accounts). */
@@ -886,7 +886,7 @@ export interface PublicProviders {
   metadata_priority: string[];
   /** Every metadata provider, in that priority order. */
   metadata: string[];
-  /** The optional capability keys (sdk/src/musizerr_sdk/capabilities.py) each metadata provider declares, by provider id. */
+  /** The optional capability keys (sdk/src/musizeer_sdk/capabilities.py) each metadata provider declares, by provider id. */
   metadata_capabilities: Record<string, string[]>;
 }
 

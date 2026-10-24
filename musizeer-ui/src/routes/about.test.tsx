@@ -28,12 +28,12 @@ beforeEach(() => {
 describe("AboutPage", () => {
   it("shows the attribution notice of NOTICE.md word for word, with the link", async () => {
     renderAbout();
-    expect(ATTRIBUTION).toBe("Based on Musizerr — https://github.com/sossiogll/musizerr");
+    expect(ATTRIBUTION).toBe("Based on Musizeer — https://github.com/sossiogll/musizeer");
     const notice = await screen.findByText((_, element) => element?.tagName === "BLOCKQUOTE" && element.textContent === ATTRIBUTION);
     expect(notice).toBeVisible();
-    expect(screen.getAllByRole("link", { name: "https://github.com/sossiogll/musizerr" })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "https://github.com/sossiogll/musizeer" })[0]).toHaveAttribute(
       "href",
-      "https://github.com/sossiogll/musizerr",
+      "https://github.com/sossiogll/musizeer",
     );
   });
 

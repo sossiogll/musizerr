@@ -70,5 +70,5 @@ test("player: the heart toggles and is shared with the row; shuffle reorders wha
   const nextTitle = (await player.getByTestId("player-track").getByRole("link").first().textContent()) ?? "";
   expect(playableNext[0]).toContain(nextTitle);
   // Remembered on this device.
-  expect(await page.evaluate(() => localStorage.getItem("musizerr-play-mode"))).toContain('"shuffle":true');
+  expect(await page.evaluate(() => localStorage.getItem("musizeer-play-mode"))).toContain('"shuffle":true');
 });

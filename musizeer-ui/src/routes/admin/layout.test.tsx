@@ -66,7 +66,7 @@ describe("Administration › Requests tab", () => {
   });
 });
 
-describe("Administration › a newer version of Musizerr", () => {
+describe("Administration › a newer version of Musizeer", () => {
   const notice = () => screen.findByRole("status", { name: /is available/ });
 
   it("says nothing while the version that runs is the newest", async () => {
@@ -83,7 +83,7 @@ describe("Administration › a newer version of Musizerr", () => {
     renderLayout();
 
     const box = await notice();
-    expect(box).toHaveTextContent("Musizerr 1.3.0 is available");
+    expect(box).toHaveTextContent("Musizeer 1.3.0 is available");
     expect(box).toHaveTextContent("Minor version · you run 1.2.0");
     expect(box).toHaveTextContent("Pulling its images is all it takes");
     expect(box).toHaveTextContent("set MUSIZERR_VERSION=1.3.0 in .env, then run docker compose pull && docker compose up -d");
@@ -104,7 +104,7 @@ describe("Administration › a newer version of Musizerr", () => {
     renderLayout();
 
     const box = await notice();
-    expect(box).toHaveTextContent("Musizerr 2.0.0 is available");
+    expect(box).toHaveTextContent("Musizeer 2.0.0 is available");
     expect(box).toHaveTextContent("1 more release");
     const reasons = within(box).getAllByRole("listitem").map((item) => item.textContent);
     expect(reasons).toEqual([
@@ -122,6 +122,6 @@ describe("Administration › a newer version of Musizerr", () => {
       updates: [{ version: "1.2.1", url: null, published_at: null, kind: "patch", plain: true, reasons: [] }],
     };
     renderLayout();
-    expect(await screen.findByRole("status", { name: "È disponibile Musizerr 1.2.1" })).toHaveTextContent("Patch · stai usando la 1.2.0");
+    expect(await screen.findByRole("status", { name: "È disponibile Musizeer 1.2.1" })).toHaveTextContent("Patch · stai usando la 1.2.0");
   });
 });

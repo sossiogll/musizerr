@@ -23,7 +23,7 @@ vi.mock("@/lib/api-client", () => ({
 const member = (id: string, over: Partial<DuplicateMember>): DuplicateMember => ({
   id, sync_id: id, path: `A/${id}`, title: "Song", artist: "Artist", album: "Album", year: 2020,
   duration_ms: 200_000, size: 5_000_000, suffix: "flac", bitrate: 1_000_000, sample_rate: 44100, lossless: true,
-  quality_known: true, fingerprint_score: 0.97, origin: "musizerr", deletable: true, is_keeper: false, deleted_at: null,
+  quality_known: true, fingerprint_score: 0.97, origin: "musizeer", deletable: true, is_keeper: false, deleted_at: null,
   storage_path: null, added_at: null, downloaded_via: null, best_quality: false, stream_url: `/api/library/duplicates/members/${id}/stream`,
   ...over,
 });
@@ -80,11 +80,11 @@ describe("Administration › Duplicates", () => {
     const radios = await screen.findAllByRole("radio");
     expect(mockGet).toHaveBeenCalledWith("proposed");
     expect(radios[0]).toBeChecked();
-    expect(screen.getByText("Added outside Musizerr")).toBeInTheDocument();
-    expect(screen.getAllByText("Downloaded by Musizerr")).toHaveLength(2);
+    expect(screen.getByText("Added outside Musizeer")).toBeInTheDocument();
+    expect(screen.getAllByText("Downloaded by Musizeer")).toHaveLength(2);
   });
 
-  it("resolving asks first and names only the files Musizerr can delete", async () => {
+  it("resolving asks first and names only the files Musizeer can delete", async () => {
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "Keep selected, delete the others" }));
 
@@ -124,7 +124,7 @@ describe("Administration › Duplicates", () => {
 
   it("a group where nothing can be deleted offers 'mark as handled', never a deletion", async () => {
     // Two files the sync provider reports under ONE virtual path, both added
-    // outside Musizerr: the old page asked "Delete 0 files?".
+    // outside Musizeer: the old page asked "Delete 0 files?".
     mockGet.mockResolvedValue([{
       ...group, status: "needs_review",
       members: [
@@ -143,7 +143,7 @@ describe("Administration › Duplicates", () => {
     await waitFor(() => expect(mockResolve).toHaveBeenCalledWith("g1", "sid-1"));
   });
 
-  it("keeping the only file Musizerr downloaded deletes nothing: the action says so", async () => {
+  it("keeping the only file Musizeer downloaded deletes nothing: the action says so", async () => {
     mockGet.mockResolvedValue([{
       ...group,
       members: [member("ours.flac", { is_keeper: true }), member("external.mp3", { origin: "unknown", deletable: false })],
@@ -166,7 +166,7 @@ describe("Administration › Duplicates", () => {
 
   it("a group without a keeper preselects nothing: the 128 kbps external file is not chosen for you", async () => {
     // "Italiano a Barcelona": an external 128 kbps MP3 listed first, the
-    // 332 kbps OGG Musizerr downloaded second. Preselecting the first one
+    // 332 kbps OGG Musizeer downloaded second. Preselecting the first one
     // made the primary button delete the better file.
     mockGet.mockResolvedValue([{
       ...group, status: "needs_review", reason: "external_or_unknown_origin_would_be_deleted",
@@ -183,7 +183,7 @@ describe("Administration › Duplicates", () => {
     expect(screen.getByRole("button", { name: "Keep selected, delete the others" })).toBeDisabled();
     // The better file is pointed out, with why; the decision stays the admin's.
     expect(screen.getByText("Best quality")).toBeInTheDocument();
-    expect(screen.getByText("Why: Would delete a file added outside Musizerr")).toBeInTheDocument();
+    expect(screen.getByText("Why: Would delete a file added outside Musizeer")).toBeInTheDocument();
 
     fireEvent.click(radios[0]); // keep the external one: deletes ours, so it asks first
     fireEvent.click(screen.getByRole("button", { name: "Keep selected, delete the others" }));
@@ -193,7 +193,7 @@ describe("Administration › Duplicates", () => {
   });
 
   it("reasons are translated with an explanation, never a raw code (it)", async () => {
-    localStorage.setItem("musizerr-lang", "it");
+    localStorage.setItem("musizeer-lang", "it");
     mockGet.mockResolvedValue([{ ...group, status: "needs_review", reason: "unknown_quality" }]);
     renderPage();
     expect(await screen.findByText("Motivo: Qualità sconosciuta")).toBeInTheDocument();
@@ -216,7 +216,7 @@ describe("Administration › Duplicates", () => {
     expect(screen.getAllByText("Sync server path: L'Amour Toujours.mp3")).toHaveLength(2);
     expect(screen.getByText(/MP3 · 320 kbps/)).toBeInTheDocument();
     expect(screen.getByText(/MP3 · 192 kbps/)).toBeInTheDocument();
-    expect(await screen.findByText("Downloaded by Musizerr via Downloader")).toBeInTheDocument();
+    expect(await screen.findByText("Downloaded by Musizeer via Downloader")).toBeInTheDocument();
     expect(screen.getByText(/^Added /)).toBeInTheDocument();
   });
 

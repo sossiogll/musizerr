@@ -8,7 +8,7 @@ export interface ProviderRef {
   label: string;
 }
 
-/** The capability key (sdk/src/musizerr_sdk/capabilities.py) of a provider that gives an artist's whole discography to download. */
+/** The capability key (sdk/src/musizeer_sdk/capabilities.py) of a provider that gives an artist's whole discography to download. */
 export const DISCOGRAPHY_CAPABILITY = "discography";
 
 export interface PublicProvidersView {

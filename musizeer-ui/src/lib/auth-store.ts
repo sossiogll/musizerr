@@ -4,10 +4,10 @@
 // cross-origin cookies. Subscribers are notified on token changes so that
 // React state (AuthContext) stays in sync without prop drilling.
 
-const REFRESH_KEY = "musizerr.refresh_token";
+const REFRESH_KEY = "musizeer.refresh_token";
 // Web Lock held by the tab refreshing the session: every tab of the origin
 // shares the refresh token above, and the server rotates it on each use.
-const REFRESH_LOCK = "musizerr.refresh";
+const REFRESH_LOCK = "musizeer.refresh";
 
 let accessToken: string | null = null;
 // Bumped by clear() (sign-out) and beginSession() (sign-in). A refresh that

@@ -46,7 +46,7 @@ function renderReturn(search: string) {
 
 beforeEach(() => {
   localStorage.clear();
-  localStorage.setItem("musizerr-lang", "en");
+  localStorage.setItem("musizeer-lang", "en");
   sessionStorage.clear();
   mockExchange.mockReset().mockResolvedValue(TOKENS);
   mockStartSession.mockReset().mockResolvedValue(undefined);
@@ -68,11 +68,11 @@ describe("The page an authorization at a provider comes back to", () => {
     renderReturn("?code=abc");
 
     expect(await screen.findByText("album page")).toBeInTheDocument();
-    expect(sessionStorage.getItem("musizerr.login-redirect")).toBeNull();
+    expect(sessionStorage.getItem("musizeer.login-redirect")).toBeNull();
   });
 
   it("never follows a remembered target that leaves the app", async () => {
-    sessionStorage.setItem("musizerr.login-redirect", "https://evil.example/");
+    sessionStorage.setItem("musizeer.login-redirect", "https://evil.example/");
 
     renderReturn("?code=abc");
 

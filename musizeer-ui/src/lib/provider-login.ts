@@ -8,7 +8,7 @@ import { safeRedirect } from "./safe-redirect";
  * going: the target waits in sessionStorage for the way back. Storage may be
  * blocked or full; the sign-in then simply lands on Home.
  */
-const REDIRECT_KEY = "musizerr.login-redirect";
+const REDIRECT_KEY = "musizeer.login-redirect";
 
 export function rememberLoginRedirect(target: string | undefined): void {
   try {

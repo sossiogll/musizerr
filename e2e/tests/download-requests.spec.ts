@@ -17,7 +17,7 @@ interface Tokens {
 
 const bearer = (tokens: Tokens) => ({ Authorization: `Bearer ${tokens.access_token}` });
 const REASON = "e2e: not this week";
-/** The capability of a metadata provider that lists an artist's releases and their tracks (sdk/src/musizerr_sdk/capabilities.py). */
+/** The capability of a metadata provider that lists an artist's releases and their tracks (sdk/src/musizeer_sdk/capabilities.py). */
 const DISCOGRAPHY = "discography";
 
 /** The viewer's requests that still wait for an admin. */

@@ -360,7 +360,7 @@ describe("PlayerContext — shuffle, repeat, a file heard on its own", () => {
   });
 
   it("a list started with shuffle on starts from the track chosen", () => {
-    localStorage.setItem("musizerr-play-mode", JSON.stringify({ shuffle: true, repeat: "off" }));
+    localStorage.setItem("musizeer-play-mode", JSON.stringify({ shuffle: true, repeat: "off" }));
     const { result } = renderPlayer();
     expect(result.current.shuffle).toBe(true); // remembered on this device
     act(() => result.current.play(list[4], list));
@@ -389,7 +389,7 @@ describe("PlayerContext — shuffle, repeat, a file heard on its own", () => {
       result.current.cycleRepeat();
     });
     expect(result.current.repeat).toBe("one");
-    expect(JSON.parse(localStorage.getItem("musizerr-play-mode") ?? "{}")).toEqual({ shuffle: false, repeat: "one" });
+    expect(JSON.parse(localStorage.getItem("musizeer-play-mode") ?? "{}")).toEqual({ shuffle: false, repeat: "one" });
     act(() => {
       audios[0].currentTime = 120;
       audios[0].dispatchEvent(new Event("ended"));

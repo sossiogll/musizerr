@@ -37,7 +37,7 @@ interface I18nContextValue {
   tx: (key: string, fallback: string, vars?: Vars) => string;
 }
 
-export const LOCALE_STORAGE_KEY = "musizerr-lang";
+export const LOCALE_STORAGE_KEY = "musizeer-lang";
 
 // Mirrors the declared default for the "language" setting in
 // core/settings_catalog.py. Kept here (not fetched) because it also has to

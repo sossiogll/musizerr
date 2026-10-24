@@ -116,7 +116,7 @@ describe("SettingControl — the policy for new accounts from a provider's sign-
   });
 
   it("is worded in Italian too", () => {
-    localStorage.setItem("musizerr-lang", "it");
+    localStorage.setItem("musizeer-lang", "it");
     renderControl(policy, "pending");
 
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
@@ -124,6 +124,6 @@ describe("SettingControl — the policy for new accounts from a provider's sign-
       "Crea un account che attende un amministratore",
       "Crea un account attivo",
     ]);
-    localStorage.removeItem("musizerr-lang");
+    localStorage.removeItem("musizeer-lang");
   });
 });

@@ -62,7 +62,7 @@ export interface PlayMode {
   repeat: RepeatMode;
 }
 
-export const PLAY_MODE_STORAGE_KEY = "musizerr-play-mode";
+export const PLAY_MODE_STORAGE_KEY = "musizeer-play-mode";
 const DEFAULT_PLAY_MODE: PlayMode = { shuffle: false, repeat: "off" };
 
 /** The mode saved on this device; the default when there is none (or no storage). */

@@ -26,7 +26,7 @@ describe("the way back from a provider", () => {
 
   it("only a path inside the app is ever followed", () => {
     for (const target of ["https://evil.example/", "//evil.example", "/login", "javascript:alert(1)"]) {
-      sessionStorage.setItem("musizerr.login-redirect", target);
+      sessionStorage.setItem("musizeer.login-redirect", target);
       expect(takeLoginRedirect(), target).toBe("/");
     }
   });

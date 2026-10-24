@@ -55,7 +55,7 @@ describe("useI18n", () => {
   it("persiste la scelta in localStorage", () => {
     const { result } = renderHook(() => useI18n(), { wrapper });
     act(() => result.current.setLocale("it"));
-    expect(localStorage.getItem("musizerr-lang")).toBe("it");
+    expect(localStorage.getItem("musizeer-lang")).toBe("it");
   });
 
   it("interpola le variabili {{...}}", () => {

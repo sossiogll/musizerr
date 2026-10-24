@@ -146,7 +146,7 @@ function wrap(ui: React.ReactNode) {
 
 beforeEach(() => {
   localStorage.clear();
-  localStorage.setItem("musizerr-lang", "en");
+  localStorage.setItem("musizeer-lang", "en");
   mockUseAuth.mockReset();
   mockGetSettingsSchema.mockReset().mockResolvedValue(schema());
   // Never chosen: the key is absent from GET /settings/values.
@@ -196,7 +196,7 @@ describe("Settings › Account: also remove the like where it came from", () => 
   });
 
   it("reads back a saved choice and speaks Italian", async () => {
-    localStorage.setItem("musizerr-lang", "it");
+    localStorage.setItem("musizeer-lang", "it");
     mockUseAuth.mockReturnValue({ authConfig: viewerStatus("admin"), user: { ...alice, role: "admin" }, logout: vi.fn() });
     mockGetSettingsValues.mockResolvedValue({ [KEY]: true });
 

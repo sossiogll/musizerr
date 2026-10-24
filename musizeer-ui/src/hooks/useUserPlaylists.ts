@@ -8,7 +8,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useCan } from "@/hooks/useCapabilities";
 import { useI18n } from "@/i18n";
 
-/** The capability key (sdk/src/musizerr_sdk/capabilities.py) of a metadata provider that shares the tracks of the viewer's own playlists only. */
+/** The capability key (sdk/src/musizeer_sdk/capabilities.py) of a metadata provider that shares the tracks of the viewer's own playlists only. */
 export const PLAYLIST_TRACKS_RESTRICTED = "playlist_tracks_restricted";
 
 /**
