@@ -30,9 +30,9 @@ PROVIDERS_REPO=${PROVIDERS_REPO:-$ROOT/../musizeer-providers}
 [ -d "$PROVIDERS_REPO/lrclib" ] || { echo "PROVIDERS_REPO ($PROVIDERS_REPO) is not a checkout of the public providers repository (no lrclib/)" >&2; exit 2; }
 TMP=$(mktemp -d)
 export POSTGRES_PASSWORD=unused
-export AUTH_SECRET=integration-test-secret-of-at-least-32-characters
-export CREDENTIALS_KEY=3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ= # a key for these throwaway stacks only
-export OCI_REGISTRY_PORT=$REGISTRY_PORT
+export MUSIZEER_AUTH_SECRET=integration-test-secret-of-at-least-32-characters
+export MUSIZEER_CREDENTIALS_KEY=3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ= # a key for these throwaway stacks only
+export MUSIZEER_DEV_OCI_REGISTRY_PORT=$REGISTRY_PORT
 export PROVIDER_LOCAL_TAG_PREFIX=$P-
 export PROVIDER_INSTALL_REGISTRY=oci-registry:5000
 COMPOSE="docker compose -p $P -f docker-compose.dev.yml -f gateway/tests/integration/compose.override.yml"
@@ -94,7 +94,7 @@ ctl list | grep -E '"(name|state|image)"' | head -4
 
 step "a. the host's registry gets lyrics from the LRCLIB image through the gateway"
 docker run -d --name $P-host --network ${P}_default --user 1000:1000 \
-  -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e DATA_DIR=/tmp/data -e AUTH_SECRET -e CREDENTIALS_KEY -e REDIS_URL=redis://redis:6379/0 \
+  -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e MUSIZEER_DATA_DIR=/tmp/data -e MUSIZEER_AUTH_SECRET -e MUSIZEER_CREDENTIALS_KEY -e REDIS_URL=redis://redis:6379/0 \
   -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v ${P}_provider_sockets:/run/musizeer -v ${P}_downloads:/downloads \
   -w /repo/app "$HOST_IMAGE" python /repo/gateway/tests/integration/host_check.py >/dev/null
 wait_until 120 "the host check to be ready" sh -c "docker logs $P-host 2>&1 | grep -q '^READY'"

@@ -1,17 +1,43 @@
 # Sourced (an executable .envsh file is sourced by the official image's entrypoint, a .sh one is run) before it
-# renders the nginx template. BACKEND_URL must be an origin, scheme://host:port, because
-# nginx reaches it through a variable (default.conf.template). A trailing slash is dropped; a path, or no scheme,
-# stops the container with the reason instead of an error on every request.
+# renders the nginx template. This script is the ONLY reader of the environment of the web app's image, and the
+# only place its defaults are written (ADR-0009): it reads MUSIZEER_BACKEND_URL and MUSIZEER_DNS_RESOLVER, nothing
+# else, and the image declares no default of its own (a default set by the image cannot be told from a choice).
+# An empty value is an unset one, so docker-compose.yaml passes both with an empty default.
+#
+# MUSIZEER_BACKEND_URL must be an origin, scheme://host:port, because nginx reaches it through a variable
+# (default.conf.template). A trailing slash is dropped; a path, or no scheme, stops the container with the reason
+# instead of an error on every request.
 
-BACKEND_URL=${BACKEND_URL%/}
+# The names these variables had before Musizeer: they are not read any more. Said once, on stderr, with the name that
+# replaces them (the values are never printed); the web app starts with the default.
+for pair in BACKEND_URL:MUSIZEER_BACKEND_URL DNS_RESOLVER:MUSIZEER_DNS_RESOLVER; do
+  old=${pair%%:*}
+  new=${pair#*:}
+  eval "old_value=\${$old:-}"
+  if [ -n "$old_value" ]; then
+    echo "15-backend-url.envsh: $old is no longer read: rename it to $new" >&2
+  fi
+done
 
-case "$BACKEND_URL" in
+# A mistyped variable of the product: it would be ignored without a word.
+for name in $(env | sed -n 's/^\(MUSIZEER_[A-Za-z0-9_]*\)=.*/\1/p'); do
+  case "$name" in
+    MUSIZEER_BACKEND_URL|MUSIZEER_DNS_RESOLVER) ;;
+    *) echo "15-backend-url.envsh: unknown variable $name; the web app reads MUSIZEER_BACKEND_URL and MUSIZEER_DNS_RESOLVER" >&2 ;;
+  esac
+done
+
+MUSIZEER_BACKEND_URL=${MUSIZEER_BACKEND_URL:-http://app:8000}
+MUSIZEER_DNS_RESOLVER=${MUSIZEER_DNS_RESOLVER:-127.0.0.11}
+MUSIZEER_BACKEND_URL=${MUSIZEER_BACKEND_URL%/}
+
+case "$MUSIZEER_BACKEND_URL" in
   http://*|https://*) ;;
-  *) echo "15-backend-url.envsh: BACKEND_URL ('$BACKEND_URL') must start with http:// or https:// (default http://app:8000)" >&2; exit 1 ;;
+  *) echo "15-backend-url.envsh: MUSIZEER_BACKEND_URL ('$MUSIZEER_BACKEND_URL') must start with http:// or https:// (default http://app:8000)" >&2; exit 1 ;;
 esac
 
-case "${BACKEND_URL#*://}" in
-  ""|*/*) echo "15-backend-url.envsh: BACKEND_URL ('$BACKEND_URL') must be scheme://host:port with no path" >&2; exit 1 ;;
+case "${MUSIZEER_BACKEND_URL#*://}" in
+  ""|*/*) echo "15-backend-url.envsh: MUSIZEER_BACKEND_URL ('$MUSIZEER_BACKEND_URL') must be scheme://host:port with no path" >&2; exit 1 ;;
 esac
 
-export BACKEND_URL
+export MUSIZEER_BACKEND_URL MUSIZEER_DNS_RESOLVER

@@ -944,7 +944,7 @@ export const en = {
     others: { one: "1 more release", other: "{{count}} more releases" },
     kind: { major: "Major version", minor: "Minor version", patch: "Patch" },
     plain: "Pulling its images is all it takes: the database is migrated when it starts.",
-    howTo: "To update: set MUSIZERR_VERSION={{version}} in .env, then run docker compose pull && docker compose up -d.",
+    howTo: "To update: set MUSIZEER_VERSION={{version}} in .env, then run docker compose pull && docker compose up -d.",
     notes: "Release notes",
     reasons: {
       major: "A major version: read the release notes before updating.",
@@ -1003,7 +1003,7 @@ export const en = {
     catalog_unauthorized: "The catalog's server refused the token, or the catalog is private.",
     catalog_not_found: "Nothing is published at that address (for a private catalog, the token may not be allowed to read it).",
     auth_secret_insecure:
-      "Authentication can't be turned on: the server's AUTH_SECRET is missing, shorter than 32 characters or a placeholder. Set a long random value (openssl rand -hex 32) in .env and restart.",
+      "Authentication can't be turned on: the server's MUSIZEER_AUTH_SECRET is missing, shorter than 32 characters or a placeholder. Set a long random value (openssl rand -hex 32) in .env and restart.",
     no_admin_account:
       "Authentication can't be turned on: no administrator account exists to sign in with. Create one first.",
     adoption_target_invalid:
@@ -2401,7 +2401,7 @@ export const it: Translations<typeof en> = {
     others: { one: "1 altra release", other: "altre {{count}} release" },
     kind: { major: "Versione major", minor: "Versione minor", patch: "Patch" },
     plain: "Basta scaricare le nuove immagini: il database viene migrato all'avvio.",
-    howTo: "Per aggiornare: imposta MUSIZERR_VERSION={{version}} nel .env, poi esegui docker compose pull && docker compose up -d.",
+    howTo: "Per aggiornare: imposta MUSIZEER_VERSION={{version}} nel .env, poi esegui docker compose pull && docker compose up -d.",
     notes: "Note di rilascio",
     reasons: {
       major: "È una versione major: leggi le note di rilascio prima di aggiornare.",
@@ -2460,7 +2460,7 @@ export const it: Translations<typeof en> = {
     catalog_unauthorized: "Il server del catalogo ha rifiutato il token, oppure il catalogo è privato.",
     catalog_not_found: "Non c'è nulla pubblicato a quell'indirizzo (per un catalogo privato, il token potrebbe non poterlo leggere).",
     auth_secret_insecure:
-      "Non si può attivare l'autenticazione: AUTH_SECRET del server manca, è più corta di 32 caratteri o è un segnaposto. Imposta un valore lungo e casuale (openssl rand -hex 32) in .env e riavvia.",
+      "Non si può attivare l'autenticazione: MUSIZEER_AUTH_SECRET del server manca, è più corta di 32 caratteri o è un segnaposto. Imposta un valore lungo e casuale (openssl rand -hex 32) in .env e riavvia.",
     no_admin_account:
       "Non si può attivare l'autenticazione: non esiste nessun account amministratore con cui accedere. Creane prima uno.",
     adoption_target_invalid:

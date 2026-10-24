@@ -1,10 +1,10 @@
 # The web app's nginx. The official image renders this file at every start (envsubst, the output is
 # /etc/nginx/conf.d/default.conf) and replaces ONLY the variables NGINX_ENVSUBST_FILTER names (see the
-# Dockerfile): BACKEND_URL and DNS_RESOLVER. Every other $name here is nginx's own and is left alone.
+# Dockerfile): MUSIZEER_BACKEND_URL and MUSIZEER_DNS_RESOLVER. Every other $name here is nginx's own and is left alone.
 #
-#   BACKEND_URL   where the API is, scheme://host:port with no path (default http://app:8000: the `app` service
+#   MUSIZEER_BACKEND_URL   where the API is, scheme://host:port with no path (default http://app:8000: the `app` service
 #                 of docker-compose.yaml). Checked at start by 15-backend-url.envsh.
-#   DNS_RESOLVER  the name server nginx asks for the backend's address (default 127.0.0.11, Docker's own).
+#   MUSIZEER_DNS_RESOLVER  the name server nginx asks for the backend's address (default 127.0.0.11, Docker's own).
 #
 # The backend is reached through a VARIABLE (`set $backend`), which makes nginx resolve its name at run time,
 # every `valid` seconds, instead of once at start: an `app` container that was recreated (a new address) is found
@@ -27,10 +27,10 @@ server {
     listen 80;
     server_name _;
 
-    resolver ${DNS_RESOLVER} valid=10s ipv6=off;
+    resolver ${MUSIZEER_DNS_RESOLVER} valid=10s ipv6=off;
     resolver_timeout 5s;
 
-    set $backend "${BACKEND_URL}";
+    set $backend "${MUSIZEER_BACKEND_URL}";
 
     location / {
         root /usr/share/nginx/html;

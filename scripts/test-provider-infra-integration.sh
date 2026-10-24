@@ -31,10 +31,10 @@ mkdir -p "$CATALOGS" "$TMP/hostdata"
 chmod 777 "$TMP/hostdata"
 
 export POSTGRES_PASSWORD=unused
-export AUTH_SECRET=integration-test-secret-of-at-least-32-characters
-export CREDENTIALS_KEY=3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ= # a key for these throwaway stacks only
+export MUSIZEER_AUTH_SECRET=integration-test-secret-of-at-least-32-characters
+export MUSIZEER_CREDENTIALS_KEY=3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ= # a key for these throwaway stacks only
 export MZP51_CATALOG_DIR=$CATALOGS
-export OCI_REGISTRY_PORT=18700
+export MUSIZEER_DEV_OCI_REGISTRY_PORT=18700
 export PROVIDER_LOCAL_TAG_PREFIX=mzp51-
 export DEV_CATALOG_DIR=$CATALOGS
 COMPOSE="docker compose -p $P -f docker-compose.dev.yml -f gateway/tests/integration/compose.infra.yml"
@@ -69,7 +69,7 @@ ctl() { $COMPOSE exec -T provider-gateway python -m musizeer_gateway.ctl "$@"; }
 # The host's code, in a container of the application image, with the same sockets and library as the app has.
 host() { # host <python command...>
   docker run --rm -i --network ${P}_default --user 1000:1000 \
-    -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e DATA_DIR=/data -e AUTH_SECRET -e CREDENTIALS_KEY \
+    -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e MUSIZEER_DATA_DIR=/data -e MUSIZEER_AUTH_SECRET -e MUSIZEER_CREDENTIALS_KEY \
     -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v "$TMP/hostdata":/data -v ${P}_provider_sockets:/run/musizeer -v ${P}_downloads:/downloads \
     -w /repo/app "$HOST_IMAGE" python "$@"
 }

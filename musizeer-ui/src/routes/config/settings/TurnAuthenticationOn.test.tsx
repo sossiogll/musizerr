@@ -216,7 +216,7 @@ describe("turning authentication on when nobody can sign in", () => {
   it("after a failure the next attempt goes on from where it stopped: the account is not created twice", async () => {
     mockPatchSettings
       .mockRejectedValueOnce(NO_ADMIN)
-      .mockRejectedValueOnce(refusal("auth_secret_insecure", "auth_enabled: AUTH_SECRET is too short"))
+      .mockRejectedValueOnce(refusal("auth_secret_insecure", "auth_enabled: MUSIZEER_AUTH_SECRET is too short"))
       .mockResolvedValueOnce({ auth_enabled: true });
     renderSystem();
     await askToTurnItOn();
@@ -247,7 +247,7 @@ describe("turning authentication on when nobody can sign in", () => {
   });
 
   it("any other refusal stays a message: no guided step", async () => {
-    mockPatchSettings.mockRejectedValueOnce(refusal("auth_secret_insecure", "auth_enabled: AUTH_SECRET is too short"));
+    mockPatchSettings.mockRejectedValueOnce(refusal("auth_secret_insecure", "auth_enabled: MUSIZEER_AUTH_SECRET is too short"));
     renderSystem();
 
     await askToTurnItOn();

@@ -14,7 +14,7 @@ services:
       GATEWAY_CANARY: hostile-should-never-see-this
   oci-registry:
     ports: !override
-      - "127.0.0.1:${OCI_REGISTRY_PORT:-18500}:5000"
+      - "127.0.0.1:${MUSIZEER_DEV_OCI_REGISTRY_PORT:-18500}:5000"
   redis:
     ports: !reset []
 

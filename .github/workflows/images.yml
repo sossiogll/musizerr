@@ -150,8 +150,8 @@ jobs:
           target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            MUSIZERR_VERSION=${{ needs.version.outputs.build }}
-            MUSIZERR_COMMIT=${{ github.sha }}
+            MUSIZEER_VERSION=${{ needs.version.outputs.build }}
+            MUSIZEER_COMMIT=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -229,7 +229,7 @@ jobs:
               echo "- \`ghcr.io/$owner/$image:$VERSION\` (\`$digest\`)"
             done
             echo
-            echo "Provider contract: $contract. To update: set \`MUSIZERR_VERSION=$VERSION\` in \`.env\`, then \`docker compose pull && docker compose up -d\`."
+            echo "Provider contract: $contract. To update: set \`MUSIZEER_VERSION=$VERSION\` in \`.env\`, then \`docker compose pull && docker compose up -d\`."
             echo
             echo "To install without cloning the repository, download \`docker-compose.yaml\`, \`musizeer-gateway.seccomp.json\` and \`env.example\` (below) into one folder: [deployment guide](https://github.com/$GITHUB_REPOSITORY/blob/v$VERSION/docs/deployment.md)."
           } > "$RUNNER_TEMP/notes.md"

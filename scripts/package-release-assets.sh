@@ -21,14 +21,14 @@ mkdir -p "$OUT"
 PROFILE_SOURCE=./gateway/seccomp/musizeer-gateway.json
 PROFILE_ASSET=musizeer-gateway.seccomp.json
 
-grep -q "seccomp=\${GATEWAY_SECCOMP_PROFILE:-$PROFILE_SOURCE}" "$ROOT/docker-compose.yaml" \
-  || { echo "docker-compose.yaml no longer names $PROFILE_SOURCE as the default of GATEWAY_SECCOMP_PROFILE: update this script" >&2; exit 1; }
+grep -q "seccomp=\${MUSIZEER_GATEWAY_SECCOMP_PROFILE:-$PROFILE_SOURCE}" "$ROOT/docker-compose.yaml" \
+  || { echo "docker-compose.yaml no longer names $PROFILE_SOURCE as the default of MUSIZEER_GATEWAY_SECCOMP_PROFILE: update this script" >&2; exit 1; }
 
-sed "s#GATEWAY_SECCOMP_PROFILE:-$PROFILE_SOURCE#GATEWAY_SECCOMP_PROFILE:-./$PROFILE_ASSET#" "$ROOT/docker-compose.yaml" > "$OUT/docker-compose.yaml"
+sed "s#MUSIZEER_GATEWAY_SECCOMP_PROFILE:-$PROFILE_SOURCE#MUSIZEER_GATEWAY_SECCOMP_PROFILE:-./$PROFILE_ASSET#" "$ROOT/docker-compose.yaml" > "$OUT/docker-compose.yaml"
 cp "$ROOT/gateway/seccomp/musizeer-gateway.json" "$OUT/$PROFILE_ASSET"
 cp "$ROOT/.env.example" "$OUT/env.example"
 
-grep -q "GATEWAY_SECCOMP_PROFILE:-./$PROFILE_ASSET" "$OUT/docker-compose.yaml" || { echo "the compose file was not rewritten" >&2; exit 1; }
+grep -q "MUSIZEER_GATEWAY_SECCOMP_PROFILE:-./$PROFILE_ASSET" "$OUT/docker-compose.yaml" || { echo "the compose file was not rewritten" >&2; exit 1; }
 if grep -q "$PROFILE_SOURCE" "$OUT/docker-compose.yaml"; then
   # Only comments may still name the repository path.
   if grep -v '^ *#' "$OUT/docker-compose.yaml" | grep -q "$PROFILE_SOURCE"; then echo "the compose file still names $PROFILE_SOURCE" >&2; exit 1; fi

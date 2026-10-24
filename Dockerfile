@@ -54,9 +54,9 @@ FROM base AS production
 
 # The version this image is (ADR-0007 §2): the images workflow passes the release tag or the build of
 # master; a local build is "dev".
-ARG MUSIZERR_VERSION=dev
-ARG MUSIZERR_COMMIT=
-ENV MUSIZERR_VERSION=$MUSIZERR_VERSION MUSIZERR_COMMIT=$MUSIZERR_COMMIT
+ARG MUSIZEER_VERSION=dev
+ARG MUSIZEER_COMMIT=
+ENV MUSIZEER_VERSION=$MUSIZEER_VERSION MUSIZEER_COMMIT=$MUSIZEER_COMMIT
 
 COPY app/ .
 

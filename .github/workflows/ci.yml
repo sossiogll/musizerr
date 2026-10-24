@@ -47,8 +47,8 @@ jobs:
       - run: python -m pytest -p no:cacheprovider
         working-directory: app
         env:
-          AUTH_SECRET: test-secret
-          DATA_DIR: ${{ runner.temp }}/data
+          MUSIZEER_AUTH_SECRET: test-secret
+          MUSIZEER_DATA_DIR: ${{ runner.temp }}/data
 
   backend-postgresql:
     name: backend (PostgreSQL ${{ matrix.shard }}/4)
@@ -99,8 +99,8 @@ jobs:
       - run: python -m pytest -p no:cacheprovider $(cat "$RUNNER_TEMP/shard.txt")
         working-directory: app
         env:
-          AUTH_SECRET: test-secret
-          DATA_DIR: ${{ runner.temp }}/data
+          MUSIZEER_AUTH_SECRET: test-secret
+          MUSIZEER_DATA_DIR: ${{ runner.temp }}/data
           TEST_DATABASE_URL: postgresql+psycopg://postgres:test@localhost:5432/postgres
 
   sdk:
@@ -158,8 +158,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       POSTGRES_PASSWORD: ci
-      AUTH_SECRET: ci-secret-of-at-least-thirty-two-characters
-      CREDENTIALS_KEY: 3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ=
+      MUSIZEER_AUTH_SECRET: ci-secret-of-at-least-thirty-two-characters
+      MUSIZEER_CREDENTIALS_KEY: 3ER8zf6Vc8gFp5cbk2OqSEx_sA1KfLVT3q0ByU7bFHQ=
     steps:
       - uses: actions/checkout@v7
       - name: the files render
