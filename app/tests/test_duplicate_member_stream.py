@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from musizerr_sdk.interfaces import StorageStreamResult
+from musizeer_sdk.interfaces import StorageStreamResult
 from core.user_auth import STREAM_COOKIE_NAME, create_access_token, create_stream_token
 from db.engine import get_session
 from db.models import Download, DuplicateGroup, DuplicateMember, TrackRecord, User
@@ -53,14 +53,14 @@ def env(monkeypatch):
         record = TrackRecord(title="Song", artist="Artist", album="Album")
         session.add(record)
         session.flush()
-        download = Download(track_id=record.internal_id, status="downloaded", file_path="real/musizerr.ogg",
+        download = Download(track_id=record.internal_id, status="downloaded", file_path="real/musizeer.ogg",
                             completed_at=datetime(2026, 9, 1, tzinfo=timezone.utc), provider_used="dl")
         group = DuplicateGroup(recording_id="rec", status="needs_review", reason="external_or_unknown_origin_would_be_deleted")
         session.add_all([download, group])
         session.flush()
         # Same virtual path on screen: two different files.
         ours = DuplicateMember(group_id=group.id, sync_id="sync-ours", path="Artist/Album/Song.mp3", title="Song",
-                               artist="Artist", origin="musizerr", download_id=download.id, quality_known=True,
+                               artist="Artist", origin="musizeer", download_id=download.id, quality_known=True,
                                suffix="ogg", bitrate=332_000)
         external = DuplicateMember(group_id=group.id, sync_id="sync-ext", path="Artist/Album/Song.mp3", title="Song",
                                    artist="Artist", origin="unknown", quality_known=True, suffix="mp3", bitrate=128_000)
@@ -76,7 +76,7 @@ def env(monkeypatch):
     config = ConfigManager(engine=engine)
     config.update({"auth_enabled": True, "storage_provider": "shelf", "sync_provider": "fakesync"})
     storage = _Storage("shelf")
-    storage.files["real/musizerr.ogg"] = b"stored-audio"
+    storage.files["real/musizeer.ogg"] = b"stored-audio"
     providers = {"storage": storage, "sync": FakeSyncProvider()}
     monkeypatch.setattr(stream_route, "_upstream_client", lambda: httpx.Client(transport=httpx.MockTransport(_upstream)))
 
@@ -184,7 +184,7 @@ def test_the_list_gives_each_member_its_stream_real_path_and_origin_data(env):
 
     ours, external, gone = members[ids["ours"]], members[ids["external"]], members[ids["gone"]]
     assert ours["stream_url"] == public_urls.duplicate_member_stream_url(ids["ours"])
-    assert ours["storage_path"] == "real/musizerr.ogg" and ours["path"] == "Artist/Album/Song.mp3"
+    assert ours["storage_path"] == "real/musizeer.ogg" and ours["path"] == "Artist/Album/Song.mp3"
     assert ours["added_at"].startswith("2026-09-01") and ours["downloaded_via"] == "dl"
     assert external["storage_path"] is None and external["added_at"] is None
     assert gone["stream_url"] is None

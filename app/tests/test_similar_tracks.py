@@ -7,7 +7,7 @@ si prova nel suo repository; qui la rotta dell'host, con provider finti.
 """
 from __future__ import annotations
 
-from musizerr_sdk.auth import AuthFlow, AuthSession
+from musizeer_sdk.auth import AuthFlow, AuthSession
 
 from tests.test_related_content import SOURCE, _client, _Fake, _t
 

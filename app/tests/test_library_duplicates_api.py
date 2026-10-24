@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AuthSession
+from musizeer_sdk.auth import AuthSession
 from services.config_manager import ConfigManager
 from core.user_auth import create_access_token
 from db.engine import get_session
@@ -39,9 +39,9 @@ class _FakeAuthManager:
 def _make_group(session: Session, *, status: str = "proposed") -> tuple[DuplicateGroup, DuplicateMember, DuplicateMember]:
     """``keeper`` non ha mai un ``download_id`` (origine ignota, ma e' il
     keeper: non viene mai cancellato comunque). ``loser`` e' un vero
-    ``Download`` musizerr — il suo ``file_path`` REALE ("real/loser.mp3") e'
+    ``Download`` musizeer — il suo ``file_path`` REALE ("real/loser.mp3") e'
     diverso dal path VIRTUALE del membro ("loser.mp3"), esattamente come nella
-    realta' (vedi musizerr_sdk.models.LibraryItem): la risoluzione deve cancellare il
+    realta' (vedi musizeer_sdk.models.LibraryItem): la risoluzione deve cancellare il
     path reale via download_id, mai il path virtuale del membro."""
     group = DuplicateGroup(recording_id="rec-1", status=status, reason="best_quality")
     session.add(group)
@@ -56,7 +56,7 @@ def _make_group(session: Session, *, status: str = "proposed") -> tuple[Duplicat
     )
     loser = DuplicateMember(
         group_id=group.id, sync_id="s2", path="loser.mp3", title="Song", artist="Artist",
-        origin="musizerr", download_id=download.id, is_keeper=False, quality_known=True, lossless=False,
+        origin="musizeer", download_id=download.id, is_keeper=False, quality_known=True, lossless=False,
     )
     session.add(keeper)
     session.add(loser)
@@ -117,7 +117,7 @@ def test_resolve_never_deletes_external_origin_member(db_engine, registry_and_co
         session.add(group)
         session.flush()
         keeper = DuplicateMember(group_id=group.id, sync_id="s1", path="keeper.flac", title="Song", artist="Artist",
-                                  origin="musizerr", is_keeper=False, quality_known=True, lossless=True)
+                                  origin="musizeer", is_keeper=False, quality_known=True, lossless=True)
         external = DuplicateMember(group_id=group.id, sync_id="s2", path="external.mp3", title="Song", artist="Artist",
                                     origin="unknown", is_keeper=False, quality_known=True, lossless=False)
         session.add(keeper)
@@ -179,7 +179,7 @@ def test_resolve_all_resolves_every_proposed_group_only(db_engine, registry_and_
         session.add(DuplicateMember(group_id=group2.id, sync_id="s3", path="keeper2.flac", title="Song",
                                      artist="Artist", origin="unknown", is_keeper=True, quality_known=True))
         session.add(DuplicateMember(group_id=group2.id, sync_id="s4", path="loser2.mp3", title="Song",
-                                     artist="Artist", origin="musizerr", download_id=download2.id,
+                                     artist="Artist", origin="musizeer", download_id=download2.id,
                                      is_keeper=False, quality_known=True))
         # Un gruppo needs_review non deve mai essere toccato da resolve-all.
         needs_review = DuplicateGroup(recording_id="rec-3", status="needs_review", reason="unknown_quality")
@@ -353,7 +353,7 @@ def test_a_resolve_that_fails_midway_keeps_what_it_deleted_and_can_be_retried(db
         session.flush()
         session.add(DuplicateMember(
             group_id=group.id, sync_id="s3", path="second.mp3", title="Song", artist="Artist",
-            origin="musizerr", download_id=second_download.id, quality_known=True, lossless=False,
+            origin="musizeer", download_id=second_download.id, quality_known=True, lossless=False,
         ))
         session.commit()
 

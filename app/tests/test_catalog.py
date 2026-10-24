@@ -19,16 +19,16 @@ from core.catalog import (
     permissions_from_dict,
     permissions_to_dict,
 )
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.manifest import ROLES
-from musizerr_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, TcpAccess, canonical
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.manifest import ROLES
+from musizeer_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, TcpAccess, canonical
 
 D = "sha256:" + "a" * 64
 
 
 def entry(**kwargs):
     return {
-        "name": "lrclib", "image": "ghcr.io/owner/musizerr-provider-lrclib", "digest": D,
+        "name": "lrclib", "image": "ghcr.io/owner/musizeer-provider-lrclib", "digest": D,
         "provider_api_version": PROVIDER_API_VERSION, "roles": ["lyrics"], "label": "LRCLIB",
         "description": "Synced lyrics", "homepage": "https://lrclib.net",
         "permissions": {"egress": ["lrclib.net:443"], "egress_from_settings": [], "filesystem_from_settings": [], "limits": {}},
@@ -48,8 +48,8 @@ def test_a_catalog_lists_pinned_images_with_their_permissions():
 
     assert parsed.name == "Mine" and parsed.rejected == ()
     lrclib = parsed.get("lrclib")
-    assert lrclib is not None and lrclib.reference == f"ghcr.io/owner/musizerr-provider-lrclib@{D}"
-    assert (lrclib.registry, lrclib.repository) == ("ghcr.io", "owner/musizerr-provider-lrclib")
+    assert lrclib is not None and lrclib.reference == f"ghcr.io/owner/musizeer-provider-lrclib@{D}"
+    assert (lrclib.registry, lrclib.repository) == ("ghcr.io", "owner/musizeer-provider-lrclib")
     assert lrclib.roles == ("lyrics",) and lrclib.label == "LRCLIB" and lrclib.homepage == "https://lrclib.net"
     assert lrclib.permissions == Permissions(egress=("lrclib.net:443",)) and lrclib.compatible
     assert parsed.get("absent") is None

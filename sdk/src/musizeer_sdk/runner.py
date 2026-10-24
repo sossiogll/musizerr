@@ -1,5 +1,5 @@
 """
-The runner: the provider's side of the call protocol (``musizerr_sdk.protocol``),
+The runner: the provider's side of the call protocol (``musizeer_sdk.protocol``),
 standard library only.
 
 A runner holds ONE provider, built by the runner itself from the provider's
@@ -7,7 +7,7 @@ class (or any ``factory(context)``) the first time it is asked for something,
 and answers the host's requests: ``describe`` gives the manifest, ``call``
 calls a method of the contract and sends back the result, the pages of a
 stream, or the error. Whatever transport carries the frames (the loopback of
-the tests, a Unix socket under ``python -m musizerr_sdk.runner``
+the tests, a Unix socket under ``python -m musizeer_sdk.runner``
 in a sandbox) the runner is the same: it sees decoded messages and returns frames.
 
 The provider's ``ProviderContext`` is built from the snapshot each call
@@ -341,7 +341,7 @@ def route_through(relay: EgressRelay, environ: dict[str, str] | None = None) -> 
 
 
 # ------------------------------------------------------------------
-# Command line: ``python -m musizerr_sdk.runner``
+# Command line: ``python -m musizeer_sdk.runner``
 # ------------------------------------------------------------------
 
 
@@ -354,7 +354,7 @@ def load_provider_class(spec: str) -> ProviderFactory:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m musizerr_sdk.runner", description="Serve one provider on a Unix socket.")
+    parser = argparse.ArgumentParser(prog="python -m musizeer_sdk.runner", description="Serve one provider on a Unix socket.")
     parser.add_argument("--provider", required=True, help="the provider class, 'module:Class'")
     parser.add_argument("--socket", help="the Unix socket to serve the call protocol on")
     parser.add_argument("--egress-socket", help="the gateway's egress proxy (a Unix socket) to reach the network through")
@@ -378,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
         relay = EgressRelay(args.egress_socket)
         threading.Thread(target=relay.serve_forever, name="egress-relay", daemon=True).start()
         route_through(relay)
-        net.use_proxy(relay.server_address)  # raw TCP (FTP...) goes the same way: musizerr_sdk.net
+        net.use_proxy(relay.server_address)  # raw TCP (FTP...) goes the same way: musizeer_sdk.net
     server = RunnerServer(args.socket, ProviderRunner(load_provider_class(args.provider)))
     signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
     try:

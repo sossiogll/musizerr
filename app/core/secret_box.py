@@ -1,5 +1,5 @@
 """
-Authenticated encryption of the secrets Musizerr keeps in its database (docs/credentials.md).
+Authenticated encryption of the secrets Musizeer keeps in its database (docs/credentials.md).
 
 PURE: the keys come in as arguments, nothing is read from the environment and nothing is logged
 here; ``db/credential_cipher.py`` is the host module that owns the environment variables, the

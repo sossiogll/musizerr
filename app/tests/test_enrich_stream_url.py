@@ -6,7 +6,7 @@ skip degli item già risolti (il pezzo caldo della latenza di ricerca).
 from __future__ import annotations
 
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from core.serialization import serialize_track
 from services.enrichment import enrich_dicts_with_stream_url, enrich_tracks_with_stream_url
 

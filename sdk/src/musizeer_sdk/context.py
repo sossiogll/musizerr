@@ -1,7 +1,7 @@
 """
 Canale dichiarativo fra un provider e l'host. Insieme ad ``AuthSession`` (per
 singola chiamata) e ai valori di ritorno dei metodi del contratto, è
-l'UNICO modo con cui un provider parla con Musizerr — nessun import di
+l'UNICO modo con cui un provider parla con Musizeer — nessun import di
 moduli dell'host, nessuna lettura di variabile d'ambiente, nessuna
 conoscenza di come/dove l'host persiste le proprie impostazioni. L'host
 inietta un'implementazione concreta alla costruzione del provider

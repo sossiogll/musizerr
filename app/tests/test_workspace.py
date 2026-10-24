@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from musizerr_sdk.interfaces import StorageStreamResult
+from musizeer_sdk.interfaces import StorageStreamResult
 from services.workspace import WorkspaceError, open_workspace, remove_stale_workspaces
 
 

@@ -1,5 +1,5 @@
 """
-Every hyphen-like character reads the same in a title (``musizerr_sdk.text``):
+Every hyphen-like character reads the same in a title (``musizeer_sdk.text``):
 "Backup 1987-2012" and "Backup 1987–2012" are one album, "Song - Live" and
 "Song – Live" carry the same version, but a subtitle still makes a different
 release ("Backup 1987-2012" is not "Backup 1987–2012: Il best").

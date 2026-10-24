@@ -34,7 +34,7 @@ it exists since, ``field(default=..., metadata={SINCE: "5.5"})``, and must have 
 default; ``encode(value, peer=(5, 4))`` leaves out the fields newer than the
 peer's minor, so a peer that still decodes strictly (every SDK before 5.5) never
 meets one. ``peer=None`` encodes everything. An iterator is not a value; the
-protocol streams it (``musizerr_sdk.protocol``). The one iterator inside a
+protocol streams it (``musizeer_sdk.protocol``). The one iterator inside a
 contract type, ``StorageStreamResult.chunks``, is encoded as a marker and
 rebuilt from the byte stream the caller hands to :func:`decode`.
 """

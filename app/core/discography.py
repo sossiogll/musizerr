@@ -15,9 +15,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from .matching import is_edition_title, match_release, release_title_key, same_song, song_keys
-from musizerr_sdk.models import ALBUM_TYPES, Album, Track
+from musizeer_sdk.models import ALBUM_TYPES, Album, Track
 from .utils import provider_sort_key
 
 

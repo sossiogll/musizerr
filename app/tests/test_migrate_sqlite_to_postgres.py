@@ -96,7 +96,7 @@ def fill(connection: sa.engine.Connection) -> dict[str, int]:
 
 def sqlite_source(tmp_path: Path, *, populate: bool = True) -> Path:
     """A SQLite file at the head, as an existing install would have it."""
-    path = tmp_path / "musizerr.db"
+    path = tmp_path / "musizeer.db"
     engine = make_engine(sqlite_url(path))
     upgrade_to_head(engine)
     if populate:

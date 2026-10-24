@@ -188,7 +188,7 @@ def start_stream_session(request: Request, response: Response, user: CurrentUser
     """Mint a short-lived stream token and set it as an HttpOnly cookie.
 
     Called by the frontend right after login and after every access-token
-    refresh (see musizerr-ui/src/lib/api-client.ts), so the cookie stays
+    refresh (see musizeer-ui/src/lib/api-client.ts), so the cookie stays
     valid for as long as the signed-in session does."""
     token = user_auth.create_stream_token(user.id)
     response.set_cookie(

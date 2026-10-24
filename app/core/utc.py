@@ -1,5 +1,5 @@
 """
-UTC datetimes. Every datetime Musizerr stores is UTC; a naive one (from
+UTC datetimes. Every datetime Musizeer stores is UTC; a naive one (from
 SQLite, or normalized by a provider) is read as UTC here, and a datetime
 leaves the API only as ISO 8601 WITH its offset: a browser reads a string
 without one as local time.

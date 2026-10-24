@@ -8,7 +8,7 @@ miglior match col proprio score grezzo, non filtrato.
 from __future__ import annotations
 
 from services.config_manager import ConfigManager
-from musizerr_sdk.interfaces import Identity, IdentificationProvider, WorkspaceFile
+from musizeer_sdk.interfaces import Identity, IdentificationProvider, WorkspaceFile
 
 
 def identify_confidently(

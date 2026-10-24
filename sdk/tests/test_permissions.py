@@ -10,10 +10,10 @@ from contextlib import redirect_stdout
 
 import pytest
 
-from musizerr_sdk import runner
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.labels import (
+from musizeer_sdk import runner
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.labels import (
     LABEL_API_VERSION,
     LABEL_LABEL,
     LABEL_NAME,
@@ -23,8 +23,8 @@ from musizerr_sdk.labels import (
     declared_from_labels,
     labels_for,
 )
-from musizerr_sdk.manifest import ManifestError, build
-from musizerr_sdk.permissions import (
+from musizeer_sdk.manifest import ManifestError, build
+from musizeer_sdk.permissions import (
     NO_PERMISSIONS,
     canonical,
     FilesystemAccess,

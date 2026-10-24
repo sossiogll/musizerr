@@ -14,9 +14,9 @@ import shutil
 import subprocess
 import tempfile
 
-from musizerr_sdk.identifiers import ISRC, MBID, Identifier
-from musizerr_sdk.models import Track
-from musizerr_sdk.text import parse_year
+from musizeer_sdk.identifiers import ISRC, MBID, Identifier
+from musizeer_sdk.models import Track
+from musizeer_sdk.text import parse_year
 
 logger = logging.getLogger(__name__)
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 import uuid
 
 from .discography import ReleaseGroup
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.models import Album, AlbumRef, Artist, ArtistRef, Lyrics, Playlist, Track
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.models import Album, AlbumRef, Artist, ArtistRef, Lyrics, Playlist, Track
 
 # Tipo esplicito di ogni elemento serializzato: il client non deve dedurlo
 # dai campi presenti (una playlist ha "name" come un artista).

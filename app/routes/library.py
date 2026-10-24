@@ -264,7 +264,7 @@ def _text_filter(q: str | None):
 @router.delete("/library/saved-tracks")
 def delete_saved_tracks(session: SessionDep, user: CurrentUserDep):
     """Wipe the likes imported from other providers and the finished library
-    syncs. Favorites stay (they are the user's own choice in Musizerr)."""
+    syncs. Favorites stay (they are the user's own choice in Musizeer)."""
     user_service.delete_saved_tracks(session, user.id)
     library_job_store.delete_finished(session, user.id, KIND_LIBRARY_SYNC)
     session.commit()

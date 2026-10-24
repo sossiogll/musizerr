@@ -8,7 +8,7 @@ ports the server picks) opens its own sockets. This module opens them through th
 and the admin approved: a fixed ``egress`` entry, the host a setting named by ``egress_from_settings``
 holds, or (any port, or a declared range) the host a setting named by ``tcp_from_settings`` holds.
 
-    from musizerr_sdk import net
+    from musizeer_sdk import net
 
     sock = net.create_connection(("files.example.org", 2121), timeout=10)   # a normal socket
 
@@ -25,7 +25,7 @@ passive data connection, so :func:`route_module` gives the module a view of ``so
 one function goes through the proxy::
 
     import ftplib
-    from musizerr_sdk import net
+    from musizeer_sdk import net
 
     net.route_module(ftplib)        # once, at import; only ftplib's own use of socket changes
 

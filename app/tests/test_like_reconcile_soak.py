@@ -31,7 +31,7 @@ from sqlmodel import Session, select
 from core import download_states as ds
 from core import like_reconciliation as rules
 from core.backoff import retry_delay
-from musizerr_sdk.interfaces import SyncCandidate
+from musizeer_sdk.interfaces import SyncCandidate
 from db.models import Download, PendingLike, TrackRecord, User
 from services import favorites
 from tests.database import new_engine

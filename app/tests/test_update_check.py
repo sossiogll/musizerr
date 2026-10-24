@@ -1,5 +1,5 @@
 """
-The version this instance runs and the newer releases of Musizerr (ADR-0007 §2 and §5.1): the rules
+The version this instance runs and the newer releases of Musizeer (ADR-0007 §2 and §5.1): the rules
 (core/versions.py), the check against GitHub (services/update_check.check, with recorded answers) and
 the view of Administration (services/update_check.view, GET /admin/updates), which judges each newer
 release against what runs now.
@@ -43,7 +43,7 @@ from tests.conftest import FakeAuthManager, FakeRegistry
 from tests.database import new_engine
 
 NOW = datetime.now(timezone.utc) - timedelta(minutes=5)
-API = "https://api.github.com/repos/sossiogll/musizerr/releases"
+API = "https://api.github.com/repos/sossiogll/musizeer/releases"
 
 
 # ---- the rules -------------------------------------------------------------------------------------

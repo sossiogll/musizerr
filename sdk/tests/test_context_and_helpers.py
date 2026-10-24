@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from musizerr_sdk.context import (
+from musizeer_sdk.context import (
     DEFAULT_CONNECT_TIMEOUT,
     DEFAULT_DOWNLOAD_TIMEOUT,
     DEFAULT_HTTP_TIMEOUT,
@@ -11,9 +11,9 @@ from musizerr_sdk.context import (
     ProviderContext,
     StaticProviderContext,
 )
-from musizerr_sdk.identifiers import ISRC, PROVIDER_ID, Identifier, is_sync_id_type
-from musizerr_sdk.models import Track
-from musizerr_sdk.text import (
+from musizeer_sdk.identifiers import ISRC, PROVIDER_ID, Identifier, is_sync_id_type
+from musizeer_sdk.models import Track
+from musizeer_sdk.text import (
     normalize,
     parse_bitrate,
     parse_sample_rate,
@@ -95,7 +95,7 @@ def test_unit_values_are_read_or_unknown(value, bitrate, rate):
 
 
 def test_a_static_context_gives_the_snapshot_a_call_carries():
-    from musizerr_sdk.context import ContextSnapshot
+    from musizeer_sdk.context import ContextSnapshot
 
     context = StaticProviderContext(
         settings={"market": "IT"}, http_timeout=1, download_timeout=2, connect_timeout=3, stream_start_timeout=4,

@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.models import Lyrics
-from musizerr_sdk.permissions import Permissions, to_json
-from musizerr_sdk.runner import ProviderRunner, RunnerServer
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.models import Lyrics
+from musizeer_sdk.permissions import Permissions, to_json
+from musizeer_sdk.runner import ProviderRunner, RunnerServer
 
 NO_AUTH = AuthDefinition(flow=AuthFlow.NONE, account_model=AccountModel.NONE)
 PERMISSIONS = Permissions(egress=("api.example.org:443",), egress_from_settings=("url",))
@@ -65,7 +65,7 @@ class FakeGateway:
 
     def answer(self, request: dict) -> dict:
         if request["op"] == "list":
-            return {"ok": True, "epoch": self.epoch, "generation": self.generation, "workspace_root": "/downloads/.musizerr-work",
+            return {"ok": True, "epoch": self.epoch, "generation": self.generation, "workspace_root": "/downloads/.musizeer-work",
                     "sandbox": {"available": True, "reason": "ok"}, "rejected": {}, "providers": self.providers}
         if request["op"] == "egress":
             return {"ok": True, "granted": len(request["targets"])}

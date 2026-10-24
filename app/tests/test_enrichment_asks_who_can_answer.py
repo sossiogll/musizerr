@@ -7,11 +7,11 @@ of ``provider_error`` for a question nobody could answer.
 """
 from __future__ import annotations
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Album, Artist
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Album, Artist
 from services.enrichment import (
     complete_universal_ids,
     cross_enrich_album,

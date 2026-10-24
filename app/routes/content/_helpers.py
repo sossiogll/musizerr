@@ -4,9 +4,9 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AuthSession
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Album, Playlist, Track
+from musizeer_sdk.auth import AuthSession
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Album, Playlist, Track
 from core.serialization import serialize_item
 from services.capabilities import Viewer
 from services.provider_calls import provider_call

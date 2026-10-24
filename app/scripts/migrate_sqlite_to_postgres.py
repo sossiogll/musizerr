@@ -4,8 +4,8 @@ primary keys kept, so nothing has to be configured again afterwards.
 
 Uso, dalla cartella ``app/``::
 
-    python -m scripts.migrate_sqlite_to_postgres --source /data/musizerr.db \\
-        --target postgresql+psycopg://user:password@postgres:5432/musizerr          # dry run
+    python -m scripts.migrate_sqlite_to_postgres --source /data/musizeer.db \\
+        --target postgresql+psycopg://user:password@postgres:5432/musizeer          # dry run
     python -m scripts.migrate_sqlite_to_postgres --source ... --target ... --apply  # copies
     ... --json                                                                      # machine report
 

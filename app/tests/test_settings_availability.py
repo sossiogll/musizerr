@@ -15,9 +15,9 @@ import uuid
 import pytest
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from services.config_manager import ConfigManager
-from musizerr_sdk.interfaces import SyncProvider
+from musizeer_sdk.interfaces import SyncProvider
 from services.settings import SettingsService, SettingsWriteError
 from db.models import User
 from db.settings_store import SettingsRepository

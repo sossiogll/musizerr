@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from musizerr_sdk.interfaces import Identity, WorkspaceFile
+from musizeer_sdk.interfaces import Identity, WorkspaceFile
 from services.identification import identify_confidently
 
 

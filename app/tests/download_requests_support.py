@@ -14,11 +14,11 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from core import download_policy as dp
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.errors import DownloadDelegated
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Album, Artist, Playlist
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.errors import DownloadDelegated
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Album, Artist, Playlist
+from musizeer_sdk.context import StaticProviderContext
 from core.user_auth import create_access_token
 from db.engine import get_session
 from db.models import Download, DownloadRequest, PendingLike, User

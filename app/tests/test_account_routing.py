@@ -1,7 +1,7 @@
 """
 The ONE routing rule of the credentials (``db.auth_store.CredentialStore``)
 and what ``AuthManager`` does with it: which account a call uses is decided by
-the model the provider declares (``musizerr_sdk.auth.AccountModel``), whoever the
+the model the provider declares (``musizeer_sdk.auth.AccountModel``), whoever the
 caller is. Reads route; writes name their target.
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ import pytest
 from sqlmodel import Session
 
 from core.auth import AccountTarget
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AccountModel,
     AuthDefinition,
     AuthFlow,

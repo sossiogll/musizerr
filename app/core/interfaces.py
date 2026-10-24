@@ -1,7 +1,7 @@
 """
 What the host knows about providers beyond the contract itself. The contract
 (the abstract base classes and the data types that cross the boundary with a
-provider) is ``musizerr_sdk.interfaces``; this module holds the registry the
+provider) is ``musizeer_sdk.interfaces``; this module holds the registry the
 core asks for providers through and the host's reading of the capabilities
 they declare.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from musizerr_sdk.capabilities import (
+from musizeer_sdk.capabilities import (
     CAPABILITY_DISCOGRAPHY,
     CAPABILITY_LOGIN,
     CAPABILITY_PLAYLIST_TRACKS_RESTRICTED,
@@ -19,7 +19,7 @@ from musizerr_sdk.capabilities import (
     CAPABILITY_UNLIKE_SAVED_TRACK,
     CAPABILITY_USER_LIBRARY,
 )
-from musizerr_sdk.interfaces import (
+from musizeer_sdk.interfaces import (
     BaseProvider,
     DownloadProvider,
     IdentificationProvider,

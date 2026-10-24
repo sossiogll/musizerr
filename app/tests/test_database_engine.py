@@ -43,7 +43,7 @@ def test_without_database_url_the_data_is_the_sqlite_file_of_data_dir(monkeypatc
     url = database_url()
 
     assert url.get_backend_name() == SQLITE
-    assert url.database == str(tmp_path / "musizerr.db")
+    assert url.database == str(tmp_path / "musizeer.db")
 
 
 @pytest.mark.parametrize("given", [

@@ -30,7 +30,7 @@ import uvicorn
 from fastapi import FastAPI
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from core.identifiers import sync_id_type
 from db.engine import get_session
 from db.models import Download, TrackIdentifierRecord, TrackRecord

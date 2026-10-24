@@ -18,7 +18,7 @@ from db.engine import engine
 logger = logging.getLogger(__name__)
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
-PROGRESS_CHANNEL = "musizerr:progress"
+PROGRESS_CHANNEL = "musizeer:progress"
 
 
 def publish_progress(

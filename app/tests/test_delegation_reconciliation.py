@@ -2,7 +2,7 @@
 Copre la riconciliazione self-healing dei download delegati
 (``workers.maintenance.reconcile_delegation`` / ``sweep_delegations``) in modo
 GENERICO — Golden Rule: nessun provider reale qui, solo fake minimali che
-implementano i contratti opzionali di ``musizerr_sdk.interfaces``.
+implementano i contratti opzionali di ``musizeer_sdk.interfaces``.
 
 Tre cose vengono provate, tutte a livello di contratto/reconciler, mai di
 un provider specifico:
@@ -32,10 +32,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from services.config_manager import ConfigManager
 from core import download_states as ds
-from musizerr_sdk.delegation import DelegationStatus
+from musizeer_sdk.delegation import DelegationStatus
 from db.models import Download, TrackRecord
 from tests.database import new_engine
 from tests.conftest import FakeDownloadProvider, FakeRedis, FakeRegistry, make_track

@@ -19,7 +19,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
-from musizerr_sdk.text import LOSSLESS_CODECS
+from musizeer_sdk.text import LOSSLESS_CODECS
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ def _to_int(value) -> int:
 #
 # ATTENZIONE (contesto): questa policy gira SOLO quando un download provider
 # riporta conflitti FILE-LEVEL (``DelegationStatus.conflicts`` popolato con
-# ``FileRef`` concreti — vedi musizerr_sdk.delegation). Nessun provider album-level
+# ``FileRef`` concreti — vedi musizeer_sdk.delegation). Nessun provider album-level
 # lo fa oggi (verificato sui provider di prima parte): il suo poll_delegation riporta un conflitto di import
 # solo come messaggio di testo, mai come ``FileRef`` — la sua stessa quality
 # profile ha già scelto la copia migliore a monte. Questa funzione resta

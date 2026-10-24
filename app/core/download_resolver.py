@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable
 
-from musizerr_sdk.errors import DelegateHoldsRelease, DownloadDeclined, DownloadDelegated
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.errors import DelegateHoldsRelease, DownloadDeclined, DownloadDelegated
+from musizeer_sdk.identifiers import Identifier
 from .interfaces import ProviderRegistry
 from .matching import requested_track_in_package
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from .provider_cooldown import NoCooldown, ProviderCooldown
 from .provider_slots import ProviderSlots, UnlimitedSlots
 from .auth_manager import AuthManager, AuthError

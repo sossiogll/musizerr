@@ -100,8 +100,8 @@ def release_engines() -> None:
 
 def _new_sqlite(schema: bool, addressable: bool) -> Engine:
     if addressable:
-        folder = tempfile.mkdtemp(prefix="musizerr-test-")
-        engine = make_engine(sqlite_url(Path(folder) / "musizerr.db"))
+        folder = tempfile.mkdtemp(prefix="musizeer-test-")
+        engine = make_engine(sqlite_url(Path(folder) / "musizeer.db"))
         _cleanups[engine] = lambda: (engine.dispose(), shutil.rmtree(folder, ignore_errors=True))
     else:
         # One connection, shared by every thread: the memory database.

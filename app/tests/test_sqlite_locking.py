@@ -25,7 +25,7 @@ from sqlmodel import Session, SQLModel
 
 import main
 from core import user_auth
-from musizerr_sdk.auth import AuthSession
+from musizeer_sdk.auth import AuthSession
 from db import engine as db_engine
 from db.engine import get_session, make_engine, sqlite_url
 from db.models import User

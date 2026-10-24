@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
-from musizerr_sdk.models import ALBUM_TYPES
+from musizeer_sdk.models import ALBUM_TYPES
 
 
 class ExternalIdBody(BaseModel):

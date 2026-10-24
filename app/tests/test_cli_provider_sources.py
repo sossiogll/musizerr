@@ -140,7 +140,7 @@ def test_install_prints_the_permissions_and_asks_first(world):
 
     assert declined[0] == 2 and installed(world) == [] and "Nothing was written" in declined[1]
     assert "network: lrclib.net:443" in declined[1] and "the setting 'url'" in declined[1] and "memory mb 256" in declined[1]
-    assert f"ghcr.io/owner/musizerr-provider-lrclib@{DIGEST_A}" in declined[1]
+    assert f"ghcr.io/owner/musizeer-provider-lrclib@{DIGEST_A}" in declined[1]
 
     approved = world.run("install", URL, "lrclib", stdin="y\n", tty=True)
 

@@ -3,8 +3,8 @@ The database engine: ONE resolution of where the data lives, shared by the
 app, the workers, the scripts and Alembic (``migrations/env.py``).
 
 ``DATABASE_URL`` names the database (PostgreSQL: ``postgresql+psycopg://user:
-password@host:5432/musizerr``). Unset, the data is the SQLite file
-``DATA_DIR/musizerr.db``: a small install needs nothing else.
+password@host:5432/musizeer``). Unset, the data is the SQLite file
+``DATA_DIR/musizeer.db``: a small install needs nothing else.
 
 Every connection gets the settings of its dialect (``make_engine``):
 
@@ -74,7 +74,7 @@ def database_url() -> URL:
     ``DATA_DIR``."""
     configured = os.environ.get("DATABASE_URL", "").strip()
     if not configured:
-        return sqlite_url(Path(os.environ.get("DATA_DIR", DEFAULT_DATA_DIR)) / "musizerr.db")
+        return sqlite_url(Path(os.environ.get("DATA_DIR", DEFAULT_DATA_DIR)) / "musizeer.db")
     return parse_url(configured)
 
 

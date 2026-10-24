@@ -36,7 +36,7 @@ from services.gateway_sync import GatewaySync
 
 logger = logging.getLogger(__name__)
 
-CHANNEL = "musizerr:providers"
+CHANNEL = "musizeer:providers"
 WATCH_INTERVAL_SECONDS = 5.0
 COALESCE_SECONDS = 0.3
 RECONNECT_SECONDS = 2.0
@@ -205,7 +205,7 @@ class GatewayWatcher:
             self._workspace_warned = (mine, theirs)
             logger.error(
                 "The workspace folder of the host (setting workspace_dir: %s) is not the gateway's (GATEWAY_WORKSPACE_DIR: %s): "
-                "providers cannot exchange files with Musizerr. Set both from WORKSPACE_DIR, or change the setting to the gateway's "
+                "providers cannot exchange files with Musizeer. Set both from WORKSPACE_DIR, or change the setting to the gateway's "
                 "value (docs/deployment.md).", mine, theirs,
             )
 

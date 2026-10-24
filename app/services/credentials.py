@@ -1,7 +1,7 @@
 """
 The accounts a call of the host uses, and the state of each one.
 
-The routing rule is ONE, declared by each provider (``musizerr_sdk.auth.AccountModel``)
+The routing rule is ONE, declared by each provider (``musizeer_sdk.auth.AccountModel``)
 and applied by ``db.auth_store.CredentialStore``: a store is built for a
 principal and a call reads the account its provider's model sends it to.
 This module only names the principals the host acts as:
@@ -30,7 +30,7 @@ from sqlmodel import Session, select
 
 from core.auth import AccountTarget, missing_capabilities
 from core.settings_catalog import catalog_defaults
-from musizerr_sdk.auth import AccountModel, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthFlow
 from db.auth_store import CredentialStore
 from db.models import SYSTEM_USER_ID, User
 from db.settings_store import SettingsRepository
@@ -147,7 +147,7 @@ def account_username(store: CredentialStore, provider, target: AccountTarget) ->
 
 
 def own_missing_capabilities(store: CredentialStore, provider) -> list[str]:
-    """The capabilities (``musizerr_sdk.capabilities``) the user's own connection to
+    """The capabilities (``musizeer_sdk.capabilities``) the user's own connection to
     ``provider`` was not granted the permission for: it was made before the
     provider asked for it, and reconnecting grants it. Empty without an own
     connection, or when the token does not list its scopes."""

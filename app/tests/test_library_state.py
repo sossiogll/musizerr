@@ -20,12 +20,12 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from core import download_states as ds
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Album, Artist, LibraryItem, Playlist
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Album, Artist, LibraryItem, Playlist
+from musizeer_sdk.context import StaticProviderContext
 from core.user_auth import create_access_token
 from db.engine import get_session
 from db.library_store import file_states, in_library

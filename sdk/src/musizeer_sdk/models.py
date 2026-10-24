@@ -177,11 +177,11 @@ class LibraryItem:
     path reale su disco per default) — NON è garantito combaciare con lo
     spazio dei path che lo ``StorageProvider`` usa per
     ``store``/``exists``/``delete`` (verificato dal vivo: gli stessi file
-    scaricati da musizerr risultano non trovabili sullo storage seguendo
+    scaricati da musizeer risultano non trovabili sullo storage seguendo
     questo path). Va trattato solo come ETICHETTA per la UI/i log — per
     leggere i byte reali usare ``SyncProvider.fetch_partial(sync_id, ...)``,
     mai questo path; per l'origine/cancellabilità usare ``sync_id`` per
-    risalire a un ``Download`` musizerr (vedi
+    risalire a un ``Download`` musizeer (vedi
     ``db.duplicate_store.resolve_download_for_item``), mai un confronto path.
 
     ``bitrate``/``sample_rate`` sono 0 quando il sync provider non li

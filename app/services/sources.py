@@ -102,7 +102,7 @@ class CatalogFetcher:
 
     def _get_json(self, url: str, credential: str | None) -> Any:
         origin = _origin(url)
-        headers = {"Accept": "application/json, */*;q=0.1", "User-Agent": "musizerr"}
+        headers = {"Accept": "application/json, */*;q=0.1", "User-Agent": "musizeer"}
         try:
             with httpx.Client(transport=self._transport, timeout=self._timeout, follow_redirects=False) as client:
                 current = url

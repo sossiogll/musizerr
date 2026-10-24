@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "musizerr-sdk"
+name = "musizeer-sdk"
 version = "5.5.0"
-description = "The provider contract of Musizerr: interfaces, domain models, declarative auth and the pure helpers a provider needs."
+description = "The provider contract of Musizeer: interfaces, domain models, declarative auth and the pure helpers a provider needs."
 requires-python = ">=3.12"
 license = {text = "LGPL-3.0-or-later"}
 classifiers = [
@@ -20,7 +20,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-musizerr_sdk = ["py.typed"]
+musizeer_sdk = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

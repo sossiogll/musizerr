@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from core.auth import AccountTarget, missing_capabilities
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AccountModel,
     AuthDefinition,
     AuthFlow,
@@ -30,7 +30,7 @@ from musizerr_sdk.auth import (
     OAuth2Config,
 )
 from core.auth_manager import AuthManager
-from musizerr_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK, CAPABILITY_USER_LIBRARY
+from musizeer_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK, CAPABILITY_USER_LIBRARY
 from core.settings_catalog import get_def
 from core.user_auth import create_access_token
 from db.auth_store import CredentialStore

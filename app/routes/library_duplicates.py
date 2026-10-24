@@ -40,7 +40,7 @@ def _now() -> datetime:
 def _member_dict(m: DuplicateMember, download: Download | None, best_quality: bool) -> dict:
     """``path`` is the label the sync provider shows (often virtual, two
     files can share it); ``storage_path`` is where the file really is on the
-    storage, when Musizerr knows it (the download it is linked to), with
+    storage, when Musizeer knows it (the download it is linked to), with
     when it arrived and through which download provider."""
     return {
         "id": m.id,
@@ -63,7 +63,7 @@ def _member_dict(m: DuplicateMember, download: Download | None, best_quality: bo
         "best_quality": best_quality,
         "fingerprint_score": m.fingerprint_score,
         "origin": m.origin,
-        "deletable": m.origin == "musizerr" and bool(m.download_id),
+        "deletable": m.origin == "musizeer" and bool(m.download_id),
         "is_keeper": m.is_keeper,
         "deleted_at": utc_iso(m.deleted_at),
         # A deleted file has nothing to play.
@@ -104,7 +104,7 @@ def _resolve_group(
 ) -> dict:
     """
     Cancella (via StorageProvider) ogni membro del gruppo diverso dal keeper
-    scelto — MA solo quelli di origine ``musizerr`` (``deletable``) E con un
+    scelto — MA solo quelli di origine ``musizeer`` (``deletable``) E con un
     ``download_id`` risolto: un membro esterno/sconosciuto non viene mai
     cancellato, resta semplicemente "saltato" nella risposta (mai un errore
     che blocca l'intera risoluzione: proteggere quel file è il comportamento
@@ -113,7 +113,7 @@ def _resolve_group(
     ATTENZIONE: la cancellazione usa SEMPRE il path REALE letto da
     ``Download.file_path`` (via ``m.download_id``), MAI ``m.path`` — quello è
     solo l'etichetta virtuale che il sync provider mostra (vedi
-    ``musizerr_sdk.models.LibraryItem``), spesso diversa dalla posizione vera sullo
+    ``musizeer_sdk.models.LibraryItem``), spesso diversa dalla posizione vera sullo
     storage.
 
     Ogni cancellazione riuscita si registra subito: il download non punta
@@ -139,7 +139,7 @@ def _resolve_group(
     for m in members:
         if m.id == keeper.id or m.deleted_at is not None:
             continue
-        if m.origin != "musizerr" or not m.download_id:
+        if m.origin != "musizeer" or not m.download_id:
             skipped_paths.append(m.path)
             continue
         download = session.get(Download, m.download_id)

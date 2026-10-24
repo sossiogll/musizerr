@@ -11,9 +11,9 @@ import logging
 from dataclasses import dataclass, field
 
 from core.auth_manager import ProviderNotConfigured
-from musizerr_sdk.identifiers import PROVIDER_ID
+from musizeer_sdk.identifiers import PROVIDER_ID
 from core.matching import match_track
-from musizerr_sdk.models import Artist, Track
+from musizeer_sdk.models import Artist, Track
 from core.provider_failures import ProviderFailures
 from core.utils import provider_sort_key
 from services.enrichment import cross_enrich_artist

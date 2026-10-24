@@ -182,9 +182,9 @@ def test_the_watcher_says_once_that_the_host_and_the_gateway_name_different_work
 
     messages = [r.getMessage() for r in caplog.records if "workspace" in r.getMessage()]
     assert len(messages) == 1, "said once per pair of values, not every few seconds"
-    assert "/data/work" in messages[0] and "/downloads/.musizerr-work" in messages[0] and "WORKSPACE_DIR" in messages[0]
+    assert "/data/work" in messages[0] and "/downloads/.musizeer-work" in messages[0] and "WORKSPACE_DIR" in messages[0]
 
-    folder[0] = "/downloads/.musizerr-work/"  # the same folder, spelled with a trailing slash
+    folder[0] = "/downloads/.musizeer-work/"  # the same folder, spelled with a trailing slash
     caplog.clear()
     watcher.check()
     assert not [r for r in caplog.records if "workspace" in r.getMessage()]

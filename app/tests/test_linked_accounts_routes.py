@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from core.auth import AccountTarget
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AccountModel,
     ApiKeyConfig,
     AuthDefinition,
@@ -22,7 +22,7 @@ from musizerr_sdk.auth import (
     CredentialField,
     OAuth2Config,
 )
-from musizerr_sdk.capabilities import CAPABILITY_USER_LIBRARY
+from musizeer_sdk.capabilities import CAPABILITY_USER_LIBRARY
 from core.user_auth import create_access_token, create_oauth_state_token
 from db.auth_store import CredentialStore
 from db.engine import get_session

@@ -484,7 +484,7 @@ def test_the_start_check_refuses_a_database_a_later_release_migrated_with_a_cont
 
     message = str(refused.value)
     assert "0100_drop_something" in message
-    assert "Musizerr 2.0.0 or later" in message
+    assert "Musizeer 2.0.0 or later" in message
     assert "premigration-" in message, "it names the backup to go back with"
     assert f"from-{OLD}-to-{HEAD}" in message
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from core.matching import find_match, match_album, match_artist, match_track
-from musizerr_sdk.text import normalize, strip_version_suffix
+from musizeer_sdk.text import normalize, strip_version_suffix
 
 from tests.conftest import make_album, make_artist, make_track
 

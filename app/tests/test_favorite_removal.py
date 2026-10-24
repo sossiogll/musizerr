@@ -16,7 +16,7 @@ from hypothesis import HealthCheck, given, settings, strategies as st
 from sqlmodel import Session, select
 
 from core import download_states as ds
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
 from core.matching import song_keys
 from db import favorite_store
 from db.models import (

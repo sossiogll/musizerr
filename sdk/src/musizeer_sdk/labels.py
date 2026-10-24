@@ -1,11 +1,11 @@
 """
 A provider image describes itself: the essentials of its manifest travel as the
-labels ``org.musizerr.provider.*`` of the image, so whoever pulls it (the
+labels ``org.musizeer.provider.*`` of the image, so whoever pulls it (the
 gateway) can verify, before running anything, that it is what the catalog said
 and see the permissions it asks for.
 
 ``labels_for(manifest)`` is what the image build puts in (``python -m
-musizerr_sdk.runner --provider module:Class --print-labels``) and
+musizeer_sdk.runner --provider module:Class --print-labels``) and
 ``declared_from_labels(labels)`` what the gateway reads back, standard library
 only. The label values are plain text: a name, comma separated roles, the
 contract version and the permissions as JSON. The display name travels too (``label``), only so that
@@ -19,7 +19,7 @@ from typing import Mapping
 from .manifest import ROLES, Manifest
 from .permissions import Permissions, PermissionsError, from_json, to_json
 
-LABEL_PREFIX = "org.musizerr.provider."
+LABEL_PREFIX = "org.musizeer.provider."
 LABEL_NAME = LABEL_PREFIX + "name"
 LABEL_ROLES = LABEL_PREFIX + "roles"
 LABEL_API_VERSION = LABEL_PREFIX + "api-version"

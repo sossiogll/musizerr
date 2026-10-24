@@ -22,7 +22,7 @@ from core import settings_catalog
 from core.auth import AccountTarget
 from core.auth_manager import AuthManager
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from core.routines import (
     SYNC_LIBRARY_INDEX, SYNC_PLAYLISTS, enabled_setting_key, get_routine, interval_setting_key,
 )

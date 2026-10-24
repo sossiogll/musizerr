@@ -15,10 +15,10 @@ from pathlib import Path
 
 import pytest
 
-import musizerr_sdk
-from musizerr_sdk import labels, manifest as manifest_module, protocol, wire
-from musizerr_sdk.runner import ProviderRunner
-from musizerr_sdk.version import BASELINE, SDK_VERSION, minor_of, peer_minor
+import musizeer_sdk
+from musizeer_sdk import labels, manifest as manifest_module, protocol, wire
+from musizeer_sdk.runner import ProviderRunner
+from musizeer_sdk.version import BASELINE, SDK_VERSION, minor_of, peer_minor
 
 from sample_providers import SampleMetadata, session
 
@@ -109,19 +109,19 @@ def test_since_names_an_sdk_minor():
 
 def test_every_field_marked_in_the_contract_has_a_default_and_a_minor_of_this_major():
     for name, cls in wire.registered_types().items():
-        if not cls.__module__.startswith("musizerr_sdk."):
+        if not cls.__module__.startswith("musizeer_sdk."):
             continue  # a test's own type (the probe above)
         for f in dataclasses.fields(cls):
             if wire.SINCE in f.metadata:
                 minor = minor_of(f.metadata[wire.SINCE])
-                assert minor is not None and minor[0] == musizerr_sdk.interfaces.PROVIDER_API_VERSION, f"{name}.{f.name}"
+                assert minor is not None and minor[0] == musizeer_sdk.interfaces.PROVIDER_API_VERSION, f"{name}.{f.name}"
                 assert minor <= minor_of(SDK_VERSION), f"{name}.{f.name} is newer than this SDK"
 
 
 # ---- the versions -------------------------------------------------------------------------------------
 
 def test_the_sdk_version_is_the_package_version():
-    pyproject = Path(next(iter(musizerr_sdk.__path__))).parent.parent / "pyproject.toml"
+    pyproject = Path(next(iter(musizeer_sdk.__path__))).parent.parent / "pyproject.toml"
     assert tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"] == SDK_VERSION
 
 
@@ -133,7 +133,7 @@ def test_a_peer_that_says_nothing_usable_is_the_baseline(text, minor):
 # ---- the protocol and the runner ----------------------------------------------------------------------
 
 class DeclaredMetadata(SampleMetadata):
-    provider_api_version = musizerr_sdk.interfaces.PROVIDER_API_VERSION
+    provider_api_version = musizeer_sdk.interfaces.PROVIDER_API_VERSION
 
 
 class ProbeMetadata(SampleMetadata):

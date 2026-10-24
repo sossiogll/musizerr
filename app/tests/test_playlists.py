@@ -14,7 +14,7 @@ from sqlmodel import Session, select
 
 from core import download_states as ds
 from core.download_policy import KIND_PLAYLIST, MODE_APPROVAL, mode_key
-from musizerr_sdk.models import TracksUnavailable
+from musizeer_sdk.models import TracksUnavailable
 from db.models import (
     SYSTEM_USER_ID,
     Download,

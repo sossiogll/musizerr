@@ -2,7 +2,7 @@
 The accounts of each provider as a person sees them: the viewer's own (what
 they connected) and the instance's shared one (what an admin manages), both
 read through the one routing rule (``db.auth_store.CredentialStore``) and
-worded by the provider's declared model (``musizerr_sdk.auth.AccountModel``).
+worded by the provider's declared model (``musizeer_sdk.auth.AccountModel``).
 
 Used by GET /auth/linked-accounts (what a user can connect) and by GET
 /providers (what an admin manages): the same state, never two computations.
@@ -12,7 +12,7 @@ from __future__ import annotations
 from sqlmodel import Session
 
 from core.auth import AccountTarget
-from musizerr_sdk.auth import AccountModel, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthFlow
 from core.provider_login import provider_can_login
 from core.interfaces import personal_capabilities
 from core.settings_resolver import PROVIDER_CATEGORY_GETTERS
@@ -58,7 +58,7 @@ def personal_state(provider, own) -> dict | None:
         "username": account_username(own, provider, AccountTarget.PERSONAL) if connected else None,
         # What reconnecting would grant: the permissions the provider asks for now and this account lacks.
         "missing_permissions": own_missing_capabilities(own, provider) if connected else [],
-        # What this account enables, declared by the provider (``musizerr_sdk.capabilities``).
+        # What this account enables, declared by the provider (``musizeer_sdk.capabilities``).
         "capabilities": personal_capabilities(provider),
         # Whether the user can sign in through this account (the provider says who it is
         # and it was linked since): null when the provider cannot sign anybody in, false

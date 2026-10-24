@@ -9,9 +9,9 @@ failed, is the host's decision, made here with the host's matcher.
 from __future__ import annotations
 
 from core.matching import requested_track_in_package
-from musizerr_sdk.delegation import DOWNLOADED, DelegationStatus
-from musizerr_sdk.interfaces import DownloadProvider
-from musizerr_sdk.models import Track
+from musizeer_sdk.delegation import DOWNLOADED, DelegationStatus
+from musizeer_sdk.interfaces import DownloadProvider
+from musizeer_sdk.models import Track
 
 
 def poll_for_requested_track(

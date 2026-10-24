@@ -28,11 +28,11 @@ from hypothesis.stateful import RuleBasedStateMachine, invariant, precondition, 
 from sqlmodel import Session, func, select
 
 from core import download_states as ds
-from musizerr_sdk.delegation import DelegationStatus
+from musizeer_sdk.delegation import DelegationStatus
 from core.download_resolver import ResolveResult
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
-from musizerr_sdk.models import Track
+from musizeer_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
+from musizeer_sdk.models import Track
 from core.provider_cooldown import NoCooldown
 from core.provider_slots import UnlimitedSlots
 from db.download_store import track_status_ranks

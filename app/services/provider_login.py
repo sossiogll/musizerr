@@ -34,7 +34,7 @@ from sqlmodel import Session
 from core import provider_login as rules
 from core import user_auth
 from core.auth import AccountTarget
-from musizerr_sdk.auth import AccountIdentity, AuthFlow, AuthSession
+from musizeer_sdk.auth import AccountIdentity, AuthFlow, AuthSession
 from core.auth_manager import AuthError
 from core.provider_login import LoginRefused
 from db import user_service

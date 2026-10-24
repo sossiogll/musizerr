@@ -32,7 +32,7 @@ from sqlmodel import Session, select
 
 from core import download_states as ds
 from core.identifiers import AMBIGUOUS, resolve_identity, sync_id_type
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
 from db.favorite_store import favorite_track_ids
 from db.library_store import file_states
 from db.models import TrackIdentifierRecord, TrackRecord

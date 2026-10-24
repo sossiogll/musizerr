@@ -1,7 +1,7 @@
 """
 The provider contract: the abstract base class of each kind of provider and
 the data types that cross the boundary with them. A provider subclasses one of
-these and imports nothing else of Musizerr; the host (or, later, a runner in
+these and imports nothing else of Musizeer; the host (or, later, a runner in
 another process) calls the methods.
 
 Every optional method has a default (empty result, ``None`` or
@@ -34,14 +34,14 @@ class BaseProvider(ABC):
     name: str
     label: str
     auth: AuthDefinition
-    # What the sandbox grants this provider (see ``musizerr_sdk.permissions``): nothing
+    # What the sandbox grants this provider (see ``musizeer_sdk.permissions``): nothing
     # unless it declares it.
     permissions: Permissions = NO_PERMISSIONS
 
     def __init__(self, context: ProviderContext) -> None:
         # Unico canale verso l'host oltre AuthSession e i valori di ritorno
         # (vedi ProviderContext) — un provider non importa mai
-        # ConfigManager o una variabile d'ambiente per parlare con Musizerr.
+        # ConfigManager o una variabile d'ambiente per parlare con Musizeer.
         self.context = context
 
     def config_schema(self) -> list[ProviderSetting]:
@@ -66,7 +66,7 @@ class BaseProvider(ABC):
         """Test connectivity. Returns None on success, error message on failure."""
 
     def supports_login(self) -> bool:
-        """Whether a user may sign in to Musizerr through their own account of
+        """Whether a user may sign in to Musizeer through their own account of
         this provider (``identify_account`` is implemented). Declared, never
         inferred. Only meaningful for a provider with personal accounts
         (``AuthDefinition.account_model``): the host ignores it for any other."""
@@ -355,7 +355,7 @@ class DownloadProvider(BaseProvider, ABC):
     # --- Riconciliazione dei download delegati (capability opzionali) ---
     # Default: nessuna fase esterna da attendere → il download resta fire-and-forget
     # (comportamento storico). Un provider che delega a un sistema esterno le
-    # implementa per far apprendere a musizerr stato e file prodotti, in modo
+    # implementa per far apprendere a musizeer stato e file prodotti, in modo
     # generico (nessun tipo API-specifico attraversa il contratto).
 
     def poll_delegation(self, handle: str, session: AuthSession) -> DelegationStatus | None:
@@ -643,7 +643,7 @@ class SyncProvider(BaseProvider, ABC):
 
     def supports_playlists(self) -> bool:
         """Whether ``create_playlist`` / ``update_playlist`` / ``delete_playlist``
-        are implemented: the playlists of a user (kept by Musizerr) are
+        are implemented: the playlists of a user (kept by Musizeer) are
         mirrored on their own account of this provider, where the server shows
         them natively. Declared, never inferred."""
         return False
@@ -659,7 +659,7 @@ class SyncProvider(BaseProvider, ABC):
         """Optional (``supports_playlists``). Makes the playlist ``remote_id``
         be exactly ``name`` with the tracks ``sync_ids`` in that order (the
         host sends the whole content: a replacement, not a diff). Raise
-        ``musizerr_sdk.errors.RemotePlaylistGone`` when it no longer exists
+        ``musizeer_sdk.errors.RemotePlaylistGone`` when it no longer exists
         there: the host creates it again."""
         raise NotImplementedError
 

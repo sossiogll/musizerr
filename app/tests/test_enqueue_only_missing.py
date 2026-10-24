@@ -9,8 +9,8 @@ from __future__ import annotations
 import pytest
 from sqlmodel import Session, select
 
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
-from musizerr_sdk.models import Track
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.models import Track
 from db.models import Download
 from db.track_store import find_or_create_track
 from services import downloads

@@ -44,8 +44,8 @@ from sqlmodel import Session, select
 from core import download_policy as policy
 from core import download_states as ds
 from core import urls
-from musizerr_sdk.errors import DownloadDelegated
-from musizerr_sdk.models import Album, Track
+from musizeer_sdk.errors import DownloadDelegated
+from musizeer_sdk.models import Album, Track
 from core.serialization import deserialize_album, deserialize_track, serialize_album, serialize_track
 from core.utc import utc_iso
 from db import download_request_store as store

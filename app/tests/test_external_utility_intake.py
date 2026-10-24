@@ -20,7 +20,7 @@ from core.user_auth import create_access_token
 from db.auth_store import CredentialStore
 from db.engine import get_session
 from db.models import User
-from musizerr_sdk.auth import AccountDisplayField, AccountModel, AuthDefinition, AuthFlow, ExternalUtilityConfig
+from musizeer_sdk.auth import AccountDisplayField, AccountModel, AuthDefinition, AuthFlow, ExternalUtilityConfig
 from routes import deps
 from routes.external_utility import router as credentials_router
 from services.config_manager import ConfigManager

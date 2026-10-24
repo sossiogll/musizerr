@@ -3,8 +3,8 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from musizerr_sdk.auth import AuthSession
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.auth import AuthSession
+from musizeer_sdk.identifiers import Identifier
 from core.provider_failures import ProviderFailures
 from core.serialization import serialize_item, serialize_lyrics, serialize_track
 from routes.deps import AuthManagerDep, ConfigDep, DownloaderDep, MetadataPriorityDep, RegistryDep, SessionDep, ViewerDep

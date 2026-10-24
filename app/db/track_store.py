@@ -7,11 +7,11 @@ from sqlmodel import Session, select
 
 from core import urls
 from core.identifiers import AMBIGUOUS, identity_rank, resolve_identity
-from musizerr_sdk.identifiers import Identifier, is_sync_id_type
+from musizeer_sdk.identifiers import Identifier, is_sync_id_type
 from core.matching import base_title_key, match_track
-from musizerr_sdk.text import strip_version_suffix
+from musizeer_sdk.text import strip_version_suffix
 from core.merge import enrich
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from core.serialization import deserialize_track, serialize_track
 
 from .locks import xact_lock

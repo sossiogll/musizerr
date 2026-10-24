@@ -42,8 +42,8 @@ from sqlmodel import Session, select
 
 from core import download_states as ds
 from core.identifiers import sync_id_type
-from musizerr_sdk.text import normalize
-from musizerr_sdk.models import LibraryItem, Track
+from musizeer_sdk.text import normalize
+from musizeer_sdk.models import LibraryItem, Track
 from db.models import Download, LibraryEntry, TrackIdentifierRecord, TrackRecord
 from db.track_store import load_track
 from services.library_paths import library_path

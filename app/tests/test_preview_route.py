@@ -17,9 +17,9 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 import main
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.models import Track
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.models import Track
+from musizeer_sdk.context import StaticProviderContext
 from db.engine import get_session
 from routes import deps, discover, stream
 from services.config_manager import ConfigManager

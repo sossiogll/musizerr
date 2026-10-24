@@ -65,7 +65,7 @@ def upgrade() -> None:
 
 def _identifier_dict(id_type: str, value: str) -> dict:
     """The serialized identifier of a ``track_identifiers`` row (as
-    ``musizerr_sdk.identifiers.Identifier.to_dict`` wrote it)."""
+    ``musizeer_sdk.identifiers.Identifier.to_dict`` wrote it)."""
     if id_type in _UNIVERSAL or id_type.endswith(_SYNC_ID_SUFFIX) or not id_type.endswith("_id"):
         return {"type": id_type, "value": value}
     return {"type": id_type, "value": value, "provider": id_type.removesuffix("_id")}

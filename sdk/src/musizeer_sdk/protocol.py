@@ -15,7 +15,7 @@ provider streams). A frame is at most ``MAX_FRAME_SIZE`` long.
      "context": <ContextSnapshot> | null}
 
 ``args``, ``kwargs``, ``session`` and ``context`` are values of
-``musizerr_sdk.wire``. The session is carried apart from the arguments and put
+``musizeer_sdk.wire``. The session is carried apart from the arguments and put
 back where it was (``session_at``, an index in ``args``; ``null``: the keyword
 ``session``). ``context`` is the snapshot of the provider's settings, timeouts
 and public URL prefix for THIS call: the provider never calls back into the
@@ -40,7 +40,7 @@ make the provider produce the rest. An error after a stream has started is
 the last frame, and the host raises it at the point of iteration.
 
 **Errors.** ``error`` is ``{"kind", "message", "retry_after", "type",
-"exception"?}``. ``kind`` is the runner's classification (``musizerr_sdk.failures``,
+"exception"?}``. ``kind`` is the runner's classification (``musizeer_sdk.failures``,
 ``null`` when the type says nothing), ``type`` the name of the provider's
 exception class. The exceptions of the contract (``wire.register_exception``)
 travel as themselves in ``exception`` and are raised again as the same

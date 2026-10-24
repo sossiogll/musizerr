@@ -7,7 +7,7 @@ permissions its sandbox will be given::
 
     {"name": "My providers", "version": 2, "providers": [
         {"name": "words",                   # the provider's name (how the host knows it)
-         "image": "ghcr.io/owner/musizerr-provider-words",   # registry/repository, no tag
+         "image": "ghcr.io/owner/musizeer-provider-words",   # registry/repository, no tag
          "digest": "sha256:<64 hex>",
          "provider_api_version": 5,
          "roles": ["lyrics"],
@@ -35,9 +35,9 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.manifest import ROLES
-from musizerr_sdk.permissions import (
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.manifest import ROLES
+from musizeer_sdk.permissions import (
     FilesystemAccess,
     Permissions,
     PermissionsError,
@@ -102,7 +102,7 @@ class CatalogEntry:
             return None
         return (
             f"implements provider API version {self.provider_api_version}, "
-            f"this Musizerr needs version {PROVIDER_API_VERSION}"
+            f"this Musizeer needs version {PROVIDER_API_VERSION}"
         )
 
 
@@ -133,13 +133,13 @@ def parse_catalog(document: object) -> Catalog:
     if not isinstance(document, dict):
         raise CatalogError("a catalog is a JSON object")
     if "version" not in document:
-        raise CatalogError("not a catalog: it has no 'version' (this Musizerr reads catalog version 2)")
+        raise CatalogError("not a catalog: it has no 'version' (this Musizeer reads catalog version 2)")
     version = document["version"]
     if isinstance(version, bool) or not isinstance(version, int):
         raise CatalogError(f"the catalog's 'version' must be the number {CATALOG_VERSION}")
     if version != CATALOG_VERSION:
         hint = " (the pip-package format is no longer supported)" if version == 1 else ""
-        raise CatalogError(f"catalog version {version} is not supported{hint}: this Musizerr reads version {CATALOG_VERSION}")
+        raise CatalogError(f"catalog version {version} is not supported{hint}: this Musizeer reads version {CATALOG_VERSION}")
     unknown = sorted(set(document) - _CATALOG_KEYS)
     if unknown:
         raise CatalogError("the catalog has unknown fields: " + ", ".join(map(str, unknown)))

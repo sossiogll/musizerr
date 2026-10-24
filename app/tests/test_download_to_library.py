@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.download_resolver import ResolveResult
-from musizerr_sdk.interfaces import WorkspaceFile
+from musizeer_sdk.interfaces import WorkspaceFile
 from core.provider_cooldown import NoCooldown
 from services import held_uploads
 from services.workspace import open_workspace

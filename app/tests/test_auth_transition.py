@@ -19,7 +19,7 @@ from core.auth import AccountTarget
 from db import adoption
 from db.models import SYSTEM_USER_ID, Playlist, ProviderCredential, Setting, UserFavorite
 from db.settings_store import SettingsRepository
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, BearerHeaderRequestAuth, OAuth2Config
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, BearerHeaderRequestAuth, OAuth2Config
 from services import auth_transition
 from services.credentials import account_holders, open_mode, own_store, user_store
 from services.settings import SettingsService, SettingsWriteError

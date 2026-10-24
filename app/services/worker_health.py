@@ -27,7 +27,7 @@ HEARTBEAT_TTL_SECONDS = 60
 
 
 def heartbeat_key(queue: str) -> str:
-    return f"musizerr:worker:heartbeat:{queue}"
+    return f"musizeer:worker:heartbeat:{queue}"
 
 
 def beat(queues: Iterable[str], client=None) -> None:

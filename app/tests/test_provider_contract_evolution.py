@@ -11,11 +11,11 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from musizerr_sdk import manifest as manifest_module, protocol, wire
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.version import SDK_VERSION
+from musizeer_sdk import manifest as manifest_module, protocol, wire
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.version import SDK_VERSION
 from services.provider_proxy import connect
 
 

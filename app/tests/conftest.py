@@ -3,7 +3,7 @@ Fixture e fake condivisi per la suite backend.
 
 Regola d'oro rispettata: i fake vivono qui (nei test), NON in ``core/``. Il core
 resta provider-agnostico; i test lo esercitano con provider finti che
-implementano i contratti astratti di ``musizerr_sdk.interfaces``. Nessun provider
+implementano i contratti astratti di ``musizeer_sdk.interfaces``. Nessun provider
 reale compare in questi test.
 """
 
@@ -24,9 +24,9 @@ from tests.credentials_support import KEY as _TEST_CREDENTIALS_KEY
 os.environ["CREDENTIALS_KEY"] = _TEST_CREDENTIALS_KEY
 os.environ.pop("CREDENTIALS_KEY_PREVIOUS", None)
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.interfaces import (
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.interfaces import (
     DownloadProvider,
     Identity,
     IdentificationProvider,
@@ -35,8 +35,8 @@ from musizerr_sdk.interfaces import (
     SyncCandidate,
     SyncProvider,
 )
-from musizerr_sdk.models import Album, Artist, LibraryItem, Track
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.models import Album, Artist, LibraryItem, Track
+from musizeer_sdk.context import StaticProviderContext
 from tests.database import DIALECT, new_engine, release_engines
 from tests import host_boundary
 from tests.loopback import as_proxy
@@ -328,7 +328,7 @@ class FakeSyncProvider(SyncProvider):
         self._available = available or {}
         self._library = library or []
         # sync_id -> bytes finti del file, per fetch_partial (mai per path:
-        # il fetch reale va per sync_id, vedi musizerr_sdk.interfaces.SyncProvider).
+        # il fetch reale va per sync_id, vedi musizeer_sdk.interfaces.SyncProvider).
         self.files: dict[str, bytes] = files or {}
         self.availability_calls = 0
         self.scan_calls = 0
@@ -402,7 +402,7 @@ class FakeDownloadProvider(DownloadProvider):
 
 class FakeDelegatingDownloadProvider(FakeDownloadProvider):
     """Download provider finto che delega a un sistema esterno: implementa le
-    due capability opzionali di push (musizerr_sdk.interfaces) con un vocabolario
+    due capability opzionali di push (musizeer_sdk.interfaces) con un vocabolario
     di eventi/payload inventato, per non far dipendere i test da un provider
     reale."""
 

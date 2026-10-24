@@ -13,8 +13,8 @@ from __future__ import annotations
 import pytest
 
 from core.download_resolver import DownloadResolver
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
 
 from tests.conftest import FakeAuthManager, FakeDownloadProvider, FakeRegistry, make_track
 

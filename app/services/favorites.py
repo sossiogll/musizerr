@@ -28,7 +28,7 @@ from sqlmodel import Session, select
 from core.matching import base_title_key, match_track, song_keys
 from db import favorite_store
 from db.library_store import in_library, library_clause
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from db.models import TrackIdentifierRecord, TrackRecord, UserSavedTrack
 from db.pending_like_store import delete_pending_like, ensure_pending_like, favorite_intents, mark_queued
 from db.track_store import identifiers_by_track, track_from_record

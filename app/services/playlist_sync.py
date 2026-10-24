@@ -28,7 +28,7 @@ from typing import Any
 from sqlmodel import Session, select
 
 from core.identifiers import sync_id_type
-from musizerr_sdk.errors import RemotePlaylistGone
+from musizeer_sdk.errors import RemotePlaylistGone
 from db import playlist_store as store
 from db.models import Playlist, PlaylistSync, TrackIdentifierRecord
 from services.auth import auth_manager_for

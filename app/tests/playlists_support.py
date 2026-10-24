@@ -9,11 +9,11 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Playlist, Track, TracksUnavailable
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.errors import RemotePlaylistGone
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Playlist, Track, TracksUnavailable
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.errors import RemotePlaylistGone
 from core.download_policy import KINDS, MODE_AUTO, mode_key
 from core.user_auth import create_access_token
 from db.engine import get_session

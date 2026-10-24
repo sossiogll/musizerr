@@ -23,7 +23,7 @@ import pytest
 from sqlmodel import Session
 
 from db.models import User
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.settings import ProviderSetting
 from services.config_manager import ConfigManager
 from services.settings import SettingsService
 

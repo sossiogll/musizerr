@@ -23,12 +23,12 @@ import pytest
 from sqlmodel import Session, select
 
 from core import download_states as ds
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from core.download_resolver import DownloadResolver
-from musizerr_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
-from musizerr_sdk.interfaces import DownloadProvider, MetadataProvider
-from musizerr_sdk.models import Track
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
+from musizeer_sdk.interfaces import DownloadProvider, MetadataProvider
+from musizeer_sdk.models import Track
+from musizeer_sdk.context import StaticProviderContext
 from core.provider_cooldown import NoCooldown
 from core.provider_slots import UnlimitedSlots
 from db.models import Download

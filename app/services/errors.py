@@ -12,7 +12,7 @@ from typing import Any, Iterable
 
 from core import download_states as ds
 from core.auth_manager import AuthError, ProviderNotConfigured
-from musizerr_sdk.failures import classify_exception
+from musizeer_sdk.failures import classify_exception
 from core.provider_failures import ProviderFailure
 from services.log_redaction import redact
 from services.provider_proxy import ProviderCallFailed
@@ -23,7 +23,7 @@ _KINDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # first, its text carries the broker's own error, which would classify as
     # something else.
     (ds.QUEUE_UNAVAILABLE, (ds.QUEUE_UNAVAILABLE,)),
-    # ``musizerr_sdk.errors.DownloadDeclined``: the provider answered that
+    # ``musizeer_sdk.errors.DownloadDeclined``: the provider answered that
     # it cannot provide this track, for a stated reason (not "not found").
     ("declined", ("declined (",)),
     ("not_found", ("no provider could download",)),
@@ -100,7 +100,7 @@ def classify_error(error: BaseException | str) -> str:
     l'eccezione vera e ne ha stabilito il ``kind`` (``ProviderCallFailed``; se il
     tipo non diceva nulla, resta il testo). Per le eccezioni che non vengono da
     un provider (l'host stesso, l'SDK) vale lo stesso classificatore del
-    runner, ``musizerr_sdk.failures``."""
+    runner, ``musizeer_sdk.failures``."""
     if isinstance(error, str):
         return classify(error)
     if isinstance(error, ProviderNotConfigured):

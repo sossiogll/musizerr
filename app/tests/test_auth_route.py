@@ -15,7 +15,7 @@ import pytest
 from sqlmodel import Session
 
 from core.auth import AccountTarget
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, BearerHeaderRequestAuth, OAuth2Config
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, BearerHeaderRequestAuth, OAuth2Config
 from services.config_manager import ConfigManager
 from db.auth_store import CredentialStore
 from db.models import User

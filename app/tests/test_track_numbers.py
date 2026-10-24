@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from core.serialization import deserialize_track, serialize_track
 from services.library_paths import library_path
 

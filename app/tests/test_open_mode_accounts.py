@@ -34,7 +34,7 @@ from db.models import (
 )
 from db.settings_store import SettingsRepository
 from db.track_store import add_identifiers
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AccountModel,
     AuthDefinition,
     AuthFlow,
@@ -42,7 +42,7 @@ from musizerr_sdk.auth import (
     ClientCredentialsFallback,
     OAuth2Config,
 )
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from db import playlist_store
 from services import library_jobs, playlist_monitor, playlist_sync
 from services.credentials import (

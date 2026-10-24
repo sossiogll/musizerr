@@ -19,12 +19,12 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 import main
-from musizerr_sdk.auth import AccountModel, ApiKeyConfig, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.auth import AccountModel, ApiKeyConfig, AuthDefinition, AuthFlow, AuthSession
 from core.auth_manager import ProviderNotConfigured
-from musizerr_sdk.interfaces import LyricsProvider, MetadataProvider
-from musizerr_sdk.models import Lyrics
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.errors import ProviderRateLimited
+from musizeer_sdk.interfaces import LyricsProvider, MetadataProvider
+from musizeer_sdk.models import Lyrics
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.errors import ProviderRateLimited
 from core.user_auth import create_access_token
 from db.engine import get_session
 from db.models import User

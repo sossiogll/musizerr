@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 from core.discography import distinct_songs, group_releases, select_releases
-from musizerr_sdk.models import Artist, Track
+from musizeer_sdk.models import Artist, Track
 from core.provider_failures import ProviderFailures
 from services.enrichment import fill_missing_artist
 from services.errors import classify_error

@@ -1,14 +1,14 @@
 """
 Prefisso con cui il frontend raggiunge l'API (variabile d'ambiente
 ``PUBLIC_API_PREFIX``, default ``/api``) applicato ai costruttori di
-``musizerr_sdk.urls`` e ``core/urls.py``.
+``musizeer_sdk.urls`` e ``core/urls.py``.
 """
 from __future__ import annotations
 
 import os
 
 from core import urls
-from musizerr_sdk import urls as provider_urls
+from musizeer_sdk import urls as provider_urls
 
 
 def api_prefix() -> str:

@@ -1,5 +1,5 @@
 """
-The SDK is what a provider installs and nothing else of Musizerr: its sources
+The SDK is what a provider installs and nothing else of Musizeer: its sources
 import the standard library and themselves, and nothing else loads when they
 are imported.
 """
@@ -13,10 +13,10 @@ import sys
 import textwrap
 from pathlib import Path
 
-import musizerr_sdk
+import musizeer_sdk
 
-ROOT = Path(next(iter(musizerr_sdk.__path__)))
-ALLOWED = set(sys.stdlib_module_names) | {"musizerr_sdk"}
+ROOT = Path(next(iter(musizeer_sdk.__path__)))
+ALLOWED = set(sys.stdlib_module_names) | {"musizeer_sdk"}
 
 
 def _imported_top_levels(path: Path) -> set[str]:
@@ -41,13 +41,13 @@ def test_no_source_imports_anything_but_the_standard_library_and_the_sdk():
 def test_importing_every_module_never_asks_for_anything_else():
     """Run in a fresh interpreter whose import system refuses everything that is
     neither the standard library nor the SDK."""
-    modules = [m.name for m in pkgutil.walk_packages(musizerr_sdk.__path__, "musizerr_sdk.")]
+    modules = [m.name for m in pkgutil.walk_packages(musizeer_sdk.__path__, "musizeer_sdk.")]
     assert modules
     program = textwrap.dedent(
         f"""
         import importlib, importlib.abc, sys
 
-        allowed = set(sys.stdlib_module_names) | {{"musizerr_sdk"}}
+        allowed = set(sys.stdlib_module_names) | {{"musizeer_sdk"}}
 
         class Refuse(importlib.abc.MetaPathFinder):
             def find_spec(self, name, path=None, target=None):
@@ -70,8 +70,8 @@ def test_the_package_declares_no_dependency_and_a_typed_marker():
 
     pyproject = tomllib.loads((ROOT.parent.parent / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert pyproject["project"]["name"] == "musizerr-sdk"
+    assert pyproject["project"]["name"] == "musizeer-sdk"
     assert pyproject["project"]["dependencies"] == []
     assert pyproject["project"]["requires-python"] == ">=3.12"
     assert (ROOT / "py.typed").exists()
-    assert importlib.util.find_spec("musizerr_sdk") is not None
+    assert importlib.util.find_spec("musizeer_sdk") is not None

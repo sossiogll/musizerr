@@ -1,6 +1,6 @@
 """
 The host's implementation of the declarative OAuth2 strategies
-(``musizerr_sdk.auth``). A provider declares WHICH strategy it uses, as data;
+(``musizeer_sdk.auth``). A provider declares WHICH strategy it uses, as data;
 what each one does lives here, selected by the strategy's type. The set is
 closed: a strategy this module does not know is refused with a clear error
 instead of being run, and a new one is a change of the SDK and of this module.
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AuthSession,
     BasicClientAuth,
     BearerHeaderRequestAuth,
@@ -22,7 +22,7 @@ from musizerr_sdk.auth import (
 from .auth import OAuth2TokenRequest
 
 if TYPE_CHECKING:
-    from musizerr_sdk.interfaces import BaseProvider
+    from musizeer_sdk.interfaces import BaseProvider
 
     from .auth_manager import AuthManager
 

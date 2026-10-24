@@ -20,28 +20,28 @@ import httpx
 import pytest
 
 from core.interfaces import metadata_capabilities, personal_capabilities
-from musizerr_sdk import manifest as manifests, protocol, wire
-from musizerr_sdk.auth import (
+from musizeer_sdk import manifest as manifests, protocol, wire
+from musizeer_sdk.auth import (
     AccountIdentity, AccountModel, AuthDefinition, AuthFlow, AuthSession, BearerHeaderRequestAuth, OAuth2Config,
 )
-from musizerr_sdk.context import ContextSnapshot, StaticProviderContext
-from musizerr_sdk.delegation import DOWNLOADING, DelegationStatus, FileRef
-from musizerr_sdk.errors import (
+from musizeer_sdk.context import ContextSnapshot, StaticProviderContext
+from musizeer_sdk.delegation import DOWNLOADING, DelegationStatus, FileRef
+from musizeer_sdk.errors import (
     DelegateHoldsRelease, DownloadDeclined, DownloadDelegated, ProviderRateLimited, RemotePlaylistGone,
 )
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.interfaces import (
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.interfaces import (
     BaseProvider, DownloadProvider, Identity, IdentificationProvider, LyricsProvider, MetadataProvider,
     StorageProvider, StorageStreamResult, SyncCandidate, SyncProvider, WorkspaceFile,
 )
-from musizerr_sdk.models import Album, Artist, LibraryItem, Lyrics, Playlist, Track
+from musizeer_sdk.models import Album, Artist, LibraryItem, Lyrics, Playlist, Track
 from services import errors as host_errors
 from services.provider_context import HostProviderContext
 from services.provider_proxy import (
     ProviderCallFailed, ProviderProxy, Transport, TransportError, connect, proxy_class,
 )
 from services.provider_registry import ProviderRegistry
-from musizerr_sdk.runner import ProviderRunner
+from musizeer_sdk.runner import ProviderRunner
 
 from tests import host_boundary
 from tests.conftest import FakeAuthManager, FakeMetadataProvider, FakeRegistry, FakeSyncProvider, make_track
@@ -761,7 +761,7 @@ def test_the_registry_holds_only_proxies_and_the_runner_builds_every_provider(mo
 
     def recording(self, context):
         stack = traceback.extract_stack()
-        built.append((type(self).__name__, any(frame.filename.endswith("musizerr_sdk/runner.py") for frame in stack)))
+        built.append((type(self).__name__, any(frame.filename.endswith("musizeer_sdk/runner.py") for frame in stack)))
         original(self, context)
 
     monkeypatch.setattr(BaseProvider, "__init__", recording)

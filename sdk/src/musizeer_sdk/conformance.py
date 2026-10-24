@@ -8,8 +8,8 @@ providers live in repositories of their own. So the rules that were once
 checked "over every provider" in the host's tests are here, and each provider's
 repository calls them::
 
-    from musizerr_sdk.context import StaticProviderContext
-    from musizerr_sdk.conformance import check_provider
+    from musizeer_sdk.context import StaticProviderContext
+    from musizeer_sdk.conformance import check_provider
 
     def test_my_provider_follows_the_contract():
         check_provider(MyProvider(StaticProviderContext()))
@@ -41,14 +41,14 @@ from __future__ import annotations
 import typing
 from typing import Any
 
-from musizerr_sdk import capabilities
-from musizerr_sdk.auth import AuthDefinition, AuthFlow
-from musizerr_sdk.settings import ProviderSetting, ProviderSettingType
+from musizeer_sdk import capabilities
+from musizeer_sdk.auth import AuthDefinition, AuthFlow
+from musizeer_sdk.settings import ProviderSetting, ProviderSettingType
 
 SETTING_TYPES: frozenset[str] = frozenset(typing.get_args(ProviderSettingType))
 
 # The ``supports_*`` query a provider answers to declare each capability
-# (``musizerr_sdk.capabilities``), in the order the host lists them.
+# (``musizeer_sdk.capabilities``), in the order the host lists them.
 CAPABILITY_DECLARATIONS: tuple[tuple[str, str], ...] = (
     (capabilities.CAPABILITY_USER_LIBRARY, "supports_user_library"),
     (capabilities.CAPABILITY_UNLIKE_SAVED_TRACK, "supports_unlike_saved_track"),

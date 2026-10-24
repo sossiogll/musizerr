@@ -5,7 +5,7 @@ with the playlist (``services.playlists.delete``: ``delete_tracks``).
 The playlist chose the candidates when it was deleted (the tracks it asked a
 download for); this runs later, in a task, and checks again, track by track,
 that deleting is still right: no playlist holds the track, no user has it as a
-favorite, every file of it was downloaded by Musizerr for this user (or for
+favorite, every file of it was downloaded by Musizeer for this user (or for
 nobody in particular: authentication off) — a file the library scan found, or
 one somebody else asked for, is never touched. A failure on one track leaves
 that track as it is and does not stop the others. The files are deleted

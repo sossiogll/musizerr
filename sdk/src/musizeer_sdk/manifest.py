@@ -4,7 +4,7 @@ The manifest: what a provider declares about itself, as plain data.
 The host never looks at a provider's class. It asks the provider's runner to
 ``describe`` it once, when the provider is loaded, and reads this: the name,
 the label, the ROLES the provider fills (which of the abstract classes of
-``musizerr_sdk.interfaces`` it implements), its auth declaration, its settings,
+``musizeer_sdk.interfaces`` it implements), its auth declaration, its settings,
 every capability it declares (``supports_*()``, ``streams_full_tracks``,
 ``supported_identifier_types``...) and which of the optional methods it really
 implements.

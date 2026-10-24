@@ -6,7 +6,7 @@ overrides it decides where its library ends.
 """
 from __future__ import annotations
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
 from workers import tasks
 
 from tests.conftest import FakeMetadataProvider, make_track

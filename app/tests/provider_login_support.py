@@ -6,7 +6,7 @@ product, declared the way a real one declares itself (``supports_login`` and
 """
 from __future__ import annotations
 
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AccountIdentity,
     AccountModel,
     AuthDefinition,

@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from core.interfaces import SyncAvailability
-from musizerr_sdk.interfaces import SyncCandidate
+from musizeer_sdk.interfaces import SyncCandidate
 from services.enrichment import check_sync_availability
 
 from tests.conftest import FakeSyncProvider, make_track

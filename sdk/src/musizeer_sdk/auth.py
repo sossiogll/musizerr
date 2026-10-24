@@ -143,7 +143,7 @@ class OAuth2Config:
     fallback_auth: FallbackAuth | None = None
     # Scopes an optional capability needs, by capability key (e.g.
     # ``{"unlike_saved_track": ["library-modify"]}``, keys as
-    # ``musizerr_sdk.capabilities.CAPABILITY_UNLIKE_SAVED_TRACK``). Requested with ``scopes`` on
+    # ``musizeer_sdk.capabilities.CAPABILITY_UNLIKE_SAVED_TRACK``). Requested with ``scopes`` on
     # every new connection; a connection granted before a scope was added lacks
     # it, and the host tells the user to reconnect (``missing_capabilities``).
     capability_scopes: dict[str, list[str]] = field(default_factory=dict)
@@ -173,7 +173,7 @@ class AccountDisplayField:
 @dataclass
 class ExternalUtilityConfig:
     """
-    Auth completed by an external utility that POSTs credentials to Musizerr.
+    Auth completed by an external utility that POSTs credentials to Musizeer.
     The utility drives the flow; the provider is 'authenticated' as soon as at
     least one account is registered.
 

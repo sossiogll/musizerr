@@ -15,7 +15,7 @@ from sqlalchemy import update
 from sqlmodel import Session, select
 
 from core import download_policy as dp
-from musizerr_sdk.models import Artist, Playlist
+from musizeer_sdk.models import Artist, Playlist
 from db import download_request_store as store
 from db.models import (
     Download,

@@ -187,7 +187,7 @@ OptionalUserDep = Annotated[Optional[User], Depends(get_optional_user)]
 
 
 def get_credential_store(session: SessionDep, config: ConfigDep, user: OptionalUserDep) -> CredentialStore:
-    """The accounts the VIEWER's calls use (``musizerr_sdk.auth.AccountModel``): their
+    """The accounts the VIEWER's calls use (``musizeer_sdk.auth.AccountModel``): their
     own when the provider has personal accounts and they connected one, else
     the shared one. Not signed in: the shared accounts only. With
     authentication off the viewer is the instance's synthetic user."""

@@ -110,7 +110,7 @@ class ProviderCredential(SQLModel, table=True):
             sqlite_where=NO_USER, postgresql_where=NO_USER,
         ),
         # A provider's account is linked to ONE user: the id the provider gave it
-        # (``musizerr_sdk.auth.AccountIdentity``) is unique per provider.
+        # (``musizeer_sdk.auth.AccountIdentity``) is unique per provider.
         Index(
             "uq_provider_credential_external", "provider", "external_id", unique=True,
             sqlite_where=HAS_EXTERNAL_ID, postgresql_where=HAS_EXTERNAL_ID,
@@ -267,7 +267,7 @@ class UserSavedTrack(SQLModel, table=True):
 class UserFavorite(SQLModel, table=True):
     """A user's favorite: always a track in the library (the routes and the
     like matching check it before writing). ``source`` says how it got here:
-    ``heart`` (liked in Musizerr), ``download`` (a download with favorite
+    ``heart`` (liked in Musizeer), ``download`` (a download with favorite
     landed), ``match`` (a like from another provider matched the library)."""
     __tablename__ = "user_favorites"
     __table_args__ = (
@@ -656,7 +656,7 @@ class DuplicateMember(SQLModel, table=True):
     aggiornamento del gruppo (vedi ``upsert_group_for_recording``) così un
     rescan non lascia mai righe orfane con dati tecnici stantii.
 
-    ``origin``/``download_id``: un file è cancellabile da musizerr SOLO se
+    ``origin``/``download_id``: un file è cancellabile da musizeer SOLO se
     ``download_id`` punta a un ``Download`` con ``status == 'downloaded'`` il
     cui ``file_path`` normalizzato combacia con ``path`` (vedi
     ``db/duplicate_store.py::downloaded_file_paths``) — un file di origine
@@ -683,7 +683,7 @@ class DuplicateMember(SQLModel, table=True):
     lossless: Optional[bool] = Field(default=None)
     quality_known: bool = Field(default=False)
     fingerprint_score: Optional[float] = Field(default=None)
-    origin: str = Field(default="unknown")  # "musizerr" | "unknown"
+    origin: str = Field(default="unknown")  # "musizeer" | "unknown"
     download_id: Optional[str] = Field(default=None, foreign_key="downloads.id")
     is_keeper: bool = Field(default=False)
     deleted_at: Optional[datetime] = Field(sa_type=UTCDateTime, default=None)
@@ -722,7 +722,7 @@ PLAYLIST_FOLLOWED = "followed"
 
 
 class Playlist(SQLModel, table=True):
-    """A playlist of a user, kept by Musizerr (private: its owner only).
+    """A playlist of a user, kept by Musizeer (private: its owner only).
 
     ``own`` is the user's to edit. ``followed`` mirrors a playlist of a
     metadata provider (``source_provider`` / ``source_id``): read-only, its
@@ -731,7 +731,7 @@ class Playlist(SQLModel, table=True):
     ``auto_download``: the tracks the source gains are downloaded (through the
     approval policy). ``refresh_error_code``: why the last look at the source
     failed (``NULL`` when it did not). ``tracks_unavailable_*``: the provider
-    would not give the tracks (``musizerr_sdk.models.TracksUnavailable``). The tracks are
+    would not give the tracks (``musizeer_sdk.models.TracksUnavailable``). The tracks are
     in ``playlist_tracks``; the copies on the sync providers in
     ``playlist_syncs``. A user follows a source once (unique per user)."""
     __tablename__ = "playlists"

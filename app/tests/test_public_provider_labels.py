@@ -90,7 +90,7 @@ def test_a_signed_in_user_gets_their_own_priority(client):
 
 
 def test_the_capabilities_each_metadata_provider_declares_are_public(client):
-    from musizerr_sdk.capabilities import CAPABILITY_DISCOGRAPHY
+    from musizeer_sdk.capabilities import CAPABILITY_DISCOGRAPHY
 
     registry = client.app.dependency_overrides[deps.get_registry]()
     registry.get_metadata_provider("metab").supports_discography = lambda: True

@@ -57,7 +57,7 @@ _NETWORK_NAMES = frozenset({"ConnectError", "NetworkError", "ConnectionError", "
 # The header the sandbox's egress proxy puts on the answers it gives itself,
 # and its values: the provider's HTTP library sees them as an ordinary
 # response, the classifier as what they are.
-EGRESS_HEADER = "X-Musizerr-Egress"
+EGRESS_HEADER = "X-Musizeer-Egress"
 EGRESS_UNREACHABLE = "unreachable"
 EGRESS_REFUSED = "refused"
 

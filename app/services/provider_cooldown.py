@@ -1,8 +1,8 @@
 """
 Host implementation of ``core.provider_cooldown.ProviderCooldown`` on Redis,
 so the count holds across workers: consecutive transient errors of a
-provider in ``musizerr:provider-errors:<name>``; past ``errors`` of them the
-provider rests for ``seconds`` (``musizerr:provider-cooldown:<name>``, which
+provider in ``musizeer:provider-errors:<name>``; past ``errors`` of them the
+provider rests for ``seconds`` (``musizeer:provider-cooldown:<name>``, which
 expires by itself). Any answer resets the count. ``errors = 0``: off.
 
 A heuristic, not a lock: two workers failing at the same instant may count
@@ -43,10 +43,10 @@ class RedisProviderCooldown:
         self._client = client if client is not None else _client()
 
     def _count_key(self, name: str) -> str:
-        return f"musizerr:{self._scope}-errors:{name}"
+        return f"musizeer:{self._scope}-errors:{name}"
 
     def _rest_key(self, name: str) -> str:
-        return f"musizerr:{self._scope}-cooldown:{name}"
+        return f"musizeer:{self._scope}-cooldown:{name}"
 
     def cooling(self, provider_name: str) -> bool:
         if self._errors <= 0:

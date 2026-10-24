@@ -15,7 +15,7 @@ from sqlmodel import Session
 
 from core import download_states as ds
 from services.config_manager import ConfigManager
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from core.user_auth import hash_password
 from db.download_store import add_follower, find_open_download, latest_landing
 from db.models import Download, DownloadFollower, PendingLike, TrackIdentifierRecord, TrackRecord, UserFavorite

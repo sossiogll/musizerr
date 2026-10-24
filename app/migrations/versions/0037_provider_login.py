@@ -7,7 +7,7 @@ Create Date: 2026-10-10
 Signing in through a provider a user has linked (``core/provider_login.py``):
 
 - ``provider_credentials.external_id``: the stable id the provider gave the
-  account (``musizerr_sdk.auth.AccountIdentity``), written when a user links an
+  account (``musizeer_sdk.auth.AccountIdentity``), written when a user links an
   account of a provider that can sign users in. ``uq_provider_credential_
   external`` makes it unique per provider among the rows that carry one: an
   account of a provider is linked to ONE user.

@@ -18,7 +18,7 @@ from core.download_resolver import DownloadResolver, MatchConfidence, ResolveRes
 from core.audio_integrity import verify_audio
 from core.backoff import retry_delay
 from core import download_states as ds
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from core.routines import SYNC_LIBRARY_INDEX
 from core.utc import as_utc
 from services.auth import auth_manager_for
@@ -459,7 +459,7 @@ def _check_mislabel(track, audio, registry, config) -> tuple[bool, str | None]:
     if identity is None:
         return True, None  # sotto soglia / non identificato → non affermare nulla
 
-    from musizerr_sdk.text import normalize
+    from musizeer_sdk.text import normalize
     want = normalize(track.title or "")
     got = normalize(identity.title or "")
     if want and got and want != got and want not in got and got not in want:

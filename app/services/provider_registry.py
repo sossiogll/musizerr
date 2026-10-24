@@ -14,7 +14,7 @@ registry starts without providers (and says so in the log), never a crash.
 from __future__ import annotations
 import logging
 
-from musizerr_sdk.interfaces import (
+from musizeer_sdk.interfaces import (
     PROVIDER_API_VERSION,
     DownloadProvider,
     IdentificationProvider,
@@ -23,7 +23,7 @@ from musizerr_sdk.interfaces import (
     StorageProvider,
     SyncProvider,
 )
-from musizerr_sdk.manifest import ROLES
+from musizeer_sdk.manifest import ROLES
 from services.config_manager import get_config
 from services.gateway_client import (
     EgressGrants,

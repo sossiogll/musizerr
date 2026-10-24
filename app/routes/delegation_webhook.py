@@ -6,7 +6,7 @@ Provider-agnostico (Golden Rule): il nome del provider arriva come parametro
 di PATH, dato applicativo, non un letterale hardcoded. Il modulo non conosce
 il vocabolario di eventi né la forma del payload di alcun sistema specifico —
 quella conoscenza vive dentro ``DownloadProvider.delegation_event_handle()``,
-implementato da ciascun provider (vedi musizerr_sdk.interfaces). Converge sulla
+implementato da ciascun provider (vedi musizeer_sdk.interfaces). Converge sulla
 stessa logica di riconciliazione del polling: un evento fa solo da trigger,
 poi ``reconcile_delegation`` interroga il sistema esterno e aggiorna lo stato.
 
@@ -145,7 +145,7 @@ def _registration_result(provider, callback_url: str, token: str, auth) -> dict:
 @router.post("/delegation/register-webhook")
 def register_delegation_webhooks(config: ConfigDep, session: SessionDep, registry: RegistryDep, admin: AdminUserDep):  # noqa: ARG001
     """
-    Registers musizerr's push callback on EVERY download provider, one result each: ``registered``,
+    Registers musizeer's push callback on EVERY download provider, one result each: ``registered``,
     ``not_supported`` (the provider does not implement ``register_push_endpoint``) or ``failed`` with the
     classified ``error_code`` and the provider's own reason. Requires ``public_base_url``; generates a token
     when there is none. Admin-only.

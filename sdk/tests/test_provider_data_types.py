@@ -8,9 +8,9 @@ import dataclasses
 
 import pytest
 
-from musizerr_sdk.errors import DelegateHoldsRelease
-from musizerr_sdk.interfaces import DownloadProvider, SyncCandidate, SyncProvider
-from musizerr_sdk.models import Track
+from musizeer_sdk.errors import DelegateHoldsRelease
+from musizeer_sdk.interfaces import DownloadProvider, SyncCandidate, SyncProvider
+from musizeer_sdk.models import Track
 
 
 def test_a_sync_candidate_carries_its_sync_id_explicitly_and_is_immutable():

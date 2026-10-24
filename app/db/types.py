@@ -2,7 +2,7 @@
 Column types shared by the models.
 
 SQLite has no datetime type: SQLAlchemy stores the text of the value without
-its zone and reads it back NAIVE. Every datetime Musizerr stores is UTC, so
+its zone and reads it back NAIVE. Every datetime Musizeer stores is UTC, so
 ``UTCDateTime`` gives it back aware (UTC) and stores any aware value
 converted to UTC: whatever serializes it then says which zone it is in.
 """

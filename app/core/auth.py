@@ -2,7 +2,7 @@
 Host-side auth types: which account a write is about, how a credential is
 stored, what the token endpoint is sent. What a provider DECLARES about its
 authentication (flows, account models, OAuth2 configuration and strategies,
-the session it receives) is part of the provider contract: ``musizerr_sdk.auth``.
+the session it receives) is part of the provider contract: ``musizeer_sdk.auth``.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from musizerr_sdk.auth import OAuth2Config
+from musizeer_sdk.auth import OAuth2Config
 
 
 class AccountTarget(str, Enum):

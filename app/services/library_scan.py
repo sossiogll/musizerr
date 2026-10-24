@@ -21,9 +21,9 @@ from typing import Iterable
 
 from sqlmodel import Session, select
 
-from musizerr_sdk.auth import AuthSession
-from musizerr_sdk.interfaces import StorageProvider
-from musizerr_sdk.models import Track
+from musizeer_sdk.auth import AuthSession
+from musizeer_sdk.interfaces import StorageProvider
+from musizeer_sdk.models import Track
 from core.routines import LIBRARY_SCANNED, SYNC_LIBRARY_INDEX
 from core.tagging import read_track_tags
 from db.models import LibraryEntry

@@ -24,7 +24,7 @@ import textwrap
 from sqlmodel import Session, select
 
 from core.identifiers import AMBIGUOUS, resolve_identity, sync_id_type
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
 from core.serialization import serialize_track
 from db.models import TrackIdentifierRecord, TrackRecord
 from db.track_store import find_or_create_track, stored_track_data

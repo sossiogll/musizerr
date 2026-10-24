@@ -24,10 +24,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
-from musizerr_sdk.interfaces import SyncCandidate, SyncProvider
-from musizerr_sdk.models import Album, AlbumRef, Artist, ArtistRef, Track
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
+from musizeer_sdk.interfaces import SyncCandidate, SyncProvider
+from musizeer_sdk.models import Album, AlbumRef, Artist, ArtistRef, Track
 from core.identifiers import sync_id_type
 from db.engine import get_session
 from db.models import TrackIdentifierRecord, TrackRecord

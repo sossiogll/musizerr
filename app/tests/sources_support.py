@@ -9,7 +9,7 @@ from pathlib import Path
 
 import httpx
 
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
 
 DIGEST_A = "sha256:" + "a" * 64
 DIGEST_B = "sha256:" + "b" * 64
@@ -21,7 +21,7 @@ LRCLIB_PERMISSIONS = {"egress": ["lrclib.net:443"], "egress_from_settings": [], 
 
 def entry(name="lrclib", digest=DIGEST_A, **kwargs) -> dict:
     return {
-        "name": name, "image": f"ghcr.io/owner/musizerr-provider-{name}", "digest": digest,
+        "name": name, "image": f"ghcr.io/owner/musizeer-provider-{name}", "digest": digest,
         "provider_api_version": PROVIDER_API_VERSION, "roles": ["lyrics"], "label": name.upper(),
         "description": f"The {name} provider", "permissions": LRCLIB_PERMISSIONS, **kwargs,
     }
@@ -106,7 +106,7 @@ class FakeControlSocket:
         if request["op"] == "list":
             return {
                 "ok": True, "epoch": self.epoch, "generation": len(self.providers), "desired": self.desired,
-                "workspace_root": "/downloads/.musizerr-work", "sandbox": self.sandbox, "rejected": self.rejected,
+                "workspace_root": "/downloads/.musizeer-work", "sandbox": self.sandbox, "rejected": self.rejected,
                 "providers": self.providers,
             }
         return {"ok": False, "error": "unknown"}

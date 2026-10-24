@@ -2,7 +2,7 @@
 Generic types for reconciling delegated downloads.
 
 When a DownloadProvider hands a download over to an external system (e.g. a
-library manager that downloads whole albums), Musizerr must be able to learn
+library manager that downloads whole albums), Musizeer must be able to learn
 its state and the files it produced without knowing which system it is. These
 types are the common language: no provider name, no API-specific detail.
 """

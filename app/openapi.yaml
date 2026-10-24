@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Musizerr
+  title: Musizeer
   description: >
     Self-hosted, provider-agnostic music manager API.
     All provider references (metadata, download, storage, sync, lyrics) are
@@ -45,7 +45,7 @@ tags:
     description: Playlist metadata and download
   - name: playlists
     description: >
-      The user's own playlists (kept by Musizerr, private), the ones followed from a
+      The user's own playlists (kept by Musizeer, private), the ones followed from a
       metadata provider, and their copies on the sync providers
   - name: config
     description: Application and provider configuration
@@ -86,7 +86,7 @@ components:
     StreamCookie:
       type: apiKey
       in: cookie
-      name: musizerr_stream_token
+      name: musizeer_stream_token
       description: >
         Short-lived stream token set as an HttpOnly cookie by
         POST /auth/account/stream-session, for the full-audio routes and the
@@ -162,7 +162,7 @@ components:
         provider_capability:
           type: [string, "null"]
           description: >-
-            The provider capability (musizerr_sdk.capabilities) the setting acts through; the UI lists the
+            The provider capability (musizeer_sdk.capabilities) the setting acts through; the UI lists the
             providers that declare it (ProviderInfo.capabilities).
         admin_only:
           type: boolean
@@ -1081,15 +1081,15 @@ components:
         storage_path:
           type: [string, "null"]
           description: >
-            Where the file really is on the storage, when Musizerr knows it
+            Where the file really is on the storage, when Musizeer knows it
             (the download the member is linked to); null otherwise.
         added_at:
           type: [string, "null"]
           format: date-time
-          description: When the linked Musizerr download landed; null when unknown.
+          description: When the linked Musizeer download landed; null when unknown.
         downloaded_via:
           type: [string, "null"]
-          description: The download provider of the linked Musizerr download.
+          description: The download provider of the linked Musizeer download.
         title:
           type: string
         artist:
@@ -1406,7 +1406,7 @@ components:
             type: string
         capabilities:
           type: array
-          description: What an own account enables, declared by the provider (musizerr_sdk.capabilities).
+          description: What an own account enables, declared by the provider (musizeer_sdk.capabilities).
           items:
             type: string
 
@@ -1573,7 +1573,7 @@ components:
         capabilities:
           type: array
           description: >-
-            Metadata providers — the optional capabilities it declares (musizerr_sdk.capabilities),
+            Metadata providers — the optional capabilities it declares (musizeer_sdk.capabilities),
             e.g. user_library, unlike_saved_track.
           items:
             type: string
@@ -1849,7 +1849,7 @@ components:
           $ref: "#/components/schemas/ProviderPermissions"
         compatible:
           type: boolean
-          description: It implements this Musizerr's provider API version; if not it cannot be installed
+          description: It implements this Musizeer's provider API version; if not it cannot be installed
         incompatibility:
           type: [string, "null"]
 
@@ -3238,7 +3238,7 @@ paths:
       summary: Send the browser to a provider's authorization to sign in (OAuth2)
       description: >-
         Redirects to the provider. The signed `state` names the provider and carries the hash of a
-        nonce the response also sets in the HttpOnly cookie `musizerr_login_nonce`; the callback
+        nonce the response also sets in the HttpOnly cookie `musizeer_login_nonce`; the callback
         (`/auth/{provider}/callback`) needs both, so a browser cannot finish an authorization another
         one started. The start and the callback must be served from the same host. Rate limited per
         client address.
@@ -4762,7 +4762,7 @@ paths:
       summary: Browse the catalog of a source
       description: >
         Fetches the catalog now. Each entry says whether it can be installed here (`compatible`:
-        it implements this Musizerr's provider API version), whether it is installed and whether
+        it implements this Musizeer's provider API version), whether it is installed and whether
         the catalog offers an update with the difference in permissions. An entry that is not
         valid is in `rejected`, with the reason, and the rest is usable. Error codes:
         `source_not_found` (404), `source_disabled` (409), `catalog_unreachable` /
@@ -4836,7 +4836,7 @@ paths:
         The gateway's own listing: the state of each provider it was told about (`pulling`,
         `starting`, `running`, `restarting`, `refused`, `unavailable`, `failed`, `stopped`)
         with the reason, whether a sandbox can be made, the entries of the pushed set it
-        refused (`rejected`) and the providers it runs that this Musizerr refused to register
+        refused (`rejected`) and the providers it runs that this Musizeer refused to register
         (`host_rejected`). A gateway that does not answer is `reachable: false`, not an error.
       responses:
         "200":
@@ -6282,7 +6282,7 @@ paths:
         `delete_tracks=true` the files that were downloaded for this playlist
         (a followed playlist's download request) are deleted too, in the
         background (`tracks_scheduled`), but only those that no other playlist
-        holds and no user has as a favorite, and only files Musizerr downloaded
+        holds and no user has as a favorite, and only files Musizeer downloaded
         for the caller. Its copies on the sync providers are deleted by the
         next run of `sync_playlists`.
       parameters:
@@ -7031,7 +7031,7 @@ paths:
     post:
       operationId: resolveDuplicateGroup
       tags: [library]
-      summary: Keep one member and delete the others that musizerr put there (admin)
+      summary: Keep one member and delete the others that musizeer put there (admin)
       parameters:
         - name: group_id
           in: path
@@ -7110,7 +7110,7 @@ paths:
         Plays THAT file, so an admin can hear each copy before choosing the one
         to keep: by the member's sync id on the sync provider whose library the
         duplicates scan read, else by its real path on the storage (the
-        Musizerr download it is linked to). Never the track-level stream
+        Musizeer download it is linked to). Never the track-level stream
         (`/stream/{track_id}`), which picks one file of the track by itself.
         Range requests pass through, as for `/stream/{track_id}`.
       parameters:
@@ -7419,12 +7419,12 @@ paths:
     get:
       operationId: getUpdates
       tags: [system]
-      summary: The version that runs and the newer releases of Musizerr (admin)
+      summary: The version that runs and the newer releases of Musizeer (admin)
       description: >
         What the check_for_updates routine found (ADR-0007 §5.1), judged against what runs now: each newer
         release with its kind (major, minor, patch) and, when pulling its images is not all it takes, the
         reasons (major, upgrade_path, contract_unsupported, contract_migrations, manual_steps, no_metadata).
-        Musizerr is updated by hand; this reads only.
+        Musizeer is updated by hand; this reads only.
       responses:
         "200":
           description: Updates
@@ -8012,7 +8012,7 @@ paths:
     post:
       operationId: registerDelegationWebhooks
       tags: [delegation]
-      summary: Register musizerr's webhook on every download provider (admin)
+      summary: Register musizeer's webhook on every download provider (admin)
       description: >
         Asks every download provider to register the push callback on its external system, one result each.
         `state` is `registered`; `not_supported`, only when the provider does not implement

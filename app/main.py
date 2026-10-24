@@ -106,7 +106,7 @@ def _require_auth_secret() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting Musizerr...")
+    logger.info("Starting Musizeer...")
     # Before the database is touched: nothing may run on credentials it cannot read or write
     # (docs/credentials.md).
     credential_cipher.require_credentials_key()
@@ -121,13 +121,13 @@ async def lifespan(app: FastAPI):
     _require_auth_secret()
     _ensure_system_user()
     _bootstrap_admin()
-    logger.info("Musizerr ready.")
+    logger.info("Musizeer ready.")
     yield
-    logger.info("Shutting down Musizerr.")
+    logger.info("Shutting down Musizeer.")
 
 
 app = FastAPI(
-    title="Musizerr",
+    title="Musizeer",
     version=app_version.VERSION,
     lifespan=lifespan,
 )

@@ -2,7 +2,7 @@
 Copre la Fase 2b: la vecchia route hardcoded a un solo download provider
 (`routes/lidarr_webhook.py`) e' stata sostituita da una capability opzionale
 sul contratto (`DownloadProvider.delegation_event_handle` /
-`register_push_endpoint`, in `musizerr_sdk.interfaces`) piu' una route generica
+`register_push_endpoint`, in `musizeer_sdk.interfaces`) piu' una route generica
 (`routes/delegation_webhook.py`) che itera sui provider registrati.
 
 Regola d'oro rispettata: nessun provider reale qui. `FakeDownloadProvider`
@@ -233,7 +233,7 @@ def test_register_requires_public_base_url(config, session):
 
 
 def test_register_iterates_all_providers_with_per_provider_outcomes(config, session):
-    cfg = config(public_base_url="http://musizerr.local")
+    cfg = config(public_base_url="http://musizeer.local")
     supporting = FakeDelegatingDownloadProvider("fakedelegating", register_outcome="created")
     non_supporting = FakeDownloadProvider("plain")
     registry = FakeRegistry(downloads=[supporting, non_supporting])
@@ -250,12 +250,12 @@ def test_register_iterates_all_providers_with_per_provider_outcomes(config, sess
     # Il callback URL passato al provider porta il nome del provider stesso
     # (path param, non un letterale hardcoded) e il token condiviso.
     assert supporting.registered_urls == [
-        f"http://musizerr.local/api/delegation/webhook/fakedelegating?token={cfg.delegation_webhook_token}"
+        f"http://musizeer.local/api/delegation/webhook/fakedelegating?token={cfg.delegation_webhook_token}"
     ]
 
 
 def test_register_skips_provider_that_raises_without_aborting_loop(config, session):
-    cfg = config(public_base_url="http://musizerr.local")
+    cfg = config(public_base_url="http://musizeer.local")
 
     class _BoomProvider(FakeDownloadProvider):
         def register_push_endpoint(self, callback_url, session):
@@ -292,7 +292,7 @@ class _RaisingProvider(FakeDownloadProvider):
 
 
 def _register(config, session, *providers):
-    cfg = config(public_base_url="http://musizerr.local")
+    cfg = config(public_base_url="http://musizeer.local")
     data = register_delegation_webhooks(cfg, session, FakeRegistry(downloads=list(providers)), admin=object())
     return cfg, {r["provider"]: r for r in data["results"]}
 
@@ -366,7 +366,7 @@ def test_one_failing_provider_does_not_hide_the_others(config, session):
 
 
 def test_the_callback_token_is_never_returned_even_when_the_provider_quotes_the_url(config, session):
-    cfg = config(public_base_url="http://musizerr.local")
+    cfg = config(public_base_url="http://musizeer.local")
     token = cfg.delegation_webhook_token
 
     class _Quoting(FakeDownloadProvider):
@@ -382,7 +382,7 @@ def test_the_callback_token_is_never_returned_even_when_the_provider_quotes_the_
 
 
 def test_register_generates_and_persists_token_when_absent(config, session):
-    cfg = config(public_base_url="http://musizerr.local", delegation_webhook_token="")
+    cfg = config(public_base_url="http://musizeer.local", delegation_webhook_token="")
     registry = FakeRegistry(downloads=[])
 
     data = register_delegation_webhooks(cfg, session, registry, admin=object())

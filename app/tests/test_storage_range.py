@@ -14,7 +14,7 @@ import asyncio
 
 from fastapi.responses import StreamingResponse
 
-from musizerr_sdk.interfaces import StorageStreamResult
+from musizeer_sdk.interfaces import StorageStreamResult
 from routes.stream import _stream_stored, _stored_file_response
 from services.workspace import new_workspace
 
