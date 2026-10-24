@@ -10,7 +10,8 @@ memory limit). One mode per run:
               (prints SHARED_UID_OK); with the default memory limit and the default 8 MB stacks it starts 64 threads, and how
               many it can start at most is printed (THREADS_OK; before MALLOC_ARENA_MAX=2 it was 14 on a 10-CPU host);
   watchdog    a provider that holds more tasks than its limit is stopped by the gateway, which says why in ``list``
-              (the kernel did not stop it: it got every thread it asked for) and runs it again (prints WATCHDOG_OK);
+              (the kernel did not stop it: it got every thread it asked for) and runs it again (prints WATCHDOG_OK). It starts
+              by waiting for the sandbox to drain the previous check's burst (``settle``), which fills its address space;
   pids        in a gateway whose container has a small pids limit, a provider that cannot start a thread is reported:
               ``list`` counts it, ``container`` shows the limit (prints PIDS_OK; the script reads the gateway's log).
 
@@ -30,6 +31,7 @@ from services.database_init import init_db  # noqa: E402
 from musizeer_sdk.auth import AuthSession  # noqa: E402
 from musizeer_sdk.models import Track  # noqa: E402
 from services.gateway_client import GatewayClient, GatewayUnreachable  # noqa: E402
+from services.provider_proxy import ProviderCallFailed  # noqa: E402
 from services.provider_registry import ProviderRegistry  # noqa: E402
 
 SESSION = AuthSession.anonymous()
@@ -53,6 +55,28 @@ def expect(condition: bool, message: str) -> None:
 
 def ask(provider, command: str) -> dict:
     return json.loads(provider.get_lyrics(Track(title=command, artist="x", album="y", duration_ms=1000), SESSION).plain)
+
+
+def settle(provider) -> dict:
+    """Wait until the threads of the previous burst are gone, and return the provider's ``info``.
+
+    The burst that ends ``shared-uid`` ("as many as fit") runs the sandbox out of address space on purpose, and its threads live
+    a second. The runner serves every call on a thread of its own, so for that second it cannot answer: the call that comes next
+    (the first of ``watchdog``, when the two checks follow each other) is dropped with ``RuntimeError: can't start new thread``
+    in the runner and "closed the connection" at the host, which is the sandbox's address space doing its job and not what
+    ``watchdog`` is about. So a call that fails while the burst drains is asked again."""
+    deadline = time.monotonic() + 30
+    while True:
+        try:
+            info = ask(provider, "info")
+            if info["threads"] < 10:
+                return info
+        except ProviderCallFailed as exc:
+            if time.monotonic() > deadline:
+                fail(f"the provider did not recover from the previous burst: {exc}")
+        if time.monotonic() > deadline:
+            fail(f"the threads of the previous burst did not end: {info}")
+        time.sleep(0.5)
 
 
 def listing() -> dict:
@@ -96,22 +120,20 @@ def shared_uid() -> None:
     most = ask(provider, "threads:600:1")  # as many as it can: the address space (1024 MB) ends it, with a message
     expect(most["started"] >= 64, f"fewer than 64 threads fit under the default memory limit: {most}")
     say("THREADS_OK", most_threads_started=most["started"], stopped_by=most["error"])
+    settle(provider)  # its threads live a second, and the address space is full until they end
 
 
 def watchdog() -> None:
     provider = provider_or_fail()
-    for _ in range(20):  # the threads of the previous check (2 s) are gone
-        before = ask(provider, "info")
-        if before["threads"] < 10:
-            break
-        time.sleep(0.5)
+    before = settle(provider)  # the threads of the previous check are gone, and so is their hold on the address space
+    restarts_before = view()["restarts"]
     result = ask(provider, "threads:120:120:256")
     expect(result["error"] is None and result["started"] == 120, f"the kernel stopped the threads (it must not): {result}")
     deadline = time.monotonic() + 30
     stopped = None
     while time.monotonic() < deadline:
         state = view()
-        if state["restarts"] >= 1 and "process/thread limit reached" in state["reason"]:
+        if state["restarts"] > restarts_before and "process/thread limit reached" in state["reason"]:
             stopped = state
             break
         time.sleep(0.5)
