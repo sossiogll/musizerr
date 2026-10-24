@@ -30,6 +30,7 @@ from db.models import LibraryEntry
 from db.settings_store import SettingsRepository
 from db.track_store import find_or_create_track
 from db.upsert import insert_ignore
+from services import folders
 from services.routines import start_routine
 from services.storage import resolve_storage_provider
 from services.workspace import open_workspace
@@ -47,6 +48,9 @@ def import_existing_library(session: Session, registry, config, auth_manager) ->
     and is a success in every case: a storage that is not there yet (no provider installed, not
     configured, not answering) is "waiting", and the tick looks again. ``detail`` is for the page
     when the result has no numbers."""
+    blocking = folders.blocked(session, config, registry)
+    if blocking is not None:
+        return {"status": "ok", "state": "waiting", "error_code": blocking.error_code, "detail": blocking.message}
     indexed = scan_library_once(session, registry, config, auth_manager, force=True)
     if indexed is None:
         return {"status": "ok", "state": "waiting",
@@ -75,6 +79,11 @@ def scan_library_once(session: Session, registry, config, auth_manager, *, force
     storage, storage_name = resolve_storage_provider(registry, config.storage_provider)
     if storage is None:
         logger.warning("No storage provider available: the library scan waits for the next start.")
+        return None
+    blocking = folders.blocked(session, config, registry)
+    if blocking is not None:
+        # The scan reads the files through workspaces of the working folder (ADR-0008).
+        logger.warning("The library scan waits for the next start: %s.", blocking.error_code)
         return None
 
     try:

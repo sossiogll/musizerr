@@ -28,6 +28,7 @@ from routes.content.playlist import router as playlist_router
 from routes.playlists import router as playlists_router
 from routes.content.artist import router as artist_router
 from routes.config import router as config_router
+from routes.roots import router as roots_router
 from routes.sources import router as sources_router
 from routes.history import router as history_router
 from routes.stream import router as stream_router
@@ -157,6 +158,7 @@ app.include_router(playlists_router, prefix="",         tags=["playlists"])
 app.include_router(artist_router,   prefix="",          tags=["artist"])
 app.include_router(config_router,   prefix="",          tags=["config"])
 app.include_router(sources_router,  prefix="",          tags=["sources"])
+app.include_router(roots_router,    prefix="",          tags=["roots"])
 app.include_router(history_router,  prefix="",          tags=["history"])
 app.include_router(download_requests_router, prefix="", tags=["history"])
 app.include_router(stream_router,   prefix="",          tags=["stream"])

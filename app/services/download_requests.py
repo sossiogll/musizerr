@@ -18,6 +18,10 @@ It runs BEFORE anything is queued or delegated:
    tracks, the album and the favorite-on-arrival choice are stored with the
    request and applied, through the same gate, when an admin approves.
 
+Before anything else (ADR-0008) the request meets the folders: while the working folder, or the library folder of
+the active storage provider, is not set, ``services.folders.require_ready`` refuses with ``working_folder_not_set`` /
+``library_folder_not_set`` (409): nothing is queued, delegated or recorded, not even an approval request.
+
 What is NOT governed: retries of a download that already exists
 (``routes/history.py``, ``retry_transient_failures``), whose approval was the
 one that created it — ``may_retry`` makes sure a retry cannot be
@@ -53,6 +57,7 @@ from db.locks import xact_lock
 from db.models import SYSTEM_USER_ID, Download, DownloadRequest, User
 from db.download_store import visible_to_user_clause
 from services import public_urls
+from services import folders
 from services.config_manager import ConfigManager
 from services.downloads import BatchResult, download_album, enqueue_track, enqueue_tracks
 from services.progress import publish_event
@@ -258,7 +263,9 @@ def request_download(
 ) -> Outcome:
     """Asks for the download of ``spec`` on behalf of ``user``, applying the
     approval policy (see the module docstring). ``favorite_for`` is the user
-    the tracks become a favorite of when they arrive (``Downloader.favorite_for``)."""
+    the tracks become a favorite of when they arrive (``Downloader.favorite_for``). Raises
+    :class:`services.folders.FoldersNotReady` first of all while a folder downloads need is not set."""
+    folders.require_ready(session, config, registry)
     requester = None if user.id == SYSTEM_USER_ID else user.id
     run = dict(favorite_for=favorite_for, registry=registry, auth_manager=auth_manager, config=config)
     if not governed(user, config):
@@ -347,7 +354,9 @@ def approve(
     """An admin approves a request: it is queued through the gate exactly once
     (only the call that wins the claim queues it), with the favorite-on-arrival
     choice stored with the request. When running it fails before any track
-    went in, the request goes back to pending and the error is raised."""
+    went in, the request goes back to pending and the error is raised. While a folder
+    downloads need is not set it is refused before it is decided (it stays pending)."""
+    folders.require_ready(session, config, registry)
     result = _decide(session, request_id, policy.STATUS_APPROVED, by=admin, note=note)
     if result.outcome != DECIDED:
         return result

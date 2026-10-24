@@ -44,6 +44,7 @@ from db.track_store import find_or_create_track, track_data_dict
 from services import public_urls
 from services.config_manager import ConfigManager
 from services.download_requests import playlist_spec, request_download
+from services.folders import FoldersNotReady
 from services.stored_tracks import public_track_dicts
 from services.track_identity import with_sync_aliases
 from services.track_state import annotate_tracks, file_state_of
@@ -68,6 +69,7 @@ DOWNLOAD_QUEUED = "queued"
 DOWNLOAD_PENDING = "pending_approval"
 DOWNLOAD_NONE = "none"        # nothing to ask for: the tracks are in the library or on their way
 DOWNLOAD_ERROR = "error"      # the request itself failed: the playlist stays, the page can ask again
+DOWNLOAD_BLOCKED = "blocked"  # a folder is not set (``error_code``: working_folder_not_set / library_folder_not_set): the playlist stays
 
 TASK_DELETE_TRACKS = "workers.maintenance.delete_playlist_tracks"
 
@@ -384,6 +386,9 @@ def _ask_download(
             session, user, playlist_spec(subset, only_missing=True), favorite_for=None, config=config,
             registry=registry, auth_manager=auth_manager,
         )
+    except FoldersNotReady as blocking:  # downloads are blocked until a folder is set (ADR-0008): the playlist is kept
+        session.rollback()
+        return {"status": DOWNLOAD_BLOCKED, "error_code": blocking.error_code}
     except Exception:  # noqa: BLE001 — the playlist is already kept; the download can be asked again
         logger.exception("Download of playlist %s/%s could not be requested", source.provider, source.provider_id)
         session.rollback()

@@ -897,6 +897,25 @@ export interface AuthConfig {
   capabilities: ViewerCapabilities;
   /** What a download request would meet right now; null for a guest, who cannot download. */
   download_policy: ViewerDownloadPolicy | null;
+  /** Whether downloads can work: the working folder and the library folder are set (ADR-0008); null for a guest. */
+  folders?: ViewerFolders | null;
+}
+
+/** One folder the downloads need. `setting` and `detail` (why it is not set) are for administrators. */
+export interface ViewerFolder {
+  set: boolean;
+  state: "set" | "not_set" | "root_missing" | "root_refused" | "invalid";
+  /** False for the library folder when no storage provider is active or its library is not a folder. */
+  applicable: boolean;
+  setting?: string | null;
+  detail?: string;
+}
+
+export interface ViewerFolders {
+  ready: boolean;
+  missing: ("working_folder" | "library_folder")[];
+  working_folder: ViewerFolder;
+  library_folder: ViewerFolder;
 }
 
 export interface TokenResponse {

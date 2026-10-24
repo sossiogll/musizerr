@@ -325,3 +325,35 @@ def test_the_session_is_taken_out_of_the_arguments_before_the_workspace_is_found
 
     assert message["session_at"] == 2 and len(message["args"]) == 2
     assert rewriter.rewrite(message)["args"][1] == "/workspace/w1"
+
+
+# ------------------------------------------------------------------
+# While the working folder is not set (ADR-0008)
+# ------------------------------------------------------------------
+
+
+def test_a_call_that_carries_no_file_does_not_need_the_working_folder(world):
+    from services.folders import FoldersNotReady
+
+    def not_set():
+        raise FoldersNotReady("working_folder_not_set", "not set")
+
+    transport = SocketTransport(world.path, "filing", not_set)
+    proxy = provider_proxy.connect(transport, StaticProviderContext(provider_name="filing"))
+
+    assert proxy.name == "filing", "the provider describes itself"
+    assert proxy.exists("a.flac", SESSION) is True, "and answers a call that carries no workspace"
+
+
+def test_a_call_that_does_carry_a_workspace_is_refused_with_the_working_folders_own_error(world):
+    from services.folders import FoldersNotReady
+
+    def not_set():
+        raise FoldersNotReady("working_folder_not_set", "not set")
+
+    proxy = provider_proxy.connect(SocketTransport(world.path, "filing", not_set), StaticProviderContext(provider_name="filing"))
+
+    with pytest.raises(FoldersNotReady) as refused:
+        proxy.stream("chunks", str(make_workspace(world.root, "filing")), SESSION)
+
+    assert refused.value.error_code == "working_folder_not_set"

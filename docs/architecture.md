@@ -308,13 +308,15 @@ values change; the grants expire if the host stops renewing them. A sandbox cann
 ### Workspaces: how files cross the boundary
 
 A provider never sees a host path. For every call that produces or reads a file, the host creates an empty directory
-under the workspace directory, **in the folder of that provider** (`<workspace_dir>/<provider>/<random>`), and passes
+under the working folder (the `workspace_dir` setting: a root folder plus a path, no default), **in the folder of that provider** (`<working folder>/<provider>/<random>`), and passes
 it in. The provider writes there and returns only a **name relative to it**. The sandbox of a provider sees only its own
 folder, as `/workspace`. The host then validates what it finds (names that escape the workspace are rejected), decides
 the final library path, and removes the workspace when the operation ends. A file that goes from one provider to
 another (downloaded by one, stored by another) is staged into the second provider's folder for the duration of the
-call. A provider that has to read or write the user's own folders declares which setting names them, and the gateway
-grants those folders after checking them. See
+call. A provider that has to read or write the user's own folders declares which `folder` setting names them (the
+administrator chooses a root folder and a path inside it; the provider gets the absolute path), and the gateway grants
+those folders after checking them against the root folders the host declared. While the working folder, or the storage
+provider's library folder, is not set, downloads are blocked (`working_folder_not_set`, `library_folder_not_set`). See
 [ADR-0003](adr/0003-provider-file-exchange-workspace.md) and [`gateway.md`](gateway.md#sockets-volumes-and-permissions).
 
 ## Main flows

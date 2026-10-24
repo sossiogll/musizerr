@@ -27,10 +27,13 @@ HISTORY_PATHS = (
     "docs/adr/0001-", "docs/adr/0002-", "docs/adr/0003-", "docs/adr/0004-", "docs/adr/0005-", "docs/adr/0006-",
     "docs/adr/0007-", "docs/adr/0008-", "docs/adr/0009-", "docs/adr/0010-", "docs/adr/README.md",
 )
-# The migration that rewrites the stored value of the old name, and the test of it (ADR-0010 row 21).
+# The migrations that rewrite a stored value of the old name, and the test of the first (ADR-0010 row 21). 0046 (ADR-0008)
+# sets the old working folder aside: the old default ended in a hidden folder named after the old product, and the migration
+# must know that name to record it for the conversion.
 MIGRATION_PATHS = (
     "app/migrations/versions/0044_rename_duplicate_origin.py",
     "app/tests/test_migration_0044_rename_duplicate_origin.py",
+    "app/migrations/versions/0046_working_folder_legacy.py",
 )
 # The environment variables that carried the old product name, and the prefix itself (for the typo guard). They
 # may be spelled in the registries of environment variables and in the guide's reference table, and nowhere else.

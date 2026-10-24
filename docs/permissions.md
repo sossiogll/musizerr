@@ -256,6 +256,28 @@ fallback, no app-only token). In open mode the owner has it like any user (store
 Migration 0030 dropped the old global value; when it was on, each admin kept
 it as their own choice. Tests: `app/tests/test_unlike_on_origin.py`.
 
+## Root folders (ADR-0008)
+
+The places the product may use are **admin only**, all of them (`routes/roots.py`; with authentication off the owner is the
+administrator). A root is a label and a path as the containers see it; a user never sees one, only the effect.
+
+| Route | Who | What |
+| --- | --- | --- |
+| `GET /roots` | admin | the roots with the gateway's verdict, and every folder setting with what it resolves to |
+| `POST /roots`, `PATCH /roots/{id}`, `DELETE /roots/{id}` | admin | declare, rename or move (a root in use needs `?confirm=true`), remove (a root in use cannot be removed: 409 `root_in_use` listing the settings) |
+| `GET /roots/{id}/check` | admin | the gateway's `inspect` with a real write test, and what the application sees |
+| `GET /roots/browse?path=` | admin | the folder picker (the gateway's `browse`: subdirectories of a mounted volume only) |
+
+A `folder` setting is written like any system setting (`PATCH /settings`, admin; the working folder is `workspace_dir`, a
+provider's folder is one of its settings under the provider's group); a user cannot read it (scope `system`). What every
+viewer does get is **whether downloads can work**: `GET /auth/account/status` carries `folders` (`ready`, `missing`, and per
+folder `set`, `state`, `applicable`), so the shell can warn an administrator and disable the download actions for everyone
+with the reason. Only an administrator also gets the setting that holds the folder and why it is not set (`setting`,
+`detail`); a guest gets `null`. While the working folder or the active storage provider's library folder is not set, every
+download route (and an approval, a retry, the likes download) answers **409** `working_folder_not_set` /
+`library_folder_not_set` to whoever asks (`error_detail`, the reason, for an administrator only), and nothing is queued or
+recorded, an approval request included.
+
 ## Provider accounts
 
 Whose account a call to a provider uses is not a role rule: each provider
@@ -517,6 +539,8 @@ every route.
 | Connect, test and disconnect their own provider accounts (`linked_accounts`) | no (401) | yes | yes | yes (the system user's) |
 | Connect, test and disconnect a shared (instance) account, the OAuth2 app, an API key | no (401) | no (403) | yes | yes |
 | Admin routes, credentials, routines | no (401) | no (403) | yes | yes |
+| Root folders, the folder picker, the working folder and a provider's folder (`/roots`, `PATCH /settings`) | no (401) | no (403) | yes | yes |
+| `folders` in the viewer status (are the folders downloads need set?) | no (`null`) | yes (no setting or reason) | yes (with the setting and the reason) | yes (with the setting and the reason) |
 | Create an account (`POST /admin/users`) | no (401) | no (403) | yes | yes (the account waits for authentication to be turned on) |
 | Register by themselves (`POST /auth/account/register`) | when the setting is on | n/a | n/a | no (400; the status says `registration_open: false`) |
 | Raw error detail (`error_detail`), `/health` internals | no | no | yes | yes |

@@ -15,6 +15,7 @@ from musizeer_gateway.images import PreparedImage
 from musizeer_gateway.desired import DesiredProvider
 from musizeer_gateway.filesystem import Bind
 from musizeer_gateway.oci import ImageConfig, ImageError, RegistryError
+from musizeer_gateway.roots import DeclaredFolders, DeclaredRoot, Mount
 from musizeer_gateway.sandbox import SandboxUnavailable
 from musizeer_sdk.interfaces import PROVIDER_API_VERSION
 from musizeer_sdk.labels import DeclaredManifest
@@ -66,12 +67,19 @@ class Images:
         return PreparedImage(entry, self.rootfs, ImageConfig(entrypoint=("runner",)), self.declared)
 
 
+def volume_mounts(*folders):
+    """A mount table where the container's own file system is ``/`` and each of ``folders`` is a mounted volume."""
+    table = [Mount(1, 0, "0:1", "/", "/", "overlay")]
+    table += [Mount(10 + index, 1, f"8:{index}", "/", os.path.realpath(str(folder)), "ext4") for index, folder in enumerate(folders)]
+    return tuple(table)
+
+
 @pytest.fixture
 def world(tmp_path, monkeypatch):
-    config = GatewayConfig(
-        state_dir=tmp_path / "state", run_dir=tmp_path / "run", workspace_dir=tmp_path / "lib" / ".work",
-        filesystem_roots=(str(tmp_path / "lib"),),
-    )
+    config = GatewayConfig(state_dir=tmp_path / "state", run_dir=tmp_path / "run")
+    (tmp_path / "lib").mkdir()
+    # What the host declares: one root folder (a mounted volume) with the working folder inside it.
+    declared = DeclaredFolders((DeclaredRoot("lib", str(tmp_path / "lib")),), str(tmp_path / "lib" / ".work"))
     monkeypatch.setattr(filesystem, "RESERVED", ())  # pytest's temporary folders live under /tmp, which a sandbox mounts itself
     built = []
 
@@ -88,11 +96,11 @@ def world(tmp_path, monkeypatch):
 
     def make(images=None, probe=lambda uid, gid: None):
         health = sv.SandboxHealth(config.sandbox_uid, config.sandbox_gid, check=probe, recheck=0.1)
-        supervisor = sv.Supervisor(config, images or Images(), health)
+        supervisor = sv.Supervisor(config, images or Images(), health, mounts=lambda: volume_mounts(tmp_path / "lib"))
         supervisors.append(supervisor)
         return supervisor
 
-    make.config, make.built, make.lifetime = config, built, lifetime
+    make.config, make.built, make.lifetime, make.declared = config, built, lifetime, declared
     yield make
     for supervisor in supervisors:
         supervisor.stop()
@@ -114,10 +122,56 @@ def test_a_provider_is_started_and_reported_running_with_its_socket(world):
     assert managed.socket_path.exists() and managed.status.declared.name == "demo"
     assert supervisor.generation > generation, "the host is told the set of running providers changed"
     spec = world.built[0]
-    assert spec.uid == world.config.sandbox_uid and spec.workspace_dir == world.config.workspace_dir / "demo"
+    assert spec.uid == world.config.sandbox_uid
+    assert spec.workspace_dir is None, "before the host declares a working folder the sandbox gets an empty private /workspace"
     assert spec.command[-4:] == ("--socket", "/run/provider/provider.sock", "--egress-socket", "/run/egress/egress.sock")
     assert oct(spec.socket_dir.stat().st_mode & 0o777) == "0o700", "only the owner may list the sockets"
-    assert (world.config.workspace_dir / "demo").is_dir()
+
+
+def test_the_workspace_of_a_provider_is_its_part_of_the_working_folder_the_host_declared(world):
+    supervisor = world()
+
+    supervisor.apply([ENTRY], {}, folders=world.declared)
+
+    assert wait_for(lambda: state_of(supervisor) == sv.RUNNING)
+    workspace = Path(world.declared.workspace) / "demo"
+    assert world.built[0].workspace_dir == workspace and workspace.is_dir()
+
+
+def test_a_working_folder_the_gateway_refuses_leaves_the_provider_running_with_an_empty_workspace(world, tmp_path):
+    supervisor = world()
+    outside = DeclaredFolders(world.declared.roots, str(tmp_path / "elsewhere" / ".work"))
+
+    supervisor.apply([ENTRY], {}, folders=outside)
+
+    assert wait_for(lambda: state_of(supervisor) == sv.RUNNING)
+    assert world.built[0].workspace_dir is None
+    state = supervisor.folders()
+    assert state.workspace_state == "refused" and "not inside an accepted root folder" in state.workspace_reason
+
+
+def test_a_changed_working_folder_restarts_the_providers_with_the_new_workspace(world, tmp_path):
+    supervisor = world()
+    supervisor.apply([ENTRY], {}, folders=world.declared)
+    assert wait_for(lambda: state_of(supervisor) == sv.RUNNING)
+    managed = supervisor.get("demo")
+
+    supervisor.apply([ENTRY], {}, folders=DeclaredFolders(world.declared.roots, str(tmp_path / "lib" / "second")))
+
+    assert wait_for(lambda: len(world.built) == 2 and state_of(supervisor) == sv.RUNNING)
+    assert world.built[1].workspace_dir == tmp_path / "lib" / "second" / "demo"
+    assert managed.status.restarts == 0, "a change of the working folder is not a crash"
+    assert supervisor.get("demo") is managed, "the provider is the same, restarted in place"
+
+
+def test_the_same_folders_pushed_again_change_nothing(world):
+    supervisor = world()
+    supervisor.apply([ENTRY], {}, folders=world.declared)
+    assert wait_for(lambda: state_of(supervisor) == sv.RUNNING)
+
+    supervisor.apply([ENTRY], {}, folders=world.declared)
+
+    assert len(world.built) == 1
 
 
 def test_a_provider_that_dies_is_restarted(world):
@@ -334,7 +388,7 @@ def storage(world, tmp_path):
         Permissions(filesystem_from_settings=(FilesystemAccess("root_dir", "rw"), FilesystemAccess("cache_dir", "ro"))),
     )
     supervisor = world(Images(declared=declared, rootfs=rootfs))
-    supervisor.apply([ENTRY], {})
+    supervisor.apply([ENTRY], {}, folders=world.declared)
     assert wait_for(lambda: state_of(supervisor) == sv.RUNNING)
     supervisor.lib, supervisor.rootfs, supervisor.outside = lib, rootfs, tmp_path / "outside"
     supervisor.managed = supervisor.get("demo")
@@ -428,7 +482,7 @@ def test_the_workspace_directory_is_covered_when_the_folder_that_holds_it_is_gra
     storage.grant(root_dir=storage.lib)
 
     (bind,) = world.built[-1].binds
-    assert bind.masks == (str(world.config.workspace_dir),)
+    assert bind.masks == (world.declared.workspace,)
 
 
 def test_a_provider_without_folders_is_never_restarted_by_a_grant(world):
@@ -439,3 +493,45 @@ def test_a_provider_without_folders_is_never_restarted_by_a_grant(world):
     report = supervisor.get("demo").grant(["a.lan:1"], 60, None, {"root_dir": "/downloads/x"})
 
     assert not report.restarted and len(world.built) == 1 and "root_dir" in report.refused
+
+
+def test_the_roots_the_host_declares_are_what_a_folder_is_judged_against(world, storage, tmp_path):
+    (tmp_path / "second").mkdir()
+    (tmp_path / "second" / "music").mkdir()
+
+    refused = storage.grant(root_dir=tmp_path / "second" / "music")
+    assert "not inside a root folder the gateway accepted" in refused.refused["root_dir"] and not refused.restarted
+
+    # the host declares the second root (a second mounted volume): the grant it already sent is judged again
+    storage.mounts = lambda: volume_mounts(tmp_path / "lib", tmp_path / "second")
+    storage.apply(
+        [ENTRY], {}, folders=DeclaredFolders(
+            (*world.declared.roots, DeclaredRoot("second", str(tmp_path / "second"))), world.declared.workspace,
+        ),
+    )
+
+    assert wait_for(lambda: len(world.built) == 2 and state_of(storage) == sv.RUNNING)
+    assert [b.dest for b in world.built[-1].binds] == [str(tmp_path / "second" / "music")]
+    assert storage.managed.status.path_refusals == {}
+
+
+def test_a_root_that_is_no_longer_declared_takes_its_folders_away_from_the_providers(world, storage):
+    storage.grant(root_dir=storage.lib / "music")
+    assert [b.dest for b in world.built[-1].binds] == [str(storage.lib / "music")]
+
+    storage.apply([ENTRY], {}, folders=DeclaredFolders())
+
+    assert wait_for(lambda: len(world.built) == 3 and state_of(storage) == sv.RUNNING)
+    assert world.built[-1].binds == () and world.built[-1].workspace_dir is None
+    assert "no accepted root folder" in storage.managed.status.path_refusals["root_dir"]
+
+
+def test_a_root_that_is_not_on_a_mounted_volume_grants_nothing(world, storage):
+    storage.mounts = lambda: volume_mounts()  # nothing is mounted: the folder is part of the container's own file system
+
+    report = storage.grant(root_dir=storage.lib / "music")
+
+    assert "no accepted root folder" in report.refused["root_dir"] and report.binds == ()
+    assert world.built[-1].binds == () and world.built[-1].workspace_dir is None, (
+        "the working folder was in that root: the provider restarts with an empty private workspace"
+    )

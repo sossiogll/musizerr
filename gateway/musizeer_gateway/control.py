@@ -8,8 +8,11 @@ host's containers share the volume) can open. The operations:
 ``{"op": "list"}``
     The state of the gateway: its ``epoch`` (changes when it restarts), the ``desired`` generation
     the host last pushed (null: none yet), its
-    ``generation`` (changes when the set of running providers does), the workspace
-    directory it hands the sandboxes subtrees of, whether a sandbox can be made, and each
+    ``generation`` (changes when the set of running providers does), the working folder it hands the sandboxes
+    subtrees of (``workspace_root``: the accepted one, null while it is not set or refused; ``workspace``:
+    what the host declared, its ``state`` and the ``reason`` when refused), the root folders the host declared and what the
+    gateway made of each (``roots``: ``id``, ``path``, ``state`` ``accepted``/``refused``, ``reason``, ``device``,
+    ``mount_id``, ``mount_point``, ``fs_type``, ``writable``, ``free_bytes``; ADR-0008), whether a sandbox can be made, and each
     installed provider with its state, the manifest its image declares, the path of its
     socket (relative to the run directory) and its egress (fixed, granted, refused).
     Also the gateway container's pids against its limit (`container`: `pids`, `pids_limit`, null when none is set), and per
@@ -26,7 +29,18 @@ host's containers share the volume) can open. The operations:
     the mode is the manifest's, the gateway judges each path, ``filesystem.py``). They replace the
     previous grant. Destinations expire after ``ttl``; folders stay until replaced, and a change in the
     ones bound restarts the provider (the reply waits for the new process).
-``{"op": "install", "providers": [...], "generation": "..."}``
+``{"op": "inspect", "path": "/library"}``
+    Read-only. What the gateway sees at one absolute, normalized path: ``exists``, ``directory``, ``writable``, ``mounted``
+    (it lies on a mounted volume, not on the container's own file system nor a kernel or memory one, and does not overlap the
+    gateway's own folders), ``device``, ``mount_id``, ``mount_point``, ``fs_type``, ``free_bytes``, ``real_path`` and a
+    ``reason`` when it could not be a root folder. Nothing about its content (ADR-0008). ``"write_test": true`` (the
+    explicit Check of a root) also creates and removes a hidden file there and reports ``write_test``: the only write.
+``{"op": "browse", "path": "/library"}``
+    Read-only; the folder picker. The subdirectories of a path inside a mounted volume (never files; a link whose
+    target is not a directory of the same volume is not listed; a path that leads out of its volume through a link is
+    refused), with their ``path``, and the ``parent`` (null at the volume's mount point). Without ``path`` (or ``null``)
+    it lists the mounted volumes instead, the places a root folder can be declared in.
+``{"op": "install", "providers": [...], "generation": "...", "roots": [{"id": "...", "path": "/library"}], "workspace": "/downloads/.musizeer-work"}``
     The desired set, pushed by the host (the database of the application is the only source of
     truth for what is installed; the gateway keeps no list of its own, so after a restart it runs
     nothing until the host pushes the set again). It REPLACES the previous set: the new are
@@ -35,7 +49,11 @@ host's containers share the volume) can open. The operations:
     A credential in an entry is for pulling that image: it is kept in memory until the image is
     unpacked and never written, logged or reported. ``generation`` is an identifier the host gives
     the set; ``list`` reports it back (``desired``) so the host can tell that the gateway has the set
-    it wants.
+    it wants. ``roots`` and ``workspace`` are the root folders and the working folder the administrator declared
+    (ADR-0008): they replace the previous ones, each root is judged by ``roots.py`` and the reply lists what the
+    gateway made of them; the folders granted to the providers are judged against the accepted roots, and a provider
+    whose mounts they change is restarted. ``workspace`` null: no working folder yet (a provider still runs, with an
+    empty private ``/workspace``). Before the host has pushed anything the gateway runs no provider.
 """
 from __future__ import annotations
 
@@ -47,8 +65,10 @@ from pathlib import Path
 from musizeer_sdk.permissions import to_json
 
 from . import environment
+from . import roots
 from .config import GatewayConfig
 from .desired import DesiredError, parse_set
+from .filesystem import PathRefused
 from .supervisor import RUNNING, ManagedProvider, Supervisor
 from .tasks import read_pids_cgroup
 
@@ -124,12 +144,15 @@ class Control:
         op = request.get("op")
         supervisor = self._supervisor
         if op == "list":
+            folders = supervisor.folders()
             return {
                 "ok": True,
                 "epoch": supervisor.epoch,
                 "desired": supervisor.desired_generation,
                 "generation": supervisor.generation,
-                "workspace_root": str(self._config.workspace_dir),
+                "workspace_root": folders.workspace,
+                "workspace": folders.workspace_view(),
+                "roots": [report.as_dict() for report in folders.reports],
                 "sandbox": self.sandbox(),
                 "container": container_view(),
                 "rejected": supervisor.rejected,
@@ -170,18 +193,38 @@ class Control:
                 "paths": {"granted": [bind.dest for bind in report.binds], "refused": report.refused},
                 "restarted": report.restarted,
             }
+        if op == "inspect":
+            try:
+                return {"ok": True, **roots.inspect(request.get("path"), supervisor.mounts(), supervisor.own_folders, request.get("write_test") is True)}
+            except PathRefused as exc:
+                return {"ok": False, "error": str(exc)}
+        if op == "browse":
+            try:
+                return {"ok": True, **roots.browse(request.get("path"), supervisor.mounts(), supervisor.own_folders)}
+            except PathRefused as exc:
+                return {"ok": False, "error": str(exc)}
         if op == "install":
             generation = request.get("generation")
             if generation is not None and (not isinstance(generation, (str, int)) or isinstance(generation, bool) or len(str(generation)) > 128):
                 return {"ok": False, "error": "'generation' is a short string or number"}
             try:
                 entries, credentials, refused = parse_set(request.get("providers"))
-            except DesiredError as exc:
+                declared = roots.parse_folders(request.get("roots"), request.get("workspace"))
+            except (DesiredError, roots.FoldersError) as exc:
                 return {"ok": False, "error": str(exc)}
             for name, reason in refused.items():
                 logger.error("desired providers: %s: %s", name, reason)
-            supervisor.apply(entries, refused, credentials, None if generation is None else str(generation))
-            return {"ok": True, "accepted": [entry.name for entry in entries], "rejected": refused}
+            supervisor.apply(entries, refused, credentials, None if generation is None else str(generation), declared)
+            state = supervisor.folders()
+            for report in state.reports:
+                if report.state != "accepted":
+                    logger.warning("root folder %s (%s) is not used: %s", report.id, report.path, report.reason)
+            if state.workspace_state == "refused":
+                logger.warning("working folder %s is not used: %s", declared.workspace, state.workspace_reason)
+            return {
+                "ok": True, "accepted": [entry.name for entry in entries], "rejected": refused,
+                "roots": [report.as_dict() for report in state.reports], "workspace": state.workspace_view(),
+            }
         return {"ok": False, "error": f"unknown operation {op!r}"}
 
 

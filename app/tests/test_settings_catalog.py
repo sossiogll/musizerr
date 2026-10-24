@@ -71,12 +71,18 @@ def test_get_def_roundtrip():
     assert sc.get_def("__does_not_exist__") is None
 
 
-def test_the_default_workspace_folder_follows_the_variable_the_deployment_shares_with_the_gateway(monkeypatch):
-    monkeypatch.delenv("MUSIZEER_WORKSPACE_DIR", raising=False)
-    assert sc.default_workspace_dir() == "/downloads/.musizeer-work"
+def test_the_working_folder_is_a_folder_setting_with_no_default():
+    """ADR-0008: a root folder plus a path, set by the administrator; nothing in the environment seeds it."""
+    working = sc.get_def("workspace_dir")
 
-    monkeypatch.setenv("MUSIZEER_WORKSPACE_DIR", "  /library/.work ")
-    assert sc.default_workspace_dir() == "/library/.work"
+    assert working.type == "folder" and working.default is None and working.required is False
+    assert working.scope == "system" and working.host_side is True and working.suggested_path == ".musizeer-work"
+    assert not hasattr(sc, "default_workspace_dir")
+    assert sc.catalog_defaults()["workspace_dir"] is None
 
-    monkeypatch.setenv("MUSIZEER_WORKSPACE_DIR", "")
-    assert sc.default_workspace_dir() == "/downloads/.musizeer-work", "an empty variable is no variable"
+
+def test_a_folder_setting_is_public_with_its_suggested_path_and_no_default():
+    public = sc.get_def("workspace_dir").to_public()
+
+    assert public["type"] == "folder" and public["suggested_path"] == ".musizeer-work"
+    assert "default" not in public

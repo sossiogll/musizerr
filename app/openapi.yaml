@@ -51,6 +51,10 @@ tags:
     description: Application and provider configuration
   - name: sources
     description: Sources of providers (catalogs version 2), what is installed from them, and the provider gateway state
+  - name: roots
+    description: >
+      Root folders (admin): the places the administrator allows the product to use, the gateway's verdict on each, the
+      folder picker, and the folder settings that point at them
   - name: history
     description: Download history and retry
   - name: download-requests
@@ -135,14 +139,17 @@ components:
     SettingDefinition:
       type: object
       required: [key, type, group, area, label, description, label_key, description_key, provider_capability,
-                 admin_only, scope, options, minimum, maximum, step, secret, provider_category, required, hidden,
+                 suggested_path, admin_only, scope, options, minimum, maximum, step, secret, provider_category, required, hidden,
                  option_label_keys, confirm, visible_when]
       properties:
         key:
           type: string
         type:
           type: string
-          enum: [bool, int, float, string, enum, list, provider_ref]
+          enum: [bool, int, float, string, enum, list, provider_ref, folder]
+          description: >
+            `folder` is a root folder plus a path inside it: the value is `{"root_id", "path"}` (the path relative and
+            normalized; `""`, `{}` or null clear it). There is no default root (ADR-0008).
         group:
           type: string
         area:
@@ -164,6 +171,11 @@ components:
           description: >-
             The provider capability (musizeer_sdk.capabilities) the setting acts through; the UI lists the
             providers that declare it (ProviderInfo.capabilities).
+        suggested_path:
+          type: [string, "null"]
+          description: >-
+            Folder settings only: the path inside the root the interface SUGGESTS (relative, normalized). Never a default: an
+            unset folder is unset.
         admin_only:
           type: boolean
         scope:
@@ -912,6 +924,8 @@ components:
           description: >
             worker_unavailable, worker_lost, queue_unavailable,
             account_required, provider_not_connected, no_library_provider,
+            working_folder_not_set, library_folder_not_set (the downloads of a
+            likes download are blocked until a folder is set),
             job_failed, or a
             provider error code (e.g. metadata_provider_unreachable).
           example: worker_unavailable
@@ -2001,6 +2015,257 @@ components:
           additionalProperties:
             type: string
 
+    FoldersNotSetResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: object
+          required: [error_code, error_message]
+          properties:
+            error_code:
+              type: string
+              enum: [working_folder_not_set, library_folder_not_set]
+            error_message:
+              type: string
+            error_detail:
+              type: string
+
+    RootErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: object
+          required: [error_code, error_message]
+          properties:
+            error_code:
+              type: string
+            error_message:
+              type: string
+            used_by:
+              type: array
+              items:
+                $ref: "#/components/schemas/FolderSettingRef"
+
+    FolderSettingRef:
+      type: object
+      required: [key, label, group]
+      description: A folder setting (the working folder, or a provider's folder).
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        group:
+          type: string
+
+    RootFolder:
+      type: object
+      required: [id, label, path, state, reason, checked_at, created_at, used_by]
+      description: >
+        A root folder: a label and an absolute path as the containers see it. `state` is the gateway's last verdict:
+        `accepted`, `refused` (saved, not used; `reason` says why) or `unchecked` (not judged yet).
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        path:
+          type: string
+        state:
+          type: string
+          enum: [accepted, refused, unchecked]
+        reason:
+          type: string
+        checked_at:
+          type: [string, "null"]
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        used_by:
+          type: array
+          description: The folder settings that point at this root.
+          items:
+            $ref: "#/components/schemas/FolderSettingRef"
+
+    FolderSettingState:
+      type: object
+      required: [key, label, group, root_id, path, resolved, state, detail, suggested_path]
+      description: One folder setting, what it holds and the folder it resolves to.
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        group:
+          type: string
+        root_id:
+          type: [string, "null"]
+        path:
+          type: [string, "null"]
+          description: The path inside the root.
+        resolved:
+          type: [string, "null"]
+          description: The absolute folder the value names; null when it is not set.
+        state:
+          type: string
+          enum: [set, not_set, root_missing, root_refused, invalid]
+        detail:
+          type: string
+        suggested_path:
+          type: [string, "null"]
+
+    RootFolderList:
+      type: object
+      required: [roots, folders]
+      properties:
+        roots:
+          type: array
+          items:
+            $ref: "#/components/schemas/RootFolder"
+        folders:
+          type: array
+          items:
+            $ref: "#/components/schemas/FolderSettingState"
+
+    RootCheck:
+      type: object
+      required: [root, gateway, gateway_error, application, ok]
+      description: The explicit Check of a root.
+      properties:
+        root:
+          $ref: "#/components/schemas/RootFolder"
+        gateway:
+          description: What the gateway sees at the path (null when it could not be asked).
+          oneOf:
+            - $ref: "#/components/schemas/GatewayInspection"
+            - type: "null"
+        gateway_error:
+          type: [string, "null"]
+        application:
+          type: object
+          description: What the application itself sees (the working folder has to be mounted here too).
+          required: [exists, writable]
+          properties:
+            exists:
+              type: boolean
+            writable:
+              type: boolean
+        ok:
+          type: boolean
+          description: A writable directory on a mounted volume that the gateway does not refuse.
+
+    GatewayInspection:
+      type: object
+      required: [path, exists, directory, writable, mounted, reason, device, mount_id, mount_point, fs_type, free_bytes, real_path]
+      properties:
+        ok:
+          type: boolean
+        path:
+          type: string
+        exists:
+          type: boolean
+        directory:
+          type: boolean
+        writable:
+          type: boolean
+        mounted:
+          type: boolean
+          description: It lies on a mounted volume, not on the container's own file system nor a kernel or memory one.
+        reason:
+          type: string
+        device:
+          type: [string, "null"]
+        mount_id:
+          type: [integer, "null"]
+        mount_point:
+          type: [string, "null"]
+        fs_type:
+          type: [string, "null"]
+        free_bytes:
+          type: [integer, "null"]
+        real_path:
+          type: [string, "null"]
+        write_test:
+          type: object
+          description: The result of the hidden file the Check creates and removes.
+          properties:
+            ok:
+              type: boolean
+            error:
+              type: string
+
+    RootBrowse:
+      type: object
+      required: [ok, path, parent, volume, truncated, directories]
+      description: >
+        The subdirectories of `path` (never files) or, without a path, the mounted volumes. `parent` is null at the mount
+        point of the volume.
+      properties:
+        ok:
+          type: boolean
+        path:
+          type: [string, "null"]
+        parent:
+          type: [string, "null"]
+        volume:
+          type: [object, "null"]
+          additionalProperties: true
+        truncated:
+          type: boolean
+        directories:
+          type: array
+          items:
+            type: object
+            required: [name, path]
+            additionalProperties: true
+            properties:
+              name:
+                type: string
+              path:
+                type: string
+
+    ViewerFolders:
+      type: object
+      required: [ready, missing, working_folder, library_folder]
+      description: >
+        Whether downloads can work (ADR-0008): both folders they need are set. `missing` lists the ones that are not
+        (`working_folder`, `library_folder`). Administrators also get, per folder, the `setting` that holds it and `detail`
+        (why it is not set).
+      properties:
+        ready:
+          type: boolean
+        missing:
+          type: array
+          items:
+            type: string
+            enum: [working_folder, library_folder]
+        working_folder:
+          $ref: "#/components/schemas/ViewerFolder"
+        library_folder:
+          $ref: "#/components/schemas/ViewerFolder"
+
+    ViewerFolder:
+      type: object
+      required: [set, state, applicable]
+      properties:
+        set:
+          type: boolean
+        state:
+          type: string
+          enum: [set, not_set, root_missing, root_refused, invalid]
+        applicable:
+          type: boolean
+          description: False for the library folder when no storage provider is active or its library is not a folder.
+        setting:
+          type: [string, "null"]
+          description: Administrators only.
+        detail:
+          type: string
+          description: Administrators only.
+
     SourceErrorResponse:
       type: object
       required: [detail]
@@ -2763,7 +3028,10 @@ components:
       properties:
         status:
           type: string
-          enum: [queued, pending_approval, none, error]
+          enum: [queued, pending_approval, none, error, blocked]
+        error_code:
+          type: string
+          description: With `blocked` (downloads are blocked until a folder is set), `working_folder_not_set` or `library_folder_not_set`.
         queued:
           type: integer
         skipped:
@@ -3022,6 +3290,25 @@ components:
                     type: string
                   min_length:
                     type: integer
+    FoldersNotSet:
+      description: >-
+        Downloads are blocked (ADR-0008): `detail.error_code` is `working_folder_not_set` (the working folder is not set,
+        or its root folder is refused by the gateway) or `library_folder_not_set` (the active storage provider declares a
+        library folder and it is not set). Nothing was queued, delegated or recorded, not even an approval request.
+        `detail.error_detail` (why: a refused root, a value that could not be converted) is for administrators only.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/FoldersNotSetResponse"
+    RootRefused:
+      description: >-
+        A refusal with a stable code in `detail.error_code` (the operation lists them), a plain text in
+        `detail.error_message` and, for `root_in_use` and `confirmation_required`, `detail.used_by`: the folder settings
+        that point at the root.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RootErrorResponse"
     SourceRefused:
       description: >-
         A refusal with a stable code in `detail.error_code` (the operation lists them) and a
@@ -3118,7 +3405,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [auth_enabled, registration_open, mode, capabilities, download_policy]
+                required: [auth_enabled, registration_open, mode, capabilities, download_policy, folders]
                 properties:
                   auth_enabled:
                     type: boolean
@@ -3140,6 +3427,13 @@ paths:
                       now (null for a guest, who cannot download).
                     oneOf:
                       - $ref: "#/components/schemas/ViewerDownloadPolicy"
+                      - type: "null"
+                  folders:
+                    description: >
+                      Whether downloads can work (the working folder and the library folder are set), so the shell can warn
+                      and the download actions can be disabled with the reason (null for a guest).
+                    oneOf:
+                      - $ref: "#/components/schemas/ViewerFolders"
                       - type: "null"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
@@ -4089,6 +4383,8 @@ paths:
                 $ref: "#/components/schemas/DownloadPendingApproval"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4241,6 +4537,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "502":
           $ref: "#/components/responses/ProviderFailed"
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -4469,6 +4767,8 @@ paths:
                   - $ref: "#/components/schemas/ErrorResponse"
         "502":
           $ref: "#/components/responses/ProviderFailed"
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -4565,6 +4865,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "502":
           $ref: "#/components/responses/ProviderFailed"
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -4626,6 +4928,222 @@ paths:
   # ════════════════════════════════════════════════════════════════════
   # Provider Sources (admin): catalogs version 2, what is installed from them
   # ════════════════════════════════════════════════════════════════════
+
+  # ════════════════════════════════════════════════════════════════════
+  # Root folders (admin)
+  # ════════════════════════════════════════════════════════════════════
+
+  /roots:
+    get:
+      operationId: listRoots
+      tags: [roots]
+      summary: The root folders and every folder setting (admin)
+      description: >
+        A root is a label and an absolute path as the containers see it, with the gateway's verdict (`state`, `reason`).
+        `folders` lists every folder setting (the working folder, each provider's): its root, path, the folder it
+        resolves to and whether it is set (ADR-0008).
+      responses:
+        "200":
+          description: Roots and folders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootFolderList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    post:
+      operationId: addRoot
+      tags: [roots]
+      summary: Declare a root folder (admin)
+      description: >
+        The path is absolute and normalized (a trailing `/` is dropped; `..` and `//` are refused, so is `/`). The label
+        defaults to the last component of the path, capitalised. The root is saved and pushed to the gateway, whose verdict
+        is in the answer: a root that fails (not a mounted volume, not writable, overlapping the gateway's own folders) is
+        saved with its reason and is not used. Error codes: `root_path_invalid`, `root_label_invalid` (422),
+        `root_path_in_use` (409: another root has this path).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                label:
+                  type: [string, "null"]
+      responses:
+        "201":
+          description: The root, with the gateway's verdict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootFolder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/RootRefused"
+        "422":
+          $ref: "#/components/responses/RootRefused"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /roots/browse:
+    get:
+      operationId: browseRoots
+      tags: [roots]
+      summary: The folder picker (admin)
+      description: >
+        Asks the gateway for the subdirectories of `path`, which must lie inside a mounted volume (never files; a link that
+        leads out of the volume is not listed, and a path that leads out of it is refused). Without a path, the mounted
+        volumes themselves. Error codes: `gateway_refused` (422: not in a mounted volume, not a directory, the gateway's own
+        folder), `gateway_unreachable` (503).
+      parameters:
+        - name: path
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The directories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootBrowse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/RootRefused"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /roots/{root_id}:
+    patch:
+      operationId: editRoot
+      tags: [roots]
+      summary: Rename a root folder or move it (admin)
+      description: >
+        Only the fields present are changed. Moving a root that folder settings point at (a mount that moved) needs
+        `confirm=true`; without it the answer is 409 `confirmation_required` with `used_by`. The gateway is told at once
+        (the providers whose granted folders change restart). Error codes: `root_not_found` (404), `root_path_invalid`,
+        `root_label_invalid` (422), `root_path_in_use`, `confirmation_required` (409).
+      parameters:
+        - name: root_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: confirm
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: [string, "null"]
+                path:
+                  type: [string, "null"]
+      responses:
+        "200":
+          description: The root
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootFolder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/RootRefused"
+        "409":
+          $ref: "#/components/responses/RootRefused"
+        "422":
+          $ref: "#/components/responses/RootRefused"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    delete:
+      operationId: deleteRoot
+      tags: [roots]
+      summary: Remove a root folder (admin)
+      description: >
+        A root in use cannot be removed: 409 `root_in_use` lists the folder settings that point at it (`used_by`).
+        `root_not_found` (404).
+      parameters:
+        - name: root_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/RootRefused"
+        "409":
+          $ref: "#/components/responses/RootRefused"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /roots/{root_id}/check:
+    get:
+      operationId: checkRoot
+      tags: [roots]
+      summary: The explicit Check of a root folder (admin)
+      description: >
+        What the gateway sees at the path (exists, directory, a real write test with a hidden file it creates and
+        removes, mounted volume, device, free space) and whether the application sees it too. Read-only otherwise; the
+        gateway's verdict is recorded by the push. `gateway_error` says when the gateway could not be asked.
+      parameters:
+        - name: root_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootCheck"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/RootRefused"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /sources:
     get:
@@ -5137,6 +5655,8 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/ErrorResponse"
                   - $ref: "#/components/schemas/CodedErrorResponse"
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -5160,6 +5680,8 @@ paths:
         decided before any audio is sent. A remote storage streams the file as
         it arrives (no wait for the whole transfer); one that can restart a
         transfer at an offset answers a Range request with a 206 from there.
+        Reading the stored file goes through a workspace of the working folder: while it is not set the answer is
+        409 `working_folder_not_set` (or the sync provider's copy, when there is one).
       parameters:
         - name: track_id
           in: path
@@ -5196,6 +5718,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "502":
           $ref: "#/components/responses/ProviderFailed"
         "503":
@@ -6074,6 +6598,8 @@ paths:
                       type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
@@ -7371,6 +7897,9 @@ paths:
       operationId: verifyFullSync
       tags: [config]
       summary: Start the probe that checks the sync provider's full-sync mode (admin)
+      description: >
+        The probe writes a file through the storage provider from the working folder: while a folder is not set the
+        task's result is `{"status": "error", "error_code": "working_folder_not_set" | "library_folder_not_set"}`.
       responses:
         "200":
           description: Task queued
@@ -7790,6 +8319,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           description: Invalid body (no ids, more than 100)
+        "409":
+          $ref: "#/components/responses/FoldersNotSet"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 

@@ -25,10 +25,14 @@ The rules:
 * ``config_schema()`` is well formed (``config_schema_violations``): a list of
   ``ProviderSetting``; every key a non-empty string and unique; the type one
   the host knows (``bool``, ``int``, ``float``, ``string``, ``enum``,
-  ``list``); an ``enum`` declares its ``options`` and its default is one of
+  ``list``, ``folder``); an ``enum`` declares its ``options`` and its default is one of
   them; a default has the type it declares; the bounds of a number do not
   cross; ``visible_when`` names other settings of the same provider (and, for
   an ``enum``, a value it can have).
+* Folders (``folder_violations``, ADR-0008): a ``folder`` setting is not ``secret`` and its default is ``None`` or a
+  relative, normalized path (the SUGGESTED path inside the root the administrator picks, never an absolute one); every
+  setting named by ``Permissions.filesystem_from_settings`` is a declared ``folder`` setting; the setting a storage
+  provider names with ``library_folder_setting()`` is a declared ``folder`` setting.
 * An OAuth2 provider maps the capabilities that need a scope
   (``oauth2_capability_violations``): a provider that declares a capability
   that writes on the user's account (``CAPABILITIES_NEEDING_A_SCOPE``) has the
@@ -43,6 +47,9 @@ from typing import Any
 
 from musizeer_sdk import capabilities
 from musizeer_sdk.auth import AuthDefinition, AuthFlow
+from musizeer_sdk.folders import relative_path_problem
+from musizeer_sdk.interfaces import StorageProvider
+from musizeer_sdk.permissions import NO_PERMISSIONS
 from musizeer_sdk.settings import ProviderSetting, ProviderSettingType
 
 SETTING_TYPES: frozenset[str] = frozenset(typing.get_args(ProviderSettingType))
@@ -176,6 +183,8 @@ def _has_type(value: Any, setting_type: str) -> bool:
         return isinstance(value, str)
     if setting_type == "list":
         return isinstance(value, (list, tuple))
+    if setting_type == "folder":
+        return isinstance(value, str)
     return True
 
 
@@ -200,6 +209,68 @@ def _visible_when_violations(entry: ProviderSetting, by_key: dict[str, ProviderS
                     f"{where} is shown only when '{other_key}' is {value!r}, which is not one of its options "
                     "(it could never be shown)"
                 )
+    return problems
+
+
+# --- folders (ADR-0008) ------------------------------------------------------------
+
+
+def _declared_settings(provider: Any) -> dict[str, ProviderSetting]:
+    """The well formed entries of ``config_schema()`` by key (what is wrong with the schema itself is
+    ``config_schema_violations``' to say); empty when it cannot be read."""
+    try:
+        schema = provider.config_schema()
+    except Exception:  # noqa: BLE001 - reported by config_schema_violations
+        return {}
+    if not isinstance(schema, list):
+        return {}
+    return {entry.key: entry for entry in schema if isinstance(entry, ProviderSetting) and isinstance(entry.key, str)}
+
+
+def folder_violations(provider: Any) -> list[str]:
+    """What is wrong with the way a provider uses ``folder`` settings; an empty list when it is fine.
+
+    A ``folder`` setting has no default root: its ``default`` is only a relative, normalized path to suggest inside
+    the root the administrator picks, and it is never a secret. A folder is granted to the sandbox through
+    ``filesystem_from_settings`` and ONLY a ``folder`` setting is one the host can resolve against the declared roots,
+    so every setting named there has to be one. The setting a storage provider declares as its library
+    (``library_folder_setting()``) has to be one too."""
+    settings = _declared_settings(provider)
+    problems: list[str] = []
+
+    for key, entry in settings.items():
+        if entry.type != "folder":
+            continue
+        where = f"setting '{key}'"
+        if entry.secret:
+            problems.append(f"{where} is a folder and is declared secret (a folder is shown back to the administrator)")
+        if entry.default is not None:
+            problem = relative_path_problem(entry.default)
+            if problem is not None:
+                problems.append(
+                    f"{where} is a folder whose default {entry.default!r} {problem}: the default of a folder is only "
+                    "the suggested path inside the root folder, relative and normalized, or None"
+                )
+
+    permissions = getattr(provider, "permissions", NO_PERMISSIONS)
+    for access in getattr(permissions, "filesystem_from_settings", ()):
+        declared = settings.get(access.setting)
+        if declared is None:
+            problems.append(f"filesystem_from_settings names '{access.setting}', which the provider declares no such setting for")
+        elif declared.type != "folder":
+            problems.append(
+                f"filesystem_from_settings names '{access.setting}', which is a {declared.type} setting: "
+                "only a folder setting can be granted to the sandbox (type='folder')"
+            )
+
+    if isinstance(provider, StorageProvider):
+        key = provider.library_folder_setting()
+        if key is not None:
+            declared = settings.get(key)
+            if declared is None:
+                problems.append(f"library_folder_setting() names '{key}', which the provider declares no setting for")
+            elif declared.type != "folder":
+                problems.append(f"library_folder_setting() names '{key}', which is a {declared.type} setting, not a folder")
     return problems
 
 
@@ -253,6 +324,11 @@ def check_config_schema(provider: Any) -> None:
     _raise(provider, config_schema_violations(provider))
 
 
+def check_folders(provider: Any) -> None:
+    """Raises ``ConformanceError`` if the provider uses ``folder`` settings wrongly (ADR-0008)."""
+    _raise(provider, folder_violations(provider))
+
+
 def check_oauth2_capability_scopes(provider: Any) -> None:
     """Raises ``ConformanceError`` if an OAuth2 provider does not map the
     capabilities it declares that need a scope."""
@@ -261,7 +337,7 @@ def check_oauth2_capability_scopes(provider: Any) -> None:
 
 def provider_violations(provider: Any) -> list[str]:
     """Every violation of every rule, in one list."""
-    return [*config_schema_violations(provider), *oauth2_capability_violations(provider)]
+    return [*config_schema_violations(provider), *folder_violations(provider), *oauth2_capability_violations(provider)]
 
 
 def check_provider(provider: Any) -> None:

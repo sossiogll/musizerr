@@ -128,12 +128,16 @@ def test_the_contract_methods_are_the_public_functions_of_the_roles_it_fills():
 ABCS = [BaseProvider, *manifest.ROLES.values()]
 
 
+# Declared queries whose name does not start with a capability verb.
+OTHER_QUERIES = {"library_folder_setting"}
+
+
 def _no_argument_queries(abc):
     for name, member in vars(abc).items():
         if name.startswith("_") or not inspect.isfunction(member):
             continue
         parameters = [p for p in inspect.signature(member).parameters.values() if p.name != "self"]
-        if not parameters and name.startswith(("supports_", "restricts_", "is_")):
+        if not parameters and (name.startswith(("supports_", "restricts_", "is_")) or name in OTHER_QUERIES):
             yield name
 
 

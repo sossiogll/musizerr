@@ -43,7 +43,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Protocol
 
-from . import download_policy, environment, provider_login, user_auth
+from . import download_policy, provider_login, user_auth
 from musizeer_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK
 from musizeer_sdk.context import (
     DEFAULT_CONNECT_TIMEOUT,
@@ -53,7 +53,9 @@ from musizeer_sdk.context import (
 )
 from .routines import ROUTINES, enabled_setting_key, interval_setting_key
 
-SettingType = Literal["bool", "int", "float", "string", "enum", "list", "provider_ref"]
+# ``folder``: a root folder plus a relative path inside it (ADR-0008, ``core/folders.py``); the stored value is
+# ``{"root_id": "<id>", "path": "<relative>"}`` and there is no default root: a folder is whatever the administrator sets.
+SettingType = Literal["bool", "int", "float", "string", "enum", "list", "provider_ref", "folder"]
 
 # Governance di scrittura di un'impostazione:
 #   system                       — deployment-wide, scrivibile solo da admin.
@@ -229,6 +231,12 @@ class SettingDef:
     # /providers) e lo stato dell'account dell'utente su ciascuno. Mai un nome
     # di provider.
     provider_capability: str | None = None
+    # Per type == "folder": the path inside the root folder the interface SUGGESTS (relative, normalized), never a
+    # default: an unset folder is unset (ADR-0008). For a provider's folder it is the ``default`` the provider declared.
+    suggested_path: str | None = None
+    # Per type == "folder": the host itself writes into it (the working folder), so the root has to be mounted where
+    # the application runs too, not only in the gateway (checked when the setting is written).
+    host_side: bool = False
 
     @property
     def admin_only(self) -> bool:
@@ -249,6 +257,7 @@ class SettingDef:
             "label_key": f"settings.labels.{self.key}",
             "description_key": f"settings.descriptions.{self.key}",
             "provider_capability": self.provider_capability,
+            "suggested_path": self.suggested_path,
             "admin_only": self.admin_only,
             "scope": self.scope,
             "options": list(self.options) if self.options else None,
@@ -452,16 +461,6 @@ GROUPS: tuple[GroupMeta, ...] = (
 
 _GROUPS_BY_KEY: dict[str, GroupMeta] = {g.key: g for g in GROUPS}
 
-# The folder the host and the provider gateway exchange files through. The gateway mounts it in its
-# sandboxes and reads its own copy of the path from ``MUSIZEER_GATEWAY_WORKSPACE_DIR``; the deployment
-# (docker-compose.yaml) sets BOTH from ONE variable, ``MUSIZEER_WORKSPACE_DIR``, so the default of the
-# ``workspace_dir`` setting is read from it. A value saved in the settings wins over this seed, and the host warns
-# when it differs from the gateway's (``services/provider_events.GatewayWatcher``). Removed by ADR-0008: the working
-# folder becomes a folder setting over a root folder, with no environment default.
-def default_workspace_dir() -> str:
-    return environment.get("MUSIZEER_WORKSPACE_DIR").strip() or environment.default("MUSIZEER_WORKSPACE_DIR")
-
-
 def _entry(
     key: str,
     type_: SettingType,
@@ -645,9 +644,14 @@ CATALOG: tuple[SettingDef, ...] = (
 
     # ======================= area: library =======================
     # ----- File -----
-    _entry("workspace_dir", "string", default_workspace_dir(), GROUP_FILES,
+    # The working folder (ADR-0008): where the host creates the temporary folders the providers write and read files in
+    # (``<working folder>/<provider>/<random>``) and keeps the files waiting for the storage (``held-uploads``). A root
+    # folder plus a path, with NO default: until the administrator sets it downloads are blocked
+    # (``working_folder_not_set``). The host pushes it to the gateway; there is no copy in the environment.
+    _entry("workspace_dir", "folder", None, GROUP_FILES,
            "Cartella di lavoro",
-           "Dove l'host crea le cartelle temporanee in cui i provider scrivono e leggono i file. Sullo stesso volume della libreria, spostare un file è istantaneo. Deve essere la stessa cartella del gateway (MUSIZEER_WORKSPACE_DIR / MUSIZEER_GATEWAY_WORKSPACE_DIR): cambiarla qui senza cambiarla anche là scollega i provider dai loro file."),
+           "Dove l'host crea le cartelle temporanee in cui i provider scrivono e leggono i file e tiene i file in attesa di upload. È una cartella radice più un percorso al suo interno, senza valore predefinito: finché non è impostata i download sono bloccati. Va tenuta fuori dalla cartella che legge il music server.",
+           required=False, suggested_path=".musizeer-work", host_side=True),
     _entry("held_upload_max_age_hours", "int", 72, GROUP_FILES,
            "Conservazione file in attesa di upload (h)",
            "Un file scaricato il cui salvataggio sullo storage è fallito resta nella cartella di lavoro e si ritenta solo l'upload; oltre queste ore viene eliminato (il download si rifarà da capo).",

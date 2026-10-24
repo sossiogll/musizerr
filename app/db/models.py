@@ -815,3 +815,35 @@ class SchemaInfo(SQLModel, table=True):
     contract_revision: Optional[str] = Field(default=None)
     phase: str = Field(default="expand")
     migrated_at: datetime = Field(sa_type=UTCDateTime, default_factory=_now)
+
+
+class RootFolder(SQLModel, table=True):
+    """A root folder (ADR-0008): a location the administrator allows the product to use, as the containers see it. It has
+    no kind and no role: a folder setting (a root plus a relative path, ``core/folders.py``) gives it one. Nothing is keyed
+    by path or by provider; ``id`` is what a stored folder value names.
+
+    ``path`` is absolute and normalized, unique (the same path twice is refused; one root may lie inside another).
+    ``state`` is the gateway's last verdict on it (``accepted``, ``refused``, or ``unchecked`` before it has been judged),
+    ``reason`` why when refused, ``checked_at`` when: the gateway is the only process that sees every mount, so it alone
+    judges (``services/roots.py``). A root that is refused is saved and not used."""
+    __tablename__ = "root_folders"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    label: str
+    path: str = Field(unique=True)
+    state: str = Field(default="unchecked")
+    reason: str = Field(default="")
+    checked_at: Optional[datetime] = Field(sa_type=UTCDateTime, default=None)
+    created_at: datetime = Field(sa_type=UTCDateTime, default_factory=_now)
+    updated_at: datetime = Field(sa_type=UTCDateTime, default_factory=_now)
+
+
+class HostState(SQLModel, table=True):
+    """Facts the host remembers about itself between runs, as JSON text under a key: not settings (nobody edits them) and
+    not per user. The one-shot conversion of today's folder values (ADR-0008) keeps what it found and what it did here
+    (``services/roots.py``)."""
+    __tablename__ = "host_state"
+
+    key: str = Field(primary_key=True)
+    value: str = Field(default="null")
+    updated_at: datetime = Field(sa_type=UTCDateTime, default_factory=_now)

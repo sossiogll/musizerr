@@ -586,7 +586,8 @@ export const getLinkedAccounts = () =>
 
 export interface SettingDef {
   key: string;
-  type: "bool" | "int" | "float" | "string" | "enum" | "list" | "provider_ref";
+  /** `folder`: a root folder plus a path inside it, `{root_id, path}` (ADR-0008); no default root. */
+  type: "bool" | "int" | "float" | "string" | "enum" | "list" | "provider_ref" | "folder";
   group: string;
   area: string;
   label: string;
@@ -597,6 +598,8 @@ export interface SettingDef {
   /** The provider capability (ProviderInfo.capabilities) the setting acts
    * through: the UI lists the providers that declare it. */
   provider_capability?: string | null;
+  /** Folder settings: the path inside the root the UI suggests (never a default). */
+  suggested_path?: string | null;
   admin_only: boolean;
   // Governance dichiarata (core/settings_catalog.py::SettingScope).
   scope?: "system" | "user" | "system_with_user_override";

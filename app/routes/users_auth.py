@@ -10,11 +10,11 @@ from pydantic import BaseModel
 from core import user_auth
 from db import user_service
 from db.models import User
-from services import download_requests, refresh_tokens
+from services import download_requests, folders, refresh_tokens
 from services.capabilities import capabilities_for, viewer_mode
 
 from ._password import new_password_hash
-from .deps import ConfigDep, CurrentUserDep, OptionalUserDep, SessionDep
+from .deps import ConfigDep, CurrentUserDep, OptionalUserDep, RegistryDep, SessionDep
 
 _bearer_optional = HTTPBearer(auto_error=False)
 
@@ -58,8 +58,13 @@ class UserPublic(BaseModel):
 # Global auth status
 # ------------------------------------------------------------------
 
+def _is_admin(config, user: Optional[User]) -> bool:
+    """With authentication off the instance has one owner, who administers it (``routes/deps.get_current_user``)."""
+    return not config.auth_enabled or (user is not None and user.role == "admin")
+
+
 @router.get("/status")
-def auth_status(config: ConfigDep, user: OptionalUserDep, session: SessionDep):
+def auth_status(config: ConfigDep, user: OptionalUserDep, session: SessionDep, registry: RegistryDep):
     """Stato dell'autenticazione e, per chi sta guardando, modalità e
     capability (``services/capabilities.py``). Un token assente, scaduto o di
     un utente disattivato vale come guest.
@@ -68,7 +73,12 @@ def auth_status(config: ConfigDep, user: OptionalUserDep, session: SessionDep):
     download di chi guarda, per tipo (``services/download_requests.py``):
     ``applies`` è falso per un admin e in modalità aperta; ``null`` per un
     guest, che non scarica. Il server resta l'unico giudice al momento della
-    richiesta."""
+    richiesta.
+
+    ``folders`` (ADR-0008) dice se i download possono funzionare: ``ready``, le cartelle
+    mancanti (``missing``: ``working_folder`` e/o ``library_folder``) e lo stato di ciascuna
+    (``set``, ``state``, ``applicable``). Un amministratore vede anche l'impostazione che la
+    contiene e il motivo (``setting``, ``detail``). ``null`` per un guest."""
     mode = viewer_mode(config.auth_enabled, user)
     return {
         "auth_enabled": config.auth_enabled,
@@ -78,6 +88,7 @@ def auth_status(config: ConfigDep, user: OptionalUserDep, session: SessionDep):
         "mode": mode,
         "capabilities": capabilities_for(mode).as_dict(),
         "download_policy": None if mode == "guest" else download_requests.policy_status(session, user, config),
+        "folders": None if mode == "guest" else folders.status(session, config, registry, detailed=_is_admin(config, user)),
     }
 
 

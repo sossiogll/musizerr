@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Mapping
 
 from . import environment
-from .filesystem import PathRefused, check_root, inside
 
 
 class ConfigError(ValueError):
@@ -35,16 +34,12 @@ class GatewayConfig:
     # Shared with the application and the workers: the control socket and, under
     # ``providers/<name>/``, the socket of each provider.
     run_dir: Path = Path("/run/musizeer")
-    # The host's workspace directory (its ``workspace_dir`` setting): each sandbox
-    # sees only ``<workspace_dir>/<provider>``, at ``/workspace``.
-    workspace_dir: Path = Path("/downloads/.musizeer-work")
     # The uid/gid the provider sees itself as inside its sandbox (the only one).
     sandbox_uid: int = 10001
     sandbox_gid: int = 10001
     ceilings: Ceilings = Ceilings()
-    # The folders of the host a provider may be given a path inside of (``filesystem_from_settings``,
-    # see ``filesystem.py``): absolute, normalized, never "/". Empty: no folder is ever granted.
-    filesystem_roots: tuple[str, ...] = ()
+    # There is NO folder here (ADR-0008): the root folders and the working folder are declared by the host
+    # (``{"op": "install"}``, ``control.py``) and judged by ``roots.py``; the mounts are the bound.
 
     @property
     def control_socket(self) -> Path:
@@ -83,33 +78,11 @@ def from_environment(environ: Mapping[str, str] | None = None) -> GatewayConfig:
         open_files=number("MUSIZEER_GATEWAY_MAX_OPEN_FILES"),
         processes=number("MUSIZEER_GATEWAY_MAX_PROCESSES"),
     )
-    state_dir = Path(text("MUSIZEER_GATEWAY_STATE_DIR"))
-    run_dir = Path(text("MUSIZEER_GATEWAY_RUN_DIR"))
     return GatewayConfig(
-        state_dir=state_dir,
-        run_dir=run_dir,
-        workspace_dir=Path(text("MUSIZEER_GATEWAY_WORKSPACE_DIR")),
+        state_dir=Path(text("MUSIZEER_GATEWAY_STATE_DIR")),
+        run_dir=Path(text("MUSIZEER_GATEWAY_RUN_DIR")),
         sandbox_uid=number("MUSIZEER_GATEWAY_SANDBOX_UID"),
         sandbox_gid=number("MUSIZEER_GATEWAY_SANDBOX_GID"),
         ceilings=ceilings,
-        filesystem_roots=_roots(text("MUSIZEER_GATEWAY_FILESYSTEM_ROOTS"), (state_dir, run_dir)),
     )
 
-
-def _roots(text: str, own: tuple[Path, ...]) -> tuple[str, ...]:
-    """``MUSIZEER_GATEWAY_FILESYSTEM_ROOTS``: folders separated by ``:``. A root that could expose the gateway
-    itself is a configuration error, not something to skip quietly."""
-    roots: list[str] = []
-    for item in (part.strip() for part in text.split(":")):
-        if not item:
-            continue
-        try:
-            root = check_root(item)
-        except PathRefused as exc:
-            raise ConfigError(f"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: {exc}") from exc
-        for path in own:
-            if inside(root, str(path)) or inside(str(path), root):
-                raise ConfigError(f"MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: '{root}' overlaps the gateway's own folder {path}")
-        if root not in roots:
-            roots.append(root)
-    return tuple(roots)

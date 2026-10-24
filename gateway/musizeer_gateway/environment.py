@@ -42,9 +42,6 @@ ENTRIES: tuple[Variable, ...] = (
     Variable("MUSIZEER_COMMIT", default="", old_name="MUSIZERR_COMMIT"),
     Variable("MUSIZEER_GATEWAY_STATE_DIR", default="/var/lib/musizeer-gateway", old_name="GATEWAY_STATE_DIR"),
     Variable("MUSIZEER_GATEWAY_RUN_DIR", default="/run/musizeer", old_name="GATEWAY_RUN_DIR"),
-    # Removed by ADR-0008: the host pushes the working folder and the declared root folders to the gateway.
-    Variable("MUSIZEER_GATEWAY_WORKSPACE_DIR", default="/downloads/.musizeer-work", old_name="GATEWAY_WORKSPACE_DIR"),
-    Variable("MUSIZEER_GATEWAY_FILESYSTEM_ROOTS", default="", old_name="GATEWAY_FILESYSTEM_ROOTS"),
     Variable("MUSIZEER_GATEWAY_SANDBOX_UID", default="10001", old_name="GATEWAY_SANDBOX_UID"),
     Variable("MUSIZEER_GATEWAY_SANDBOX_GID", default="10001", old_name="GATEWAY_SANDBOX_GID"),
     Variable("MUSIZEER_GATEWAY_MAX_MEMORY_MB", default="2048", old_name="GATEWAY_MAX_MEMORY_MB"),
@@ -53,6 +50,15 @@ ENTRIES: tuple[Variable, ...] = (
 )
 
 BY_NAME: dict[str, Variable] = {entry.name: entry for entry in ENTRIES}
+
+# Variables that ADR-0008 retired, under both the old and the new prefix (the new ones lived for a few commits of the
+# release): they are not renamed, they are gone. Safety net only, like ``REMOVED``: an error that says what replaced them.
+RETIRED: dict[str, str] = {
+    "GATEWAY_WORKSPACE_DIR": "the working folder is a setting of the application (Administration › Root folders) and the host tells the gateway",
+    "MUSIZEER_GATEWAY_WORKSPACE_DIR": "the working folder is a setting of the application (Administration › Root folders) and the host tells the gateway",
+    "GATEWAY_FILESYSTEM_ROOTS": "the root folders are declared in the application (Administration › Root folders); the gateway accepts only what is mounted into it",
+    "MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": "the root folders are declared in the application (Administration › Root folders); the gateway accepts only what is mounted into it",
+}
 
 # Old name -> new name: the safety net's table.
 REMOVED: dict[str, str] = {entry.old_name: entry.name for entry in ENTRIES if entry.old_name}
@@ -87,8 +93,13 @@ def check(environ: Mapping[str, str] | None = None) -> list[tuple[str, str]]:
     for old, new in REMOVED.items():
         if source.get(old, "") != "":
             findings.append(("error", moved_message(old, new)))
+    for old, replacement in RETIRED.items():
+        if source.get(old, "") != "":
+            findings.append(("error", f"{old} is no longer read: {replacement}"))
     known = list(BY_NAME)
     for name in sorted(source):
+        if name in RETIRED:
+            continue
         if name.startswith(PREFIX) and name not in BY_NAME:
             near = difflib.get_close_matches(name, known, n=1, cutoff=0.85)
             if near:

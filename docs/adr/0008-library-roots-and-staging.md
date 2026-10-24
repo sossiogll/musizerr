@@ -501,3 +501,26 @@ All the questions of the draft are answered; the points below are decided and no
 8. **Installs converted from the old default** end with the working folder inside the library folder: accepted, with the
    warning of §11 (forbidding it would break every install made so far, and there is one).
 9. **Changing the path of a root in use** is allowed after a confirmation that lists what depends on it (§2).
+
+## Implementation notes (steps 1, 2 and 4 of the plan, as shipped)
+
+Where the code differs from, or settles, what the record leaves open:
+
+- **Files.** `gateway/musizeer_gateway/roots.py` (the mountinfo rule, `evaluate`, `inspect`, `browse`), `app/core/folders.py` (the
+  pure rules), `app/services/folders.py` (resolution and readiness) and `app/services/roots.py` (use cases and the conversion).
+  The record names `services/folders.py` for resolution and `services/roots.py` for validation and conversion: that is how it is.
+- **`inspect` has one write.** The explicit Check of a root asks for `write_test`, which creates and removes a hidden file; without
+  it `inspect` is read-only.
+- **The conversion's source is set aside by a migration.** `0046` (contract) moves the stored `workspace_dir` (or the old default,
+  when the install has been used) into `host_state`, because the new code cannot read a text under a folder setting; the conversion
+  itself still waits for the gateway. A provider's folder typed as a path is converted in place. The old absolute default of a
+  provider's folder (the local library's `/downloads`) is NOT converted when no value was stored: the host knows no provider's
+  default, and the new `default` of a folder setting is only a suggested relative path. An install that relied on it sets the
+  library folder once; the blocked state says so (`set the library folder of <storage provider> in Root folders`, in the reason
+  kept by the conversion and in `folders.library_folder.detail` of the viewer status).
+- **Readiness uses the host's copy of the verdict.** A root counts as not set when the gateway's last verdict on it is `refused`;
+  `unchecked` (the gateway has not answered yet) does not block.
+- **The providers keep running without a working folder.** Search and metadata do not need it; the sandbox gets an empty private
+  `/workspace` and the socket transport asks the host for the working folder only for a call that carries a file.
+- **`root_mappings` is not created.** The delegate mapping (steps 5 and 6) is for the ordinary minor after this release.
+

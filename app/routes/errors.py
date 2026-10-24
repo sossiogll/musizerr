@@ -8,6 +8,9 @@ Handler degli errori che non sono colpa dell'host, installati sull'app da
   configurato, 502 altrimenti. Corpo ``{"detail": {error_code,
   error_message, provider[, error_detail]}}``; ``error_detail`` (il testo
   grezzo) solo per un amministratore.
+- :class:`services.folders.FoldersNotReady` — a folder the product needs is not set (ADR-0008): 409 with
+  ``error_code`` ``working_folder_not_set`` or ``library_folder_not_set``; ``error_detail`` (why: a root the gateway
+  refuses, a value that could not be converted) only for an administrator.
 - un lock del database scaduto (SQLite ``database is locked``; PostgreSQL
   lock timeout, deadlock, conflitto di serializzazione, statement timeout) —
   503 riprovabile con ``error_code: database_busy``, non un 500.
@@ -26,6 +29,7 @@ from sqlalchemy.exc import OperationalError
 
 from routes import deps
 from services.errors import public_error
+from services.folders import FoldersNotReady
 from services.provider_calls import ProviderCallError
 
 logger = logging.getLogger(__name__)
@@ -119,6 +123,14 @@ async def _operational_error(request: Request, exc: OperationalError) -> JSONRes
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
+async def _folders_not_ready(request: Request, exc: FoldersNotReady) -> JSONResponse:
+    body: dict[str, Any] = {"error_code": exc.error_code, "error_message": exc.message}
+    if exc.detail and await run_in_threadpool(_viewer_is_admin, request):
+        body["error_detail"] = exc.detail
+    return JSONResponse(status_code=409, content={"detail": body})
+
+
 def install_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ProviderCallError, _provider_call_error)
+    app.add_exception_handler(FoldersNotReady, _folders_not_ready)
     app.add_exception_handler(OperationalError, _operational_error)

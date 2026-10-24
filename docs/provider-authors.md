@@ -68,7 +68,9 @@ the admin sees it before installing, and the gateway enforces it.
   - `tcp_from_settings`: `TcpAccess("host", "any")`, raw TCP to the host a
     setting names (a protocol that is not HTTP; use `musizeer_sdk.net`);
   - `filesystem_from_settings`: `FilesystemAccess("root_dir", "rw")`, a folder a
-    setting names, inside what the instance allows;
+    setting names. The setting has to be of type `folder` (see "Folders" below);
+    the gateway binds the folder into the sandbox at the same absolute path, only
+    if it lies inside a root folder the administrator declared;
   - `limits`: `memory_mb` (address space of each process, in which every thread reserves its stack: about 8 MB by default),
     `open_files` (of each process) and `processes` (the processes and threads of the whole sandbox together, counted by the
     gateway: a provider that stays above it is stopped and started again), within the gateway's ceilings. The defaults are
@@ -82,6 +84,32 @@ the admin sees it before installing, and the gateway enforces it.
   host stores them, places them under the provider in the settings, encrypts the
   secret ones, and gives the current values to each call:
   `self.context.setting(key)`.
+- **Folders** (`type="folder"`, ADR-0008). A setting that is a place on the
+  machine (the library a storage provider writes into) is a `folder` setting, never
+  a `string` with an absolute path. The administrator picks a **root folder**
+  they declared and a path inside it, and cannot leave the root. You still get
+  a plain absolute path: `self.context.setting("root_dir")` is a string such as
+  `"/library/Music"`, resolved by the host before each call. You never see a root or
+  its id. There is **no default root**: the setting's `default` is only the
+  SUGGESTED path inside the root (relative and normalized, `"Music"`, or `None`),
+  and until the administrator sets the folder `setting(key)` is `None`, so answer "not
+  configured" and do not guess a place. Name the setting in
+  `FilesystemAccess` to have the folder bound into the sandbox. A location that
+  is not a folder of this machine (an FTP path, a bucket) stays a `string`.
+- **`StorageProvider.library_folder_setting()`** returns the key of the `folder`
+  setting that holds where the library is (`None` if your library is not a local
+  folder). The host reads it to know whether the library is set up: while it holds no
+  value no download is started (`library_folder_not_set`) and `store` is never called.
+- **`StorageProvider.store` must be atomic.** The file appears under its final name
+  all at once, or not at all, so a music server that scans while you work never
+  indexes half a file. Write `.<name>.part` in the destination directory, flush and
+  `fsync` it, then `rename` it onto the final name (atomic inside one directory).
+  The working folder and the library are separate mounts in the sandbox, so
+  `rename` and `link` from the one to the other fail with `EXDEV`: do not fall back on
+  `shutil.move`, which then copies straight under the final name. Remove the
+  `.part` file if the call fails. A remote store uploads to a temporary name and
+  renames, or uses the service's atomic upload. The host checks the stored size
+  (`size`) before it counts the file as landed.
 
 ## What it gets, what it returns
 
@@ -132,10 +160,13 @@ def test_my_provider_follows_the_contract():
 It raises one `ConformanceError` (an `AssertionError`) listing every violation:
 `config_schema()` must be a list of well formed `ProviderSetting` (known types,
 unique keys, `options` for an enum, defaults of their type, `visible_when`
-naming settings you declare), and an OAuth2 provider that declares a capability
+naming settings you declare), a `folder` setting must not be secret and may
+default only to a relative, normalized path (or `None`), every setting named in
+`filesystem_from_settings` and the one `library_folder_setting()` returns must
+be declared and of type `folder`, and an OAuth2 provider that declares a capability
 that writes on the user's account (`unlike_saved_track`, `propagate_favorites`,
 `propagate_playlists`) must map it to its scopes in
-`OAuth2Config.capability_scopes`. `check_config_schema` and
+`OAuth2Config.capability_scopes`. `check_config_schema`, `check_folders` and
 `check_oauth2_capability_scopes` run one rule, and the `*_violations` functions
 return the list instead of raising.
 

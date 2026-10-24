@@ -77,6 +77,14 @@ class FakeControlSocket:
         self.install_reply: dict | None = None
         self.sandbox = {"available": True, "reason": "ok"}
         self.rejected: dict[str, str] = {}
+        # The root folders and the working folder the host pushed (ADR-0008), and how this gateway judges them:
+        # a path in ``refused_paths`` is refused with its reason, every other root is accepted.
+        self.roots: list[dict] = []
+        self.workspace: str | None = None
+        self.folders_pushed = False
+        self.refused_paths: dict[str, str] = {}
+        self.inspections: dict[str, dict] = {}
+        self.browsings: dict[str | None, dict] = {}
         fake = self
 
         class Handler(socketserver.StreamRequestHandler):
@@ -102,14 +110,41 @@ class FakeControlSocket:
                  "declared": {"name": n, "roles": ["lyrics"], "provider_api_version": PROVIDER_API_VERSION, "permissions": {}}}
                 for n in names
             ]
-            return {"ok": True, "accepted": names, "rejected": {}}
+            self.roots = list(request.get("roots") or [])
+            self.workspace = request.get("workspace")
+            self.folders_pushed = True
+            return {"ok": True, "accepted": names, "rejected": {}, "roots": self.root_reports(), "workspace": self.workspace_report()}
         if request["op"] == "list":
             return {
                 "ok": True, "epoch": self.epoch, "generation": len(self.providers), "desired": self.desired,
-                "workspace_root": "/downloads/.musizeer-work", "sandbox": self.sandbox, "rejected": self.rejected,
-                "providers": self.providers,
+                "workspace_root": self.workspace if self.folders_pushed else "/downloads/.musizeer-work",
+                "workspace": self.workspace_report(), "roots": self.root_reports(),
+                "sandbox": self.sandbox, "rejected": self.rejected, "providers": self.providers,
+            }
+        if request["op"] == "inspect":
+            path = request["path"]
+            return self.inspections.get(path) or {
+                "ok": True, "path": path, "exists": True, "directory": True, "writable": True, "mounted": True, "reason": "",
+                "device": "8:1", "mount_id": 5, "mount_point": path, "fs_type": "ext4", "free_bytes": 1024, "real_path": path,
+                **({"write_test": {"ok": True, "error": ""}} if request.get("write_test") else {}),
+            }
+        if request["op"] == "browse":
+            path = request.get("path")
+            return self.browsings.get(path) or {
+                "ok": True, "path": path, "parent": None, "volume": None, "truncated": False, "directories": [],
             }
         return {"ok": False, "error": "unknown"}
+
+    def root_reports(self) -> list[dict]:
+        return [
+            {"id": root["id"], "path": root["path"], "state": "refused" if root["path"] in self.refused_paths else "accepted",
+             "reason": self.refused_paths.get(root["path"], ""), "device": "8:1", "mount_id": 5, "mount_point": root["path"],
+             "fs_type": "ext4", "writable": True, "free_bytes": 1024}
+            for root in self.roots
+        ]
+
+    def workspace_report(self) -> dict:
+        return {"path": self.workspace, "state": "accepted" if self.workspace else "unset", "reason": ""}
 
     def pushes(self) -> list[dict]:
         return [r for r in self.requests if r["op"] == "install"]

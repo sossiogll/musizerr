@@ -23,10 +23,14 @@ from __future__ import annotations
 
 from typing import Any
 
+import os
+
 from sqlmodel import Session
 
 from musizeer_sdk.auth import AuthFlow
+from core import folders as folder_rules
 from core.auth_manager import AuthError, AuthManager
+from services import folders
 from services.config_manager import ConfigManager
 from core.interfaces import ProviderRegistry
 from core.settings_catalog import CATALOG, SettingDef, SettingRefused, get_def
@@ -370,6 +374,46 @@ class SettingsService:
                 raise SettingsWriteError(400, f"{key}: unavailable — {reason}")
 
     # ------------------------------------------------------------------
+    # Folders (ADR-0008): a folder value names a root that exists and a path that stays inside it.
+    # ------------------------------------------------------------------
+
+    def folder_keys_among(self, keys, *, include_providers: bool = True) -> list[str]:
+        """Which of ``keys`` are settings of type ``folder`` (a change of one is pushed to the gateway)."""
+        by_key = {s.key: s for s in self.schema(include_providers=include_providers)}
+        return [key for key in keys if key in by_key and by_key[key].type == "folder"]
+
+    def _enforce_folders(self, coerced: dict[str, Any], schema_by_key: dict[str, SettingDef]) -> None:
+        """Refuse a folder whose root does not exist, that the gateway refuses, or whose path leaves the root through a
+        link; for the folder the host writes into (the working folder) also a root the application does not see mounted.
+        Clearing a folder is always allowed. The structure of the value is already checked (``coerce_value``)."""
+        roots = None
+        for key, value in coerced.items():
+            setting = schema_by_key[key]
+            if setting.type != "folder" or value is None:
+                continue
+            roots = roots if roots is not None else folders.roots_by_id(self._session)
+            folder = folder_rules.parse_value(value)
+            root = roots.get(folder.root_id)
+            if root is None:
+                raise SettingsWriteError(400, f"{key}: that root folder does not exist", folder_rules.ROOT_NOT_FOUND)
+            if root.state == "refused":
+                raise SettingsWriteError(
+                    400, f"{key}: the gateway refuses that root folder: {root.reason or 'see Administration > Root folders'}",
+                    folder_rules.ROOT_REFUSED,
+                )
+            try:
+                folder_rules.resolve(root.path, folder.path, folders.real_path)
+            except folder_rules.FolderError as refused:
+                raise SettingsWriteError(400, f"{key}: {refused.message}", refused.code) from refused
+            if setting.host_side and not (os.path.isdir(root.path) and os.access(root.path, os.W_OK | os.X_OK)):
+                raise SettingsWriteError(
+                    400,
+                    f"{key}: the root folder '{root.label}' ({root.path}) is not a writable folder where the application runs: "
+                    "mount it in the application and the workers at the same path",
+                    folder_rules.NOT_MOUNTED,
+                )
+
+    # ------------------------------------------------------------------
     # Task 4 — un provider_ref è testato PRIMA di essere accettato.
     # ------------------------------------------------------------------
 
@@ -470,10 +514,11 @@ class SettingsService:
                 value = coerce_value(setting, raw)
                 validate_value(setting, value, self._registry)
             except SettingError as exc:
-                raise SettingsWriteError(400, f"{exc.key}: {exc.message}") from exc
+                raise SettingsWriteError(400, f"{exc.key}: {exc.message}", exc.error_code) from exc
             coerced[key] = value
 
         self._enforce_guards(coerced, schema_by_key)
+        self._enforce_folders(coerced, schema_by_key)
 
         # Stato PRIMA di questa scrittura (senza filtro di ruolo: serve a
         # valutare requisiti che referenziano impostazioni system-scoped, es.

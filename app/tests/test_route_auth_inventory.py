@@ -185,6 +185,13 @@ EXPECTED: dict[tuple[str, str], str] = {
     ("POST", "/config/verify-full-sync"): "admin",
     ("GET", "/config/verify-full-sync/{task_id}"): "admin",
 
+    # --- root folders (routes/roots.py)
+    ("GET", "/roots"): "admin",
+    ("POST", "/roots"): "admin",
+    ("GET", "/roots/browse"): "admin",
+    ("PATCH", "/roots/{root_id}"): "admin",
+    ("DELETE", "/roots/{root_id}"): "admin",
+    ("GET", "/roots/{root_id}/check"): "admin",
     # --- provider sources (routes/sources.py)
     ("GET", "/sources"): "admin",
     ("POST", "/sources"): "admin",

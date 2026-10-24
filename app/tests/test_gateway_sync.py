@@ -8,6 +8,7 @@ from sqlmodel import Session
 
 from db.models import InstalledProvider, ProviderSource
 from services import provider_events
+from services.folders import FoldersNotReady
 from services.gateway_client import GatewayClient
 from services.gateway_sync import GatewaySync, desired_entries, generation
 from tests.sources_support import DIGEST_A, DIGEST_B, TOKEN, FakeControlSocket
@@ -172,23 +173,39 @@ def test_without_a_gateway_the_api_starts_without_pushing(monkeypatch):
     deps.init_singletons()
 
 
-def test_the_watcher_says_once_that_the_host_and_the_gateway_name_different_workspace_folders(gateway, caplog):
+def test_the_watcher_says_once_that_the_host_and_the_gateway_name_different_working_folders(gateway, caplog):
     client = GatewayClient(gateway.path)
     folder = ["/data/work"]
-    watcher = provider_events.GatewayWatcher(Registry(), client, lambda: None, workspace_dir=lambda: folder[0])
+    watcher = provider_events.GatewayWatcher(
+        Registry(), client, lambda: None, workspace_dir=lambda: folder[0], convert=lambda: None,
+    )
 
     watcher.check()
     watcher.check()
 
-    messages = [r.getMessage() for r in caplog.records if "workspace" in r.getMessage()]
+    messages = [r.getMessage() for r in caplog.records if "working folder" in r.getMessage()]
     assert len(messages) == 1, "said once per pair of values, not every few seconds"
-    assert "/data/work" in messages[0] and "/downloads/.musizeer-work" in messages[0] and "MUSIZEER_WORKSPACE_DIR" in messages[0]
+    assert "/data/work" in messages[0] and "/downloads/.musizeer-work" in messages[0]
+    assert "MUSIZEER_" not in messages[0], "no variable names the folder any more"
 
     folder[0] = "/downloads/.musizeer-work/"  # the same folder, spelled with a trailing slash
     caplog.clear()
     watcher.check()
-    assert not [r for r in caplog.records if "workspace" in r.getMessage()]
+    assert not [r for r in caplog.records if "working folder" in r.getMessage()]
 
     folder[0] = "/data/work"  # a desync after a good time is said again
     watcher.check()
-    assert len([r for r in caplog.records if "workspace" in r.getMessage()]) == 1
+    assert len([r for r in caplog.records if "working folder" in r.getMessage()]) == 1
+
+
+def test_the_watcher_compares_nothing_while_the_working_folder_is_not_set(gateway, caplog):
+    def not_set():
+        raise FoldersNotReady("working_folder_not_set", "not set")
+
+    watcher = provider_events.GatewayWatcher(
+        Registry(), GatewayClient(gateway.path), lambda: None, workspace_dir=not_set, convert=lambda: None,
+    )
+
+    watcher.check()
+
+    assert not [r for r in caplog.records if "working folder" in r.getMessage()]

@@ -29,6 +29,7 @@ from routes.deps import (
     StreamUserDep,
 )
 from services import public_urls
+from services.folders import FoldersNotReady
 from services.provider_calls import ProviderCallError, provider_call
 from services.provider_proxy import ProviderCallFailed
 from services.storage import resolve_storage_provider
@@ -408,9 +409,11 @@ def stream_track(
     if storage is not None and sync_stream is None:
         try:
             response = _stream_stored(storage, storage_session, file_path, config, range_header)
-        except ProviderCallError as exc:
+        except (ProviderCallError, FoldersNotReady) as exc:
+            # A working folder that is not set (ADR-0008) cannot receive the file: like a lost storage, the copy of a sync
+            # provider still plays; without one the answer is the 409 working_folder_not_set.
             stored_failure = exc
-            if exc.kind == "unreachable":
+            if getattr(exc, "kind", None) == "unreachable":
                 cooldown.record(storage.name, False)
         else:
             cooldown.record(storage.name, True)

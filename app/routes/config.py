@@ -25,6 +25,7 @@ from routes.deps import (
 )
 from services.auth import auth_manager_for
 from services.credentials import own_store, shared_store, user_store
+from services.gateway_sync import GatewaySync
 from services.linked_accounts import credential_fields, personal_state, shared_state
 from services.settings import SettingsService, SettingsWriteError
 
@@ -137,10 +138,15 @@ def patch_settings(
     anziano che possa accedere); ignorato in ogni altro caso.
     """
     service = SettingsService(session, config, registry)
+    updates = body.model_dump(exclude_none=True)
     try:
-        return service.write_values(body.model_dump(exclude_none=True), user, adopt_into=adopt_into)
+        values = service.write_values(updates, user, adopt_into=adopt_into)
     except SettingsWriteError as exc:
         _raise_for_write_error(exc)
+    if service.folder_keys_among(updates):
+        # The gateway learns the working folder (and the folders it grants) now, not at its next check (ADR-0008).
+        GatewaySync().push(session)
+    return values
 
 
 @router.get("/providers/public")

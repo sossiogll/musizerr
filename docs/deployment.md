@@ -184,24 +184,43 @@ the delegate may be another container, another host, a VPN. Typical mistakes:
 
 ## Folders
 
+Three levels, and only the first is yours as the operator (ADR-0008):
+
+| Level | What | Where |
+|---|---|---|
+| **Mount** | a folder of the machine attached to a container | the compose file (`/downloads`, `/library`) and your override file |
+| **Root folder** | a location the administrator allows the product to use: a label and the path as the containers see it | Administration > Root folders (the database) |
+| **Folder setting** | a root plus a path inside it: the **working folder**, and a storage provider's **library folder** | Settings and the provider's page |
+
 ```
  downloads (named volume)  ─ mounted at /downloads in app, the three workers, beat and the gateway
-    └── .musizeer-work/    ─ the workspace: MUSIZEER_WORKSPACE_DIR
+ library   (named volume)  ─ mounted at /library in the gateway only
  gateway_state             ─ the gateway's layer cache (not shared)
 ```
 
-- **The workspace.** The host and the gateway exchange files in `MUSIZEER_WORKSPACE_DIR` (default `/downloads/.musizeer-work`): the host
-  creates a folder per call, the gateway shows each provider its own part as `/workspace`. **One variable sets both
-  sides**: compose gives it to the gateway as `MUSIZEER_GATEWAY_WORKSPACE_DIR` and to the API and workers, where it is the default of the
-  setting `workspace_dir`. Put it inside a volume that all of them mount at the same path. If you change the setting
-  `workspace_dir` in the interface without changing `MUSIZEER_WORKSPACE_DIR`, the two disagree and providers cannot exchange files; the
-  API logs `The workspace folder of the host ... is not the gateway's` when that happens.
-- **The folders a provider may use.** A provider that works with a folder of the machine (a local storage provider's
-  library, say) is given the folder its setting names, but only if it lies inside one of the gateway's **roots**:
-  `MUSIZEER_GATEWAY_FILESYSTEM_ROOTS`, absolute paths separated by `:`, default `/downloads`. A root has to be mounted in the
-  gateway container to hold anything.
+**There is no folder variable.** Nothing in `.env` names a folder, and the gateway has no list either: the administrator
+declares the root folders in the interface, the host tells the gateway, and the gateway accepts a root only if it is a
+**mounted volume** (a folder you mounted into it, not part of its image: `/etc` is refused), a writable directory that does not
+overlap its own state. **What you mount into the gateway is therefore what an administrator can declare: mount only the music
+folders.** The old variables `WORKSPACE_DIR`, `GATEWAY_WORKSPACE_DIR` and `GATEWAY_FILESYSTEM_ROOTS` (and their `MUSIZEER_`
+forms) are not read; the app and the gateway log an error naming what replaced them if one is still set.
 
-  *Example: a staging folder (the `downloads` volume) and a music library of the host at `/srv/music`, seen as `/library`.*
+- **Downloads are blocked until two folders are set.** A new install has no root folders and no folders: Administration > Root
+  folders shows the mounted volumes, `/downloads` and `/library` are the ones compose mounts. Set the **working folder** (where
+  the application downloads and works: a root plus a path such as `.musizeer-work`) and the storage provider's **library
+  folder**. Until then every download is refused with `working_folder_not_set` or `library_folder_not_set`, nothing is queued, and
+  an administrator sees a persistent warning (`GET /auth/account/status`, `folders`).
+- **The working folder** must lie in a root mounted at the same path in the application, the workers and the gateway (the
+  host checks its side when you save it, the gateway reports its own). The host creates a folder per call in it, the gateway
+  shows each provider its own part as `/workspace`. **Keep it out of what the music server reads**: give Navidrome (or any
+  music server) the library folder and never the downloads folder, or it indexes half-downloaded files, and mount the library
+  read-only in it (`:ro`).
+- **The library folder** is where the storage provider writes the final files. It must be mounted in the gateway; the
+  application does not need it. Keep the working folder and the library on one disk for speed: a file moves from one to the other
+  by a copy that appears atomically (`.part`, `fsync`, `rename`), and correctness never depends on it.
+- **Your own folders.** To use a folder of the host as the library, mount it in the gateway only:
+
+  *Example: a music library of the host at `/srv/music`, seen as `/library` (replacing the `library` volume).*
   Create `docker-compose.override.yml` next to the compose file (Compose reads it by itself):
 
   ```yaml
@@ -211,20 +230,18 @@ the delegate may be another container, another host, a VPN. Typical mistakes:
         - /srv/music:/library
   ```
 
-  and in `.env`:
-
-  ```sh
-  MUSIZEER_GATEWAY_FILESYSTEM_ROOTS=/downloads:/library
-  ```
-
-  Then `docker compose up -d provider-gateway`, and give the storage provider `/library` (or a folder inside it) as its folder in
-  Administration. The gateway runs as uid 1000 and the sandboxes' files belong to it: `chown -R 1000:1000 /srv/music` (or
-  make it writable for that uid) if the provider has to write. A folder outside every root, a link that leads out of
-  one, `/`, and the gateway's own folders are refused, with the reason in the provider's page and in
-  `docker compose exec provider-gateway python -m musizeer_gateway.ctl list` (`folders.refused`).
-- **The music itself** is wherever your storage provider puts it: in `/library` above, or in the `downloads` volume. A named
-  volume lives in `/var/lib/docker/volumes`; replace `downloads` with a bind mount in the override file for all services that
-  mount it if you want a folder of your own for it.
+  Then `docker compose up -d provider-gateway`, declare `/library` as a root folder and set the storage provider's folder to
+  it. The gateway runs as uid 1000 and the sandboxes' files belong to it: `chown -R 1000:1000 /srv/music` (or make it writable
+  for that uid) if the provider has to write. A root that is not a mounted volume, one that overlaps the gateway's own folders, a
+  path that leads out of its root through a link, `/`, and the same path twice are refused, with the reason in the root's row and in
+  `docker compose exec provider-gateway python -m musizeer_gateway.ctl list` (`roots`).
+- **The music itself** is wherever your storage provider puts it: `/library` above. A named volume lives in
+  `/var/lib/docker/volumes`; replace `downloads` and `library` with bind mounts in the override file for all services that
+  mount them if you want folders of your own.
+- **An install made before roots existed** is converted once, when the gateway first answers: the working folder it had
+  (or the old default) becomes a root plus `.musizeer-work`, a provider folder typed as a path becomes a root plus a path.
+  What cannot be expressed (not mounted, not writable) is left unset and the warning says which setting and why. The old
+  working folder is left on disk, and the downloads held in it for a later upload are dropped (they repeat).
 
 ## Upgrading
 
@@ -309,9 +326,8 @@ an empty value meaning "not set" (the default of the table applies, written in o
 to look for. A process that finds an old name set logs `AUTH_SECRET is no longer read: rename it to MUSIZEER_AUTH_SECRET`
 (never the value), and the two secrets stop the start with that message; compose says the same for the required ones. A
 variable that starts with `MUSIZEER_` and is in no row (a typo) is logged with a "did you mean". The names other projects
-define keep them: `DATABASE_URL`, `REDIS_URL`, `POSTGRES_*`, `TZ`, `NGINX_*`, `VITE_*` and the proxy variables. Two of the
-variables are removed by the next change, which makes folders a setting (ADR-0008): `MUSIZEER_WORKSPACE_DIR` and
-`MUSIZEER_GATEWAY_FILESYSTEM_ROOTS` (and `MUSIZEER_GATEWAY_WORKSPACE_DIR`, which compose sets from the first).
+define keep them: `DATABASE_URL`, `REDIS_URL`, `POSTGRES_*`, `TZ`, `NGINX_*`, `VITE_*` and the proxy variables. The three folder variables of
+older versions are gone, not renamed: folders are root folders and folder settings now ([Folders](#folders)).
 
 `MUSIZEER_VERSION` has two roles that never meet at run time: in `.env` it selects the tag of the images, and inside an image
 it is the version it was built as (a build argument; compose does not forward it).
@@ -372,9 +388,6 @@ it is the version it was built as (a build argument; compose does not forward it
 | `ADMIN_BOOTSTRAP_EMAIL` | `MUSIZEER_ADMIN_BOOTSTRAP_EMAIL` | With the password below, creates the first administrator when there are no users. | none | no | application |
 | `ADMIN_BOOTSTRAP_PASSWORD` | `MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD` | The first administrator's password (at least 8 characters). Secret. | none | no | application |
 | `PROVIDER_GATEWAY_SOCKET` | `MUSIZEER_GATEWAY_SOCKET` | The control socket of the provider gateway, as the application sees it. | `/run/musizeer/gateway.sock` | no | application |
-| `WORKSPACE_DIR` | `MUSIZEER_WORKSPACE_DIR` | The folder the host and the gateway exchange files through (the default of the `workspace_dir` setting). | `/downloads/.musizeer-work` | no | application |
-| `GATEWAY_WORKSPACE_DIR` | `MUSIZEER_GATEWAY_WORKSPACE_DIR` | The same folder as the gateway sees it; compose sets both from `MUSIZEER_WORKSPACE_DIR`. | `/downloads/.musizeer-work` | no | gateway |
-| `GATEWAY_FILESYSTEM_ROOTS` | `MUSIZEER_GATEWAY_FILESYSTEM_ROOTS` | The folders a provider may be given a path inside of, separated by `:`. | empty (compose passes `/downloads`) | no | gateway |
 | `GATEWAY_STATE_DIR` | `MUSIZEER_GATEWAY_STATE_DIR` | Everything the gateway keeps: layer cache, unpacked images, egress sockets. | `/var/lib/musizeer-gateway` | no | gateway |
 | `GATEWAY_RUN_DIR` | `MUSIZEER_GATEWAY_RUN_DIR` | Shared with the application: the control socket and the sockets of the providers. | `/run/musizeer` | no | gateway |
 | `GATEWAY_SANDBOX_UID` | `MUSIZEER_GATEWAY_SANDBOX_UID` | The uid a provider sees itself as inside its sandbox. | `10001` | no | gateway |
@@ -414,7 +427,8 @@ it is the version it was built as (a build argument; compose does not forward it
 | `init` is `Exited (1)` and nothing else starts | `docker compose logs init`: usually `MUSIZEER_CREDENTIALS_KEY` invalid, the database not reachable, or "The database was NOT migrated because its backup failed" (the message says why: disk full, `/data/backups` not writable; fix it and `docker compose up -d` again). |
 | `app` or a worker exits at start with "The database is behind" or "cannot run on this database" | The schema is not one this version can use: [The backup `init` takes, and going back](#the-backup-init-takes-and-going-back). |
 | The browser is sent to `localhost` after signing in at a service | `MUSIZEER_PUBLIC_URL` is not set ([The public URL](#the-public-url)). |
-| A provider cannot read or write files | `MUSIZEER_WORKSPACE_DIR` / `MUSIZEER_GATEWAY_WORKSPACE_DIR` differ, or the folder is outside a root ([Folders](#folders)). |
+| Downloads answer `working_folder_not_set` or `library_folder_not_set` | A folder is not set, or its root is refused by the gateway (Administration > Root folders says why): [Folders](#folders). |
+| A provider cannot read or write files | The working folder is not mounted at the same path in the application, the workers and the gateway, or its root is refused ([Folders](#folders)). |
 | The existing library is not imported | The *System routines* page: *Import the existing library* says `waiting` until a storage provider is installed, configured and answering. |
 
 `MUSIZEER_BACKEND_URL` (the web app's `frontend` service, default `http://app:8000`) is where nginx reaches the API. Set it only if you

@@ -31,6 +31,7 @@ from typing import Any, Callable
 
 from musizeer_sdk.settings import ProviderSetting
 
+from . import folders
 from .interfaces import ProviderRegistry
 from .settings_catalog import AREA_PROVIDERS, CATALOG, SettingDef
 
@@ -139,10 +140,14 @@ def provider_setting_def(provider_name: str, setting: ProviderSetting) -> Settin
     stesso, che per la UI è già etichettato da ``GET /providers``), l'area
     ("providers") e la governance (scope di sistema, non nascosta, senza
     requisiti)."""
+    is_folder = setting.type == "folder"
     return SettingDef(
         key=namespace_provider_key(provider_name, setting.key),
         type=setting.type,
-        default=setting.default,
+        # A folder has no default root (ADR-0008): what the provider declares is only the path to SUGGEST inside the root
+        # the administrator picks, and an unset folder is unset.
+        default=None if is_folder else setting.default,
+        suggested_path=setting.default if is_folder else None,
         group=provider_name,
         label=setting.label,
         description=setting.description,
@@ -241,9 +246,11 @@ class SettingError(Exception):
     chiave incriminata e un messaggio mostrabile direttamente in una UI. Mai
     una sostituzione silenziosa col default."""
 
-    def __init__(self, key: str, message: str) -> None:
+    def __init__(self, key: str, message: str, error_code: str | None = None) -> None:
         self.key = key
         self.message = message
+        # A stable code the interface translates, when the refusal has one (a folder).
+        self.error_code = error_code
         super().__init__(f"{key}: {message}")
 
 
@@ -313,6 +320,18 @@ def _coerce_list(setting: SettingDef, raw: Any) -> list:
     raise SettingError(setting.key, f"valore non lista per '{setting.key}': {raw!r}")
 
 
+def _coerce_folder(setting: SettingDef, raw: Any) -> dict[str, str] | None:
+    """A ``folder`` is ``{"root_id", "path"}`` (a root folder and a relative path inside it, ``core/folders.py``); an empty
+    value (``""``, ``{}``, ``None``) is "no folder". Whether the root exists is the host's to check
+    (``services/settings.py``): this module reads no database."""
+    if folders.is_unset(raw):
+        return None
+    try:
+        return folders.parse_value(raw).stored()
+    except folders.FolderError as refused:
+        raise SettingError(setting.key, refused.message, refused.code) from refused
+
+
 def coerce_value(setting: SettingDef, raw: Any) -> Any:
     """Converte un valore RAW in arrivo (es. dal body JSON di una richiesta)
     nel tipo dichiarato da ``setting.type``. Non sostituisce mai silenziosamente
@@ -327,6 +346,8 @@ def coerce_value(setting: SettingDef, raw: Any) -> Any:
         return _coerce_string_like(setting, raw)
     if setting.type == "list":
         return _coerce_list(setting, raw)
+    if setting.type == "folder":
+        return _coerce_folder(setting, raw)
     raise SettingError(setting.key, f"tipo di impostazione sconosciuto: '{setting.type}'")
 
 

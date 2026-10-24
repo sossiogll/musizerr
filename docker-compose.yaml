@@ -47,14 +47,6 @@ x-application: &application
   MUSIZEER_PUBLIC_API_PREFIX: ${MUSIZEER_PUBLIC_API_PREFIX:-}
   MUSIZEER_UPDATE_REPOSITORY: ${MUSIZEER_UPDATE_REPOSITORY:-}
 
-# The folder the host and the gateway exchange files through (the `workspace_dir` setting, docs/gateway.md):
-# ONE variable for both. The gateway mounts <MUSIZEER_WORKSPACE_DIR>/<provider> in each sandbox; the host creates
-# its call folders there and takes the default of the `workspace_dir` setting from it. It must lie inside a
-# volume that the application, the workers AND the gateway all mount at the same path.
-# (ADR-0008 removes this variable: the working folder becomes a setting over a root folder.)
-x-workspace: &workspace
-  MUSIZEER_WORKSPACE_DIR: ${MUSIZEER_WORKSPACE_DIR:-}
-
 # What a service that talks to the database, Redis and the providers waits for before it starts: the
 # migrations done (init), the database and Redis answering, the gateway up. The gateway's health is its
 # control socket answering; whether it can build a sandbox is another matter (`docker compose exec
@@ -117,7 +109,7 @@ services:
     image: *app-image
     restart: unless-stopped
     environment:
-      <<: [*database, *credentials, *public-urls, *application, *workspace]
+      <<: [*database, *credentials, *public-urls, *application]
       MUSIZEER_DATA_DIR: /data
       REDIS_URL: ${REDIS_URL:-}
       MUSIZEER_AUTH_SECRET: ${MUSIZEER_AUTH_SECRET:?set MUSIZEER_AUTH_SECRET in .env (it was AUTH_SECRET)}
@@ -190,14 +182,12 @@ services:
     volumes:
       - provider_sockets:/run/musizeer
       - gateway_state:/var/lib/musizeer-gateway
-      - downloads:/downloads # the workspaces live in the library volume, like the application's
+      - downloads:/downloads # where the application downloads and works: shared with the application and the workers
+      - library:/library # the library: mounted in the gateway only (the storage provider writes into it)
+    # No folder is configured here (ADR-0008): the root folders (/downloads and /library are the conventional mounts)
+    # and the working folder are declared in Administration > Root folders, and the host pushes them to the gateway.
+    # What can be declared is bounded by what is mounted above: mount only the music folders.
     environment:
-      # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md):
-      # the library. Several are separated with ":" (e.g. /downloads:/library, docs/deployment.md#folders).
-      # (ADR-0008 removes this variable and the next one: the host pushes the root folders and the working folder.)
-      MUSIZEER_GATEWAY_FILESYSTEM_ROOTS: ${MUSIZEER_GATEWAY_FILESYSTEM_ROOTS:-/downloads}
-      # The same folder as the host's MUSIZEER_WORKSPACE_DIR (see x-workspace above).
-      MUSIZEER_GATEWAY_WORKSPACE_DIR: ${MUSIZEER_WORKSPACE_DIR:-}
       # The ceilings of a sandbox: the most any provider may be given, whatever its manifest asks.
       MUSIZEER_GATEWAY_MAX_MEMORY_MB: ${MUSIZEER_GATEWAY_MAX_MEMORY_MB:-}
       MUSIZEER_GATEWAY_MAX_OPEN_FILES: ${MUSIZEER_GATEWAY_MAX_OPEN_FILES:-}
@@ -235,7 +225,7 @@ services:
       --queues=downloads
     restart: unless-stopped
     environment: &worker-environment
-      <<: [*database, *credentials, *application, *workspace]
+      <<: [*database, *credentials, *application]
       MUSIZEER_DATA_DIR: /data
       REDIS_URL: ${REDIS_URL:-}
     volumes: &worker-volumes
@@ -350,6 +340,7 @@ services:
 volumes:
   data:
   downloads:
+  library:
   redis_data:
   postgres_data:
   provider_sockets:

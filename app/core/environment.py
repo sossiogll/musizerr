@@ -226,24 +226,6 @@ ENTRIES: tuple[Variable, ...] = (
         "The control socket of the provider gateway, as the application sees it.",
         default="/run/musizeer/gateway.sock", old_name="PROVIDER_GATEWAY_SOCKET",
     ),
-    # Removed by ADR-0008: the working folder becomes a folder setting over a root folder, and the host pushes the
-    # roots and the working folder to the gateway. The three entries below go with the pull request that does it.
-    Variable(
-        "MUSIZEER_WORKSPACE_DIR",
-        "The folder the host and the gateway exchange files through (the default of the `workspace_dir` setting).",
-        default="/downloads/.musizeer-work", old_name="WORKSPACE_DIR",
-    ),
-    Variable(
-        "MUSIZEER_GATEWAY_WORKSPACE_DIR",
-        "The same folder as the gateway sees it; compose sets both from `MUSIZEER_WORKSPACE_DIR`.",
-        default="/downloads/.musizeer-work", readers=(GATEWAY,), old_name="GATEWAY_WORKSPACE_DIR",
-    ),
-    Variable(
-        "MUSIZEER_GATEWAY_FILESYSTEM_ROOTS",
-        "The folders a provider may be given a path inside of, separated by `:`.",
-        default="", readers=(GATEWAY,), old_name="GATEWAY_FILESYSTEM_ROOTS",
-        default_doc="empty (compose passes `/downloads`)",
-    ),
     Variable(
         "MUSIZEER_GATEWAY_STATE_DIR",
         "Everything the gateway keeps: layer cache, unpacked images, egress sockets.",
@@ -318,6 +300,19 @@ ENTRIES: tuple[Variable, ...] = (
 )
 
 BY_NAME: dict[str, Variable] = {entry.name: entry for entry in ENTRIES}
+
+# Variables that ADR-0008 retired, under the name they had before the rename and under the prefixed one (which lived for a
+# few commits of the release): they are not renamed, they are gone, because no folder is configured in the environment any
+# more. Safety net only, like ``REMOVED``: an error that says what replaced them, naming the variable and never its value.
+# The gateway keeps the entries that concern it (``gateway/musizeer_gateway/environment.py``, kept equal by a test).
+RETIRED: dict[str, str] = {
+    "WORKSPACE_DIR": "the working folder is a setting (Administration › Root folders)",
+    "MUSIZEER_WORKSPACE_DIR": "the working folder is a setting (Administration › Root folders)",
+    "GATEWAY_WORKSPACE_DIR": "the working folder is a setting of the application (Administration › Root folders) and the host tells the gateway",
+    "MUSIZEER_GATEWAY_WORKSPACE_DIR": "the working folder is a setting of the application (Administration › Root folders) and the host tells the gateway",
+    "GATEWAY_FILESYSTEM_ROOTS": "the root folders are declared in the application (Administration › Root folders); the gateway accepts only what is mounted into it",
+    "MUSIZEER_GATEWAY_FILESYSTEM_ROOTS": "the root folders are declared in the application (Administration › Root folders); the gateway accepts only what is mounted into it",
+}
 
 # Old name -> new name, for the variables a process of the application used to read: the safety net's table.
 REMOVED: dict[str, str] = {
@@ -411,8 +406,13 @@ def check(environ: Mapping[str, str] | None = None) -> list[tuple[str, str]]:
     for old, new in REMOVED.items():
         if source.get(old, "") != "":
             findings.append(("error", moved_message(old, new)))
+    for old, replacement in RETIRED.items():
+        if source.get(old, "") != "":
+            findings.append(("error", f"{old} is no longer read: {replacement}"))
     known = list(BY_NAME)
     for name in sorted(source):
+        if name in RETIRED:
+            continue
         if name.startswith(PREFIX) and name not in BY_NAME:
             near = difflib.get_close_matches(name, known, n=1, cutoff=0.75)
             hint = f"; did you mean {near[0]}?" if near else ""
