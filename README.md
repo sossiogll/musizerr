@@ -36,14 +36,14 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
    them too: `docker-compose.yaml`, `gateway/seccomp/`, `.env.example`). Then set, in `.env`:
 
    ```sh
-   POSTGRES_PASSWORD=...        # openssl rand -hex 24
+   POSTGRES_PASSWORD=...                 # openssl rand -hex 24
    MUSIZEER_AUTH_SECRET=...              # openssl rand -hex 32
    MUSIZEER_CREDENTIALS_KEY=...          # openssl rand -base64 32 | tr '+/' '-_'
    MUSIZEER_ADMIN_BOOTSTRAP_EMAIL=you@example.com
    MUSIZEER_ADMIN_BOOTSTRAP_PASSWORD=...
    MUSIZEER_PUBLIC_URL=http://your-server:8080   # the address people type; OAuth callbacks and sign-in redirects use it
    MUSIZEER_PORT=8080
-   # MUSIZEER_VERSION=1.2.0     # optional: pin a release (the tags of the GitHub releases); default latest
+   # MUSIZEER_VERSION=1.2.0              # optional: pin a release (the tags of the GitHub releases); default latest
    ```
 
    Keep `MUSIZEER_CREDENTIALS_KEY` with your database backups: without it the stored credentials cannot be read and every

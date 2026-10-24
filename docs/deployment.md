@@ -43,8 +43,8 @@ cannot come from inside an image; that is why it is a file next to the compose f
 required (compose refuses to start without them). Generate each once:
 
 ```sh
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"              >> .env
-echo "MUSIZEER_AUTH_SECRET=$(openssl rand -hex 32)"                    >> .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"                     >> .env
+echo "MUSIZEER_AUTH_SECRET=$(openssl rand -hex 32)"                >> .env
 echo "MUSIZEER_CREDENTIALS_KEY=$(openssl rand -base64 32 | tr '+/' '-_')" >> .env
 ```
 
