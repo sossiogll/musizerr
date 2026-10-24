@@ -1,10 +1,14 @@
+# The project name is pinned, so the containers, the network and the volumes are called musizeer-*, musizeer_default
+# and musizeer_<volume> whatever the folder is called.
+name: musizeer
+
 # Il database di tutti i servizi: PostgreSQL (il servizio `postgres` qui sotto).
 # POSTGRES_PASSWORD viene da .env (non versionato, vedi .env.example): una
 # password sicura in un URL (lettere e cifre). Per restare su SQLite (file in
 # DATA_DIR) si tolgono il servizio `postgres` e queste dipendenze: vedi
 # docs/postgresql.md.
 x-database: &database
-  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-musizerr}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-musizerr}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-musizeer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-musizeer}
 
 # The key that encrypts the stored credentials (docs/credentials.md). CREDENTIALS_KEY comes from
 # .env (not versioned, see .env.example) and every service that reads the database needs it: the
@@ -15,7 +19,7 @@ x-credentials: &credentials
   CREDENTIALS_KEY: ${CREDENTIALS_KEY:?set CREDENTIALS_KEY in .env (docs/credentials.md)}
   CREDENTIALS_KEY_PREVIOUS: ${CREDENTIALS_KEY_PREVIOUS:-}
 
-# Where Musizerr is reached from outside (docs/deployment.md, "The public URL"): the address users type in
+# Where Musizeer is reached from outside (docs/deployment.md, "The public URL"): the address users type in
 # their browser, with no trailing slash. OAuth2 providers send the browser back to it after the
 # user signed in at the service ("<PUBLIC_URL>/api/auth/<provider>/callback"), and the application ends
 # the flow on it. APP_BASE_URL (the callback's base, including /api) and FRONTEND_URL (where the flow
@@ -30,12 +34,12 @@ x-public-urls: &public-urls
 # its call folders there and takes the default of the `workspace_dir` setting from it. It must lie inside a
 # volume that the application, the workers AND the gateway all mount at the same path.
 x-workspace: &workspace
-  WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizerr-work}
+  WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizeer-work}
 
 # What a service that talks to the database, Redis and the providers waits for before it starts: the
 # migrations done (init), the database and Redis answering, the gateway up. The gateway's health is its
 # control socket answering; whether it can build a sandbox is another matter (`docker compose exec
-# provider-gateway python -m musizerr_gateway.ctl health`), and the application works without providers.
+# provider-gateway python -m musizeer_gateway.ctl health`), and the application works without providers.
 x-backend-depends-on: &backend-depends-on
   init:
     condition: service_completed_successfully
@@ -46,14 +50,14 @@ x-backend-depends-on: &backend-depends-on
   provider-gateway:
     condition: service_healthy
 
-# The images of Musizerr, published on GHCR for linux/amd64 and linux/arm64: every merge into master
+# The images of Musizeer, published on GHCR for linux/amd64 and linux/arm64: every merge into master
 # updates :latest, every release publishes :X.Y.Z. MUSIZERR_VERSION (in .env) pins a release and
 # `docker compose pull` fetches it; MUSIZERR_IMAGES names another registry or owner (a fork). To build
 # them from this checkout instead: docker-compose.build.yml.
 x-images:
-  app: &app-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizerr:${MUSIZERR_VERSION:-latest}
-  gateway: &gateway-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizerr-gateway:${MUSIZERR_VERSION:-latest}
-  frontend: &frontend-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizerr-frontend:${MUSIZERR_VERSION:-latest}
+  app: &app-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizeer:${MUSIZERR_VERSION:-latest}
+  gateway: &gateway-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizeer-gateway:${MUSIZERR_VERSION:-latest}
+  frontend: &frontend-image ${MUSIZERR_IMAGES:-ghcr.io/sossiogll}/musizeer-frontend:${MUSIZERR_VERSION:-latest}
 
 services:
 
@@ -103,7 +107,7 @@ services:
     volumes:
       - data:/data
       - downloads:/downloads
-      - provider_sockets:/run/musizerr # the sockets of the providers the gateway runs
+      - provider_sockets:/run/musizeer # the sockets of the providers the gateway runs
     depends_on: *backend-depends-on
     healthcheck:
       test:
@@ -126,8 +130,8 @@ services:
   # because it also switches AppArmor and seccomp off, which hands the host to whatever
   # runs in the container. What the gateway does need, and why:
   #   - a seccomp profile: Docker's default plus the five syscalls bubblewrap
-  #     builds a sandbox with (gateway/seccomp/musizerr-gateway.json, or the
-  #     musizerr-gateway.seccomp.json that every release carries; GATEWAY_SECCOMP_PROFILE
+  #     builds a sandbox with (gateway/seccomp/musizeer-gateway.json, or the
+  #     musizeer-gateway.seccomp.json that every release carries; GATEWAY_SECCOMP_PROFILE
   #     names the file);
   #   - apparmor=unconfined: Docker's docker-default AppArmor profile (Debian, Ubuntu...) denies
   #     the namespace calls with EACCES, which bubblewrap reports as "Creating new namespace
@@ -137,9 +141,9 @@ services:
   #   - systempaths=unconfined: a sandbox mounts its own /proc, which the kernel
   #     refuses while the container's /proc has Docker's masked paths over it.
   # The sandboxed processes get a further seccomp filter of their own that takes
-  # those syscalls away again (gateway/musizerr_gateway/sandbox_filter.py).
+  # those syscalls away again (gateway/musizeer_gateway/sandbox_filter.py).
   #
-  # uid 1000 is the application's user (the `musizerr` user of the image): the
+  # uid 1000 is the application's user (the `musizeer` user of the image): the
   # sockets and the workspace folders they share need no widening of permissions, and
   # the files a sandbox writes into the library belong to the same user as the application's.
   #
@@ -161,21 +165,21 @@ services:
     pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}
     cap_drop: [ALL]
     security_opt:
-      - seccomp=${GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizerr-gateway.json}
+      - seccomp=${GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizeer-gateway.json}
       - apparmor=unconfined
       - systempaths=unconfined
     volumes:
-      - provider_sockets:/run/musizerr
-      - gateway_state:/var/lib/musizerr-gateway
+      - provider_sockets:/run/musizeer
+      - gateway_state:/var/lib/musizeer-gateway
       - downloads:/downloads # the workspaces live in the library volume, like the application's
     environment:
       # The folders a provider may be given a path inside of (filesystem_from_settings, docs/gateway.md):
       # the library. Several are separated with ":" (e.g. /downloads:/library, docs/deployment.md#folders).
       GATEWAY_FILESYSTEM_ROOTS: ${GATEWAY_FILESYSTEM_ROOTS:-/downloads}
       # The same folder as the host's WORKSPACE_DIR (see x-workspace above).
-      GATEWAY_WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizerr-work}
+      GATEWAY_WORKSPACE_DIR: ${WORKSPACE_DIR:-/downloads/.musizeer-work}
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; socket.socket(socket.AF_UNIX).connect('/run/musizerr/gateway.sock')"]
+      test: ["CMD", "python", "-c", "import socket; socket.socket(socket.AF_UNIX).connect('/run/musizeer/gateway.sock')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -213,7 +217,7 @@ services:
     volumes: &worker-volumes
       - data:/data
       - downloads:/downloads
-      - provider_sockets:/run/musizerr
+      - provider_sockets:/run/musizeer
     depends_on: *backend-depends-on
 
   worker-jobs:
@@ -307,9 +311,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-musizerr}
+      POSTGRES_USER: ${POSTGRES_USER:-musizeer}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-musizerr}
+      POSTGRES_DB: ${POSTGRES_DB:-musizeer}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

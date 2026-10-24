@@ -1,14 +1,14 @@
-musizerr-ui/node_modules
-musizerr-ui/dist
-musizerr-ui/.pnpm-store
+musizeer-ui/node_modules
+musizeer-ui/dist
+musizeer-ui/.pnpm-store
 .env
 # project uses pnpm, not npm
-musizerr-ui/package-lock.json
+musizeer-ui/package-lock.json
 .claude
 .vscode
 .git
 **/__pycache__
-musizerr-ui/tsconfig.app.tsbuildinfo
+musizeer-ui/tsconfig.app.tsbuildinfo
 .venv
 data
 sql

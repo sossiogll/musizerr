@@ -64,7 +64,7 @@ front() { # front <env args...>: the frontend under test
 get() { curl -fsS --max-time 15 "$@"; }
 
 step "building the production image of the frontend"
-docker build -q -t "$IMAGE" --target production musizerr-ui >/dev/null
+docker build -q -t "$IMAGE" --target production musizeer-ui >/dev/null
 docker network create "$NET" >/dev/null
 
 step "a. nginx -t, and the variables of nginx survive the template"

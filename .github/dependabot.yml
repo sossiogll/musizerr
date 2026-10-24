@@ -28,7 +28,7 @@ updates:
 
   # The web app (pnpm).
   - package-ecosystem: npm
-    directory: /musizerr-ui
+    directory: /musizeer-ui
     target-branch: dev
     schedule:
       interval: weekly
@@ -43,9 +43,9 @@ updates:
       - dependency-name: "@types/node"
         update-types: [version-update:semver-major]
 
-  # The base images of the Musizerr images and of the providers' base image.
+  # The base images of the Musizeer images and of the providers' base image.
   - package-ecosystem: docker
-    directories: [/, /gateway, /musizerr-ui, /provider-base]
+    directories: [/, /gateway, /musizeer-ui, /provider-base]
     target-branch: dev
     schedule:
       interval: weekly

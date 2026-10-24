@@ -4,13 +4,13 @@ Write or update an entry of a development catalog (docs/catalog.md, "Development
 Standard library only, so that it runs in a bare ``python:3.12-slim`` container (scripts/dev-catalog.sh does it):
 the host does not run Python. It is given what the build of an image produced: the image name, the digest the
 registry returned and the labels of the image (scripts/build-provider-image.sh, ``PROVIDER_LABELS_OUT``). The
-entry is made of those: roles, API version and permissions from the ``org.musizerr.provider.*`` labels (the very
-ones the gateway checks), the display name from ``org.musizerr.provider.label``, the description and the
+entry is made of those: roles, API version and permissions from the ``org.musizeer.provider.*`` labels (the very
+ones the gateway checks), the display name from ``org.musizeer.provider.label``, the description and the
 homepage from the standard ``org.opencontainers.image.description`` and ``.url`` labels when the Dockerfile sets
 them. An entry of the same name is replaced where it stands (its digest moves on); a new one is appended.
 
-    python dev_catalog.py --catalog data/catalogs/registry.json --image oci-registry:5000/musizerr-provider-x \\
-        --digest sha256:... --labels labels.txt [--catalog-name "Musizerr development catalog"]
+    python dev_catalog.py --catalog data/catalogs/registry.json --image oci-registry:5000/musizeer-provider-x \\
+        --digest sha256:... --labels labels.txt [--catalog-name "Musizeer development catalog"]
 """
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ import tempfile
 from pathlib import Path
 
 CATALOG_VERSION = 2
-DEFAULT_CATALOG_NAME = "Musizerr development catalog"
-PREFIX = "org.musizerr.provider."
+DEFAULT_CATALOG_NAME = "Musizeer development catalog"
+PREFIX = "org.musizeer.provider."
 
 
 def read_labels(text: str) -> dict[str, str]:

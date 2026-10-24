@@ -33,7 +33,7 @@ export OCI_REGISTRY_PORT=$REGISTRY_PORT
 export PROVIDER_LOCAL_TAG_PREFIX=$P-
 export PROVIDER_INSTALL_REGISTRY=oci-registry:5000
 COMPOSE="docker compose -p $P -f docker-compose.dev.yml -f gateway/tests/integration/compose.override.yml"
-HOST_IMAGE=${HOST_IMAGE:-musizerr-app}   # the application's image: only its Python and dependencies are used
+HOST_IMAGE=${HOST_IMAGE:-musizeer-app}   # the application's image: only its Python and dependencies are used
 
 cleanup() {
   status=$?
@@ -44,8 +44,8 @@ cleanup() {
   docker rm -f $P-hog $P-gw-pids >/dev/null 2>&1 || true
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
   docker volume rm $P-pids-run $P-pids-state $P-pids-ws >/dev/null 2>&1 || true
-  for image in ghcr.io/sossiogll/musizerr-provider-base:5 $P-tasks-provider:build \
-      127.0.0.1:$REGISTRY_PORT/musizerr-provider-tasks:dev $P-provider-gateway; do
+  for image in ghcr.io/sossiogll/musizeer-provider-base:5 $P-tasks-provider:build \
+      127.0.0.1:$REGISTRY_PORT/musizeer-provider-tasks:dev $P-provider-gateway; do
     docker rmi "$image" >/dev/null 2>&1 || true
   done
   rm -rf "$TMP"
@@ -63,19 +63,19 @@ wait_until() { # wait_until <seconds> <description> <command...>
     sleep 1
   done
 }
-ctl() { $COMPOSE exec -T provider-gateway python -m musizerr_gateway.ctl "$@"; }
-label() { docker run --rm "$1" --print-labels | sed -n "s/^org.musizerr.provider.$2=//p"; }
+ctl() { $COMPOSE exec -T provider-gateway python -m musizeer_gateway.ctl "$@"; }
+label() { docker run --rm "$1" --print-labels | sed -n "s/^org.musizeer.provider.$2=//p"; }
 installed_entry() { # <name> <digest> <local image>
   roles=$(label "$3" roles | sed 's/,/","/g; s/^/["/; s/$/"]/')
-  printf '{"name": "%s", "image": "oci-registry:5000/musizerr-provider-%s", "digest": "%s", "roles": %s, "permissions": %s, "insecure": true}' \
+  printf '{"name": "%s", "image": "oci-registry:5000/musizeer-provider-%s", "digest": "%s", "roles": %s, "permissions": %s, "insecure": true}' \
     "$1" "$1" "$2" "$roles" "$(label "$3" permissions)"
 }
-push() { docker exec -i "$1" python -m musizerr_gateway.ctl install; } # the entries are on stdin
+push() { docker exec -i "$1" python -m musizeer_gateway.ctl install; } # the entries are on stdin
 # The host's code, in a container of the application image, with the socket volume of the gateway it is asked about.
 host() { # host <run volume> <workspace volume> <mode>
   docker run --rm -i --network ${P}_default --user 1000:1000 \
     -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e DATA_DIR=/tmp/data -e AUTH_SECRET -e CREDENTIALS_KEY \
-    -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v "$1":/run/musizerr -v "$2":/downloads \
+    -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v "$1":/run/musizeer -v "$2":/downloads \
     -w /repo/app "$HOST_IMAGE" python /repo/gateway/tests/integration/tasks_host_check.py "$3"
 }
 running() { ctl list | tr -d '\n ' | grep -q '"name":"tasks"[^}]*"state":"running"'; }
@@ -115,12 +115,12 @@ $COMPOSE logs --no-color provider-gateway 2>&1 | grep -q "tasks: process/thread 
 
 step "c. in a gateway whose container has a pids limit of 70, a provider that cannot start a thread is reported with the numbers"
 docker run -d --name $P-gw-pids --network ${P}_default --user 1000:1000 --cap-drop ALL --pids-limit 70 \
-  --security-opt seccomp="$ROOT/gateway/seccomp/musizerr-gateway.json" --security-opt apparmor=unconfined --security-opt systempaths=unconfined \
-  -v $P-pids-run:/run/musizerr -v $P-pids-state:/var/lib/musizerr-gateway -v $P-pids-ws:/downloads \
+  --security-opt seccomp="$ROOT/gateway/seccomp/musizeer-gateway.json" --security-opt apparmor=unconfined --security-opt systempaths=unconfined \
+  -v $P-pids-run:/run/musizeer -v $P-pids-state:/var/lib/musizeer-gateway -v $P-pids-ws:/downloads \
   $P-provider-gateway >/dev/null
-wait_until 60 "the pids-limited gateway" docker exec $P-gw-pids python -m musizerr_gateway.ctl health
+wait_until 60 "the pids-limited gateway" docker exec $P-gw-pids python -m musizeer_gateway.ctl health
 echo "{\"providers\": [$ENTRY]}" | push $P-gw-pids >/dev/null
-wait_until 180 "the provider to run in the pids-limited gateway" sh -c "docker exec $P-gw-pids python -m musizerr_gateway.ctl list | tr -d '\n ' | grep -q '\"name\":\"tasks\"[^}]*\"state\":\"running\"'"
+wait_until 180 "the provider to run in the pids-limited gateway" sh -c "docker exec $P-gw-pids python -m musizeer_gateway.ctl list | tr -d '\n ' | grep -q '\"name\":\"tasks\"[^}]*\"state\":\"running\"'"
 host $P-pids-run $P-pids-ws pids | tee "$TMP/c.txt"
 grep -q '^PIDS_OK' "$TMP/c.txt" || die "the provider that could not start a thread was not reported"
 docker logs $P-gw-pids 2>&1 | grep "process/thread limit reached (RLIMIT_NPROC / pids)" | head -1 | sed 's/^/   /'

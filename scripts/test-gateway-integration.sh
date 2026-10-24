@@ -4,7 +4,7 @@
 #   scripts/test-gateway-integration.sh
 #
 # Needs Docker (with user namespaces in its kernel), network access to lrclib.net and a checkout of the public
-# providers repository (PROVIDERS_REPO, default ../musizerr-providers: only read; its lrclib/ is the provider
+# providers repository (PROVIDERS_REPO, default ../musizeer-providers: only read; its lrclib/ is the provider
 # installed). It uses its own compose project, `mzp3` (INTEGRATION_PROJECT), publishes only 127.0.0.1:18500
 # (INTEGRATION_REGISTRY_PORT; a local registry) and tears everything down at the end. It does not touch any
 # other container, volume or image, and pushes nothing outside the local registry it starts.
@@ -26,7 +26,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 P=${INTEGRATION_PROJECT:-mzp3}
 REGISTRY_PORT=${INTEGRATION_REGISTRY_PORT:-18500}
-PROVIDERS_REPO=${PROVIDERS_REPO:-$ROOT/../musizerr-providers}
+PROVIDERS_REPO=${PROVIDERS_REPO:-$ROOT/../musizeer-providers}
 [ -d "$PROVIDERS_REPO/lrclib" ] || { echo "PROVIDERS_REPO ($PROVIDERS_REPO) is not a checkout of the public providers repository (no lrclib/)" >&2; exit 2; }
 TMP=$(mktemp -d)
 export POSTGRES_PASSWORD=unused
@@ -36,7 +36,7 @@ export OCI_REGISTRY_PORT=$REGISTRY_PORT
 export PROVIDER_LOCAL_TAG_PREFIX=$P-
 export PROVIDER_INSTALL_REGISTRY=oci-registry:5000
 COMPOSE="docker compose -p $P -f docker-compose.dev.yml -f gateway/tests/integration/compose.override.yml"
-HOST_IMAGE=${HOST_IMAGE:-musizerr-app}   # the application's image: only its Python and dependencies are used
+HOST_IMAGE=${HOST_IMAGE:-musizeer-app}   # the application's image: only its Python and dependencies are used
 
 cleanup() {
   status=$?
@@ -48,8 +48,8 @@ cleanup() {
   docker rm -f $P-host $P-gw-default >/dev/null 2>&1 || true
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
   docker volume rm $P-df-run $P-df-state $P-df-ws >/dev/null 2>&1 || true
-  for image in ghcr.io/sossiogll/musizerr-provider-base:5 $P-lrclib:build $P-hostile-provider:build \
-      127.0.0.1:$REGISTRY_PORT/musizerr-provider-lrclib:dev 127.0.0.1:$REGISTRY_PORT/musizerr-provider-hostile:dev $P-provider-gateway; do
+  for image in ghcr.io/sossiogll/musizeer-provider-base:5 $P-lrclib:build $P-hostile-provider:build \
+      127.0.0.1:$REGISTRY_PORT/musizeer-provider-lrclib:dev 127.0.0.1:$REGISTRY_PORT/musizeer-provider-hostile:dev $P-provider-gateway; do
     docker rmi "$image" >/dev/null 2>&1 || true
   done
   rm -rf "$TMP"
@@ -67,19 +67,19 @@ wait_until() { # wait_until <seconds> <description> <command...>
     sleep 1
   done
 }
-ctl() { $COMPOSE exec -T provider-gateway python -m musizerr_gateway.ctl "$@"; }
+ctl() { $COMPOSE exec -T provider-gateway python -m musizeer_gateway.ctl "$@"; }
 # What the host would push for an image it was told to install: the roles and permissions its labels declare,
 # standing in for what the admin approved.
-label() { docker run --rm "$1" --print-labels | sed -n "s/^org.musizerr.provider.$2=//p"; }
+label() { docker run --rm "$1" --print-labels | sed -n "s/^org.musizeer.provider.$2=//p"; }
 installed_entry() { # <name> <digest> <local image>
   roles=$(label "$3" roles | sed 's/,/","/g; s/^/["/; s/$/"]/')
-  printf '{"name": "%s", "image": "oci-registry:5000/musizerr-provider-%s", "digest": "%s", "roles": %s, "permissions": %s, "insecure": true}' \
+  printf '{"name": "%s", "image": "oci-registry:5000/musizeer-provider-%s", "digest": "%s", "roles": %s, "permissions": %s, "insecure": true}' \
     "$1" "$1" "$2" "$roles" "$(label "$3" permissions)"
 }
 # Push a desired set the way the host does (op install); $1 is the container, the entries are on stdin.
-push() { docker exec -i "$1" python -m musizerr_gateway.ctl install; }
+push() { docker exec -i "$1" python -m musizeer_gateway.ctl install; }
 
-step "starting the registry, redis and the gateway (compose project $P, seccomp profile gateway/seccomp/musizerr-gateway.json)"
+step "starting the registry, redis and the gateway (compose project $P, seccomp profile gateway/seccomp/musizeer-gateway.json)"
 $COMPOSE up -d --build oci-registry redis provider-gateway
 wait_until 60 "the gateway's control socket" ctl health
 
@@ -89,13 +89,13 @@ HOSTILE=$(scripts/build-provider-image.sh gateway/tests/fixtures/hostile-provide
 echo "lrclib  $LRCLIB"
 echo "hostile $HOSTILE"
 echo "{\"providers\": [$(installed_entry lrclib "$LRCLIB" $P-lrclib:build)]}" | push $P-provider-gateway-1 >/dev/null
-wait_until 180 "lrclib to run" sh -c "$COMPOSE exec -T provider-gateway python -m musizerr_gateway.ctl list | grep -q '\"state\": \"running\"'"
+wait_until 180 "lrclib to run" sh -c "$COMPOSE exec -T provider-gateway python -m musizeer_gateway.ctl list | grep -q '\"state\": \"running\"'"
 ctl list | grep -E '"(name|state|image)"' | head -4
 
 step "a. the host's registry gets lyrics from the LRCLIB image through the gateway"
 docker run -d --name $P-host --network ${P}_default --user 1000:1000 \
   -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e DATA_DIR=/tmp/data -e AUTH_SECRET -e CREDENTIALS_KEY -e REDIS_URL=redis://redis:6379/0 \
-  -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v ${P}_provider_sockets:/run/musizerr -v ${P}_downloads:/downloads \
+  -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v ${P}_provider_sockets:/run/musizeer -v ${P}_downloads:/downloads \
   -w /repo/app "$HOST_IMAGE" python /repo/gateway/tests/integration/host_check.py >/dev/null
 wait_until 120 "the host check to be ready" sh -c "docker logs $P-host 2>&1 | grep -q '^READY'"
 docker logs $P-host 2>&1 | grep -E '^(REGISTRY|LYRICS_OK)'
@@ -118,17 +118,17 @@ $COMPOSE logs --no-color provider-gateway 2>&1 | grep -q "egress refused: provid
 step "c. with Docker's default seccomp profile the provider does not run, and health says why"
 docker run -d --name $P-gw-default --network ${P}_default --user 1000:1000 --cap-drop ALL \
   --security-opt systempaths=unconfined \
-  -v $P-df-run:/run/musizerr -v $P-df-state:/var/lib/musizerr-gateway -v $P-df-ws:/downloads \
+  -v $P-df-run:/run/musizeer -v $P-df-state:/var/lib/musizeer-gateway -v $P-df-ws:/downloads \
   $P-provider-gateway >/dev/null
-wait_until 60 "the second gateway" docker exec $P-gw-default python -m musizerr_gateway.ctl health
+wait_until 60 "the second gateway" docker exec $P-gw-default python -m musizeer_gateway.ctl health
 echo "{\"providers\": [$(installed_entry lrclib "$LRCLIB" $P-lrclib:build)]}" | push $P-gw-default >/dev/null
 sleep 8
-docker exec $P-gw-default python -m musizerr_gateway.ctl health | tee "$TMP/health.json"
+docker exec $P-gw-default python -m musizeer_gateway.ctl health | tee "$TMP/health.json"
 grep -q '"status": "unavailable"' "$TMP/health.json" || die "health does not say the sandbox is unavailable"
 grep -q "No permissions to create a new namespace" "$TMP/health.json" || die "health does not say why"
-docker exec $P-gw-default python -m musizerr_gateway.ctl list | grep -E '"(state|reason)"'
-docker exec $P-gw-default python -m musizerr_gateway.ctl list | grep -q '"state": "unavailable"' || die "the provider is not marked unavailable"
-if docker top $P-gw-default 2>/dev/null | grep -q "musizerr_sdk.runner"; then die "a provider process is running without a sandbox"; fi
+docker exec $P-gw-default python -m musizeer_gateway.ctl list | grep -E '"(state|reason)"'
+docker exec $P-gw-default python -m musizeer_gateway.ctl list | grep -q '"state": "unavailable"' || die "the provider is not marked unavailable"
+if docker top $P-gw-default 2>/dev/null | grep -q "musizeer_sdk.runner"; then die "a provider process is running without a sandbox"; fi
 echo "no provider process is running in $P-gw-default"
 
 step "all checks passed"
