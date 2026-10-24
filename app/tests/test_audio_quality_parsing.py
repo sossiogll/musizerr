@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from musizerr_sdk.text import parse_bitrate, parse_sample_rate
+from musizeer_sdk.text import parse_bitrate, parse_sample_rate
 
 
 @pytest.mark.parametrize(

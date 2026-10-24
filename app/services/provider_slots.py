@@ -1,6 +1,6 @@
 """
 Implementazione host di ``core.provider_slots.ProviderSlots`` su Redis: un
-provider con limite N ha N lock ``musizerr:provider-slot:<nome>:<i>``, cosi'
+provider con limite N ha N lock ``musizeer:provider-slot:<nome>:<i>``, cosi'
 il limite vale fra tutti i worker. Ogni lock scade da solo dopo la durata
 massima di un download, quindi un worker morto non blocca il provider.
 """
@@ -59,7 +59,7 @@ class RedisProviderSlots:
 
     def _take_slot(self, provider_name: str, limit: int) -> _Lock | None:
         locks = [
-            self._lock(f"musizerr:provider-slot:{provider_name}:{i}", self._lease)
+            self._lock(f"musizeer:provider-slot:{provider_name}:{i}", self._lease)
             for i in range(limit)
         ]
         deadline = self._clock() + self._wait

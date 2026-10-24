@@ -26,8 +26,8 @@ from sqlmodel import Session, select
 
 from core.auth_manager import ProviderNotConfigured
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
-from musizerr_sdk.models import Track
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.models import Track
 from core.routines import SYNC_LIBRARY_INDEX
 from core.utc import utc_iso
 from db.models import Download, LibraryEntry, TrackIdentifierRecord, TrackRecord

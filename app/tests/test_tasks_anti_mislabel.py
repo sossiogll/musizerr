@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from musizerr_sdk.interfaces import WorkspaceFile
+from musizeer_sdk.interfaces import WorkspaceFile
 from workers.tasks import _check_mislabel, _should_run_anti_mislabel
 
 from tests.conftest import FakeIdentificationProvider, FakeRegistry, make_track

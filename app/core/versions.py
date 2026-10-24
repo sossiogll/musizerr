@@ -1,5 +1,5 @@
 """
-The versions of Musizerr and what an upgrade from one to another implies (ADR-0007).
+The versions of Musizeer and what an upgrade from one to another implies (ADR-0007).
 
 Pure rules, no I/O: ``services/update_check.py`` gathers the facts (the version this instance runs, the
 releases published and their ``release.json``, the providers installed) and asks here.

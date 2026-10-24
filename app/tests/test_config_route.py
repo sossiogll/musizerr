@@ -25,7 +25,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from services.config_manager import ConfigManager
 from core.settings_resolver import PROVIDER_CATEGORY_GETTERS, find_provider_by_name
 from db.models import User

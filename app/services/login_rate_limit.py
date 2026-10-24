@@ -57,7 +57,7 @@ def hit(address: str, *, client=None, max_attempts: int | None = None, window: i
     max_attempts = MAX_ATTEMPTS if max_attempts is None else max_attempts
     window = WINDOW_SECONDS if window is None else window
     client = client if client is not None else _client()
-    key = f"musizerr:provider-login:{address}"
+    key = f"musizeer:provider-login:{address}"
     try:
         count = int(client.incr(key))
         ttl = int(client.ttl(key))

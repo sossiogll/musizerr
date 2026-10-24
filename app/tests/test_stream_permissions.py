@@ -23,10 +23,10 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AuthSession
+from musizeer_sdk.auth import AuthSession
 from services.config_manager import ConfigManager
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.models import Track
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.models import Track
 from core.serialization import serialize_track
 from core.user_auth import create_access_token, create_stream_token, hash_password
 from db.models import Download, TrackIdentifierRecord, TrackRecord
@@ -102,7 +102,7 @@ def test_stream_valid_cookie_allowed(config, session):
     cfg = config()
     user = _make_user(session)
     token = create_stream_token(user.id)
-    resolved = get_stream_user(_FakeRequest({"musizerr_stream_token": token}), session, cfg, credentials=None)
+    resolved = get_stream_user(_FakeRequest({"musizeer_stream_token": token}), session, cfg, credentials=None)
     assert resolved.id == user.id
 
 
@@ -113,7 +113,7 @@ def test_stream_access_token_in_cookie_rejected(config, session):
     user = _make_user(session)
     token = create_access_token(user.id, user.role)
     with pytest.raises(HTTPException) as exc:
-        get_stream_user(_FakeRequest({"musizerr_stream_token": token}), session, cfg, credentials=None)
+        get_stream_user(_FakeRequest({"musizeer_stream_token": token}), session, cfg, credentials=None)
     assert exc.value.status_code == 401
 
 

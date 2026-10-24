@@ -1,6 +1,6 @@
 name: images
 
-# Every merge into master builds the images of Musizerr for linux/amd64 and linux/arm64 and pushes them to
+# Every merge into master builds the images of Musizeer for linux/amd64 and linux/arm64 and pushes them to
 # GHCR as :latest and :<commit>, with the provider base image (:<contract> and :<SDK version>,
 # scripts/publish-provider-base.sh does the same from a machine).
 #
@@ -84,7 +84,7 @@ jobs:
           if [ -n "$version" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag -a "v$version" -m "Musizerr $version"
+            git tag -a "v$version" -m "Musizeer $version"
             git push origin "v$version"
             # What this release does to the database (ADR-0007 §4): the migrations it adds since the last tag, by phase.
             python3 app/scripts/migration_phases.py ${last:+--since "$last"} > "$notes/migrations.json"
@@ -116,21 +116,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: musizerr
+          - image: musizeer
             context: .
             file: Dockerfile
             target: production
-            description: "Musizerr: the API, the workers and the database migrations."
-          - image: musizerr-frontend
-            context: musizerr-ui
-            file: musizerr-ui/Dockerfile
+            description: "Musizeer: the API, the workers and the database migrations."
+          - image: musizeer-frontend
+            context: musizeer-ui
+            file: musizeer-ui/Dockerfile
             target: production
-            description: "Musizerr: the web app, served by nginx."
-          - image: musizerr-gateway
+            description: "Musizeer: the web app, served by nginx."
+          - image: musizeer-gateway
             context: .
             file: gateway/Dockerfile
             target: production
-            description: "Musizerr: the provider gateway, which runs every provider in a sandbox."
+            description: "Musizeer: the provider gateway, which runs every provider in a sandbox."
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4
@@ -174,7 +174,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   provider-base:
-    name: musizerr-provider-base
+    name: musizeer-provider-base
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -211,7 +211,7 @@ jobs:
           set -euo pipefail
           notes=$RUNNER_TEMP/notes
           owner=${GITHUB_REPOSITORY_OWNER,,}
-          contract=$(sed -n 's/^PROVIDER_API_VERSION = \([0-9][0-9]*\)$/\1/p' sdk/src/musizerr_sdk/interfaces.py)
+          contract=$(sed -n 's/^PROVIDER_API_VERSION = \([0-9][0-9]*\)$/\1/p' sdk/src/musizeer_sdk/interfaces.py)
           images='{}'
           {
             section() { if [ -s "$notes/$1.md" ]; then echo "## $2"; echo; cat "$notes/$1.md"; echo; fi; }
@@ -223,7 +223,7 @@ jobs:
             scripts/release-database-notes.sh "$notes/migrations.json" "$GITHUB_REPOSITORY" "$VERSION"
             echo "## Images"
             echo
-            for image in musizerr musizerr-frontend musizerr-gateway; do
+            for image in musizeer musizeer-frontend musizeer-gateway; do
               digest=$(docker buildx imagetools inspect "ghcr.io/$owner/$image:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
               images=$(jq -c --arg name "$image" --arg ref "ghcr.io/$owner/$image@$digest" '. + {($name): $ref}' <<<"$images")
               echo "- \`ghcr.io/$owner/$image:$VERSION\` (\`$digest\`)"
@@ -231,7 +231,7 @@ jobs:
             echo
             echo "Provider contract: $contract. To update: set \`MUSIZERR_VERSION=$VERSION\` in \`.env\`, then \`docker compose pull && docker compose up -d\`."
             echo
-            echo "To install without cloning the repository, download \`docker-compose.yaml\`, \`musizerr-gateway.seccomp.json\` and \`env.example\` (below) into one folder: [deployment guide](https://github.com/$GITHUB_REPOSITORY/blob/v$VERSION/docs/deployment.md)."
+            echo "To install without cloning the repository, download \`docker-compose.yaml\`, \`musizeer-gateway.seccomp.json\` and \`env.example\` (below) into one folder: [deployment guide](https://github.com/$GITHUB_REPOSITORY/blob/v$VERSION/docs/deployment.md)."
           } > "$RUNNER_TEMP/notes.md"
           # What an instance's update check reads (ADR-0007 §5.1): the migrations of the release by phase
           # (app/scripts/migration_phases.py) and the oldest version it upgrades from (core/schema_guard.py).
@@ -240,6 +240,6 @@ jobs:
           cat "$RUNNER_TEMP/release.json"
           # The compose file and the seccomp profile it reads from the host, side by side (a profile cannot come from an image).
           scripts/package-release-assets.sh "$RUNNER_TEMP/assets"
-          gh release create "v$VERSION" --verify-tag --title "Musizerr $VERSION" \
+          gh release create "v$VERSION" --verify-tag --title "Musizeer $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" "$RUNNER_TEMP/release.json" \
-            "$RUNNER_TEMP/assets/docker-compose.yaml" "$RUNNER_TEMP/assets/musizerr-gateway.seccomp.json" "$RUNNER_TEMP/assets/env.example"
+            "$RUNNER_TEMP/assets/docker-compose.yaml" "$RUNNER_TEMP/assets/musizeer-gateway.seccomp.json" "$RUNNER_TEMP/assets/env.example"

@@ -34,11 +34,11 @@ from sqlmodel import Session  # noqa: E402
 
 from core.settings_resolver import namespace_provider_key  # noqa: E402
 from db.settings_store import SettingsRepository  # noqa: E402
-from musizerr_sdk.models import Track  # noqa: E402
+from musizeer_sdk.models import Track  # noqa: E402
 from services.config_manager import get_config  # noqa: E402
 from services.gateway_client import GatewayClient  # noqa: E402
 from services.provider_registry import ProviderRegistry  # noqa: E402
-from musizerr_sdk.auth import AuthSession  # noqa: E402
+from musizeer_sdk.auth import AuthSession  # noqa: E402
 
 SESSION = AuthSession.anonymous()
 LIB = Path("/downloads/lib")
@@ -155,7 +155,7 @@ def main() -> None:
     say("FS_REFUSED_OK", refusals=refusals)
 
     # ---- folders: the workspace directory is hidden inside a granted folder -------------
-    workspace_on_host = sorted(p.name for p in Path("/downloads/.musizerr-work").iterdir())
+    workspace_on_host = sorted(p.name for p in Path("/downloads/.musizeer-work").iterdir())
     expect("infra" in workspace_on_host, f"the provider's workspace folder is not on the host: {workspace_on_host}")
     set_setting("rw_dir", "/downloads")
     masked = fs(provider)

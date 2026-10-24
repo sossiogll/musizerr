@@ -22,12 +22,12 @@ import pytest
 from sqlmodel import Session, select
 
 from core import download_states as ds
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import DownloadProvider
-from musizerr_sdk.models import Track
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import DownloadProvider
+from musizeer_sdk.models import Track
+from musizeer_sdk.context import StaticProviderContext
 from core.provider_slots import UnlimitedSlots
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
 from db.models import Download, LibraryEntry
 from services import downloads, held_uploads
 from services.config_manager import ConfigManager

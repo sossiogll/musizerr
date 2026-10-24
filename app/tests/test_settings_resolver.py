@@ -15,10 +15,10 @@ import pytest
 
 from core import settings_catalog as sc
 from core import settings_resolver as sr
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import MetadataProvider, SyncProvider
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import MetadataProvider, SyncProvider
 from core.settings_catalog import SettingDef
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.settings import ProviderSetting
 from tests.settings_support import registry_of_every_category
 
 from tests.conftest import FakeMetadataProvider, FakeStorageProvider, FakeSyncProvider

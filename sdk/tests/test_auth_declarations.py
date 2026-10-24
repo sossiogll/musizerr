@@ -8,8 +8,8 @@ import dataclasses
 
 import pytest
 
-from musizerr_sdk import auth
-from musizerr_sdk.auth import (
+from musizeer_sdk import auth
+from musizeer_sdk.auth import (
     AccountModel,
     AuthDefinition,
     AuthFlow,

@@ -14,7 +14,7 @@ import pytest
 from services.errors import public_error
 from services.log_redaction import REDACTED, install_log_redaction, redact
 
-SUBSONIC = "http://mediaserver:4533/rest/ping.view?u=alice&t=26719a1196d2a940705a59634eb18eab&s=c19b2d&v=1.16.1&c=musizerr&f=json"
+SUBSONIC = "http://mediaserver:4533/rest/ping.view?u=alice&t=26719a1196d2a940705a59634eb18eab&s=c19b2d&v=1.16.1&c=musizeer&f=json"
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def test_subsonic_credentials_are_redacted():
 
     assert "alice" not in out and "26719a" not in out and "c19b2d" not in out
     assert f"u={REDACTED}&t={REDACTED}&s={REDACTED}" in out
-    assert "v=1.16.1&c=musizerr&f=json" in out  # il resto dell'URL resta leggibile
+    assert "v=1.16.1&c=musizeer&f=json" in out  # il resto dell'URL resta leggibile
 
 
 @pytest.mark.parametrize("url, secret", [

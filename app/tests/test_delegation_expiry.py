@@ -25,8 +25,8 @@ import pytest
 from sqlmodel import Session
 
 from core import download_states as ds
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.delegation import DelegationStatus
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.delegation import DelegationStatus
 from db.models import Download, TrackRecord
 from services.config_manager import ConfigManager
 from tests.database import new_engine

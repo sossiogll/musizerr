@@ -19,10 +19,10 @@ import threading
 import time
 import uuid
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.models import Lyrics
-from musizerr_sdk.permissions import Permissions, ResourceLimits
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.models import Lyrics
+from musizeer_sdk.permissions import Permissions, ResourceLimits
 
 INSTANCE = uuid.uuid4().hex
 LIMIT = 100

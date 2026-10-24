@@ -17,7 +17,7 @@ Tre responsabilità, nessuna delle quali tocca DB/provider concreti:
 3. ``decide_keeper``: quale copia tenere in un gruppo CONFERMATO (stesso
    recording id via fingerprint), o ``needs_review`` se la qualità di
    qualcuno è sconosciuta o se il "vincitore" implicherebbe cancellare un
-   file che musizerr non ha mai messo lì (origine esterna/sconosciuta).
+   file che musizeer non ha mai messo lì (origine esterna/sconosciuta).
 """
 
 from __future__ import annotations
@@ -25,16 +25,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .audio_quality import QualityScore
-from musizerr_sdk.text import LOSSLESS_CODECS
+from musizeer_sdk.text import LOSSLESS_CODECS
 from .matching import match_track, title_identity_key
-from musizerr_sdk.models import LibraryItem
+from musizeer_sdk.models import LibraryItem
 
 
 def normalize_library_path(path: str) -> str:
     """
     Normalizza un path relativo per confrontare "lo stesso file" fra la
     libreria indicizzata dal sync provider (``LibraryItem.path``) e i path
-    salvati da musizerr (``Download.file_path``, ``LibraryEntry.file_path``):
+    salvati da musizeer (``Download.file_path``, ``LibraryEntry.file_path``):
     separatori uniformi, niente prefisso "./" o "/" iniziale. Non fa
     case-folding — due path che differiscono solo per maiuscole/minuscole
     restano distinti (dipende dal filesystem, non lo assumiamo qui).
@@ -124,7 +124,7 @@ class DuplicateCandidate:
 
     key: str  # id stabile del membro per il chiamante (il sync id: mai il path, virtuale)
     quality: QualityScore | None  # None = sconosciuta
-    deletable: bool  # True solo se il file è stato piazzato in libreria da musizerr
+    deletable: bool  # True solo se il file è stato piazzato in libreria da musizeer
 
 
 @dataclass(frozen=True)
@@ -144,7 +144,7 @@ def decide_keeper(
     - la qualità di ALMENO UN membro è sconosciuta (non si può confrontare
       con certezza) → needs_review, nessun keeper;
     - il "vincitore" per qualità implicherebbe cancellare un file NON
-      cancellabile da musizerr (origine esterna o sconosciuta) → needs_review,
+      cancellabile da musizeer (origine esterna o sconosciuta) → needs_review,
       nessun keeper (l'admin decide a mano, vedi CLAUDE.md D4).
 
     A parità totale di qualità, il pareggio è rotto in modo deterministico

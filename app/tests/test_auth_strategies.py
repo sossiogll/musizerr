@@ -1,5 +1,5 @@
 """
-The OAuth2 strategies a provider declares are data (``musizerr_sdk.auth``);
+The OAuth2 strategies a provider declares are data (``musizeer_sdk.auth``);
 the host implements them (``core.auth_strategies``), by the strategy's type.
 These tests pin what each one produces: the token request, the session the
 provider's calls use, the fallback session, and the refusal of a strategy the
@@ -19,7 +19,7 @@ from core.auth_strategies import (
     build_request_session,
     build_token_request,
 )
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AccountModel,
     AuthDefinition,
     AuthFlow,
@@ -33,7 +33,7 @@ from musizerr_sdk.auth import (
     RequestBodyClientAuth,
 )
 
-from musizerr_sdk import wire
+from musizeer_sdk import wire
 from tests.conftest import FakeMetadataProvider
 from tests.loopback import as_proxy
 

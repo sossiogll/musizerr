@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from musizerr_sdk import net
+from musizeer_sdk import net
 
 
 def serve(handler):

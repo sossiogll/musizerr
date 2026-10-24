@@ -17,9 +17,9 @@ from __future__ import annotations
 import pytest
 
 from core.interfaces import personal_capabilities
-from musizerr_sdk.auth import AccountIdentity, AuthSession
-from musizerr_sdk.capabilities import CAPABILITY_LOGIN
-from musizerr_sdk.errors import ProviderRateLimited
+from musizeer_sdk.auth import AccountIdentity, AuthSession
+from musizeer_sdk.capabilities import CAPABILITY_LOGIN
+from musizeer_sdk.errors import ProviderRateLimited
 
 from tests.loopback import as_proxy
 from tests.provider_login_support import FormLoginProvider, OAuthLoginProvider

@@ -17,8 +17,8 @@ from sqlmodel import Session, select
 
 from services.config_manager import get_config
 from core import download_states as ds
-from musizerr_sdk.errors import DownloadDelegated
-from musizerr_sdk.models import Album, Track
+from musizeer_sdk.errors import DownloadDelegated
+from musizeer_sdk.models import Album, Track
 from core.serialization import serialize_track
 from core.utils import provider_sort_key
 from db.download_store import add_follower, find_open_download, mark_unqueued

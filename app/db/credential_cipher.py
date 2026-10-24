@@ -29,7 +29,7 @@ ENV_KEY = "CREDENTIALS_KEY"
 ENV_PREVIOUS = "CREDENTIALS_KEY_PREVIOUS"
 
 _GENERATE = (
-    'docker run --rm musizerr-app python -c "from cryptography.fernet import Fernet; '
+    'docker run --rm musizeer-app python -c "from cryptography.fernet import Fernet; '
     'print(Fernet.generate_key().decode())"'
 )
 
@@ -66,7 +66,7 @@ def _build(primary: str, previous: str) -> SecretBox:
     primary = primary.strip()
     if not primary:
         raise CredentialsKeyError(
-            f"{ENV_KEY} is not set or is empty. The credentials Musizerr stores (provider accounts, tokens, "
+            f"{ENV_KEY} is not set or is empty. The credentials Musizeer stores (provider accounts, tokens, "
             f"API keys, secret settings, source tokens) are encrypted with it. Set {ENV_KEY} in .env to a "
             f"Fernet key, generated once with: {_GENERATE} . Keep it with the database backups: without it the "
             "stored credentials cannot be read and every account has to be connected again."

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from musizerr_gateway.config import ConfigError, from_environment
-from musizerr_gateway.filesystem import Bind, PathRefused, check_root, inside, make_mountpoint, validate_grant
+from musizeer_gateway.config import ConfigError, from_environment
+from musizeer_gateway.filesystem import Bind, PathRefused, check_root, inside, make_mountpoint, validate_grant
 
 
 @pytest.fixture
@@ -136,7 +136,7 @@ def test_what_every_sandbox_mounts_itself_cannot_be_granted(library):
         validate_grant("/tmp/x", "rw", ["/tmp"], (), "/downloads/.work")  # the real list: /tmp is private to each sandbox
 
 
-@pytest.mark.parametrize("root", ["/", "", "downloads", "/downloads/", "/downloads/../etc", "/proc", "/tmp/x", "/run/musizerr", "/dev", "/"])
+@pytest.mark.parametrize("root", ["/", "", "downloads", "/downloads/", "/downloads/../etc", "/proc", "/tmp/x", "/run/musizeer", "/dev", "/"])
 def test_a_root_that_could_expose_the_gateway_is_not_a_root(root):
     with pytest.raises(PathRefused):
         check_root(root)
@@ -194,7 +194,7 @@ def test_the_roots_come_from_the_environment():
     assert config.filesystem_roots == ("/downloads", "/music/library")
 
 
-@pytest.mark.parametrize("value", ["/", "relative", "/downloads/../etc", "/proc/1", "/var/lib/musizerr-gateway", "/var/lib/musizerr-gateway/x", "/var"])
+@pytest.mark.parametrize("value", ["/", "relative", "/downloads/../etc", "/proc/1", "/var/lib/musizeer-gateway", "/var/lib/musizeer-gateway/x", "/var"])
 def test_a_root_that_could_expose_the_gateway_stops_it_from_starting(value):
     with pytest.raises(ConfigError, match="GATEWAY_FILESYSTEM_ROOTS"):
         from_environment({"GATEWAY_FILESYSTEM_ROOTS": value})

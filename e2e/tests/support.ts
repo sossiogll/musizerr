@@ -1,7 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 /** Where the frontend keeps the refresh token every tab shares. */
-export const REFRESH_KEY = "musizerr.refresh_token";
+export const REFRESH_KEY = "musizeer.refresh_token";
 
 export interface Account {
   username: string;

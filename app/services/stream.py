@@ -10,7 +10,7 @@ import logging
 from sqlmodel import select
 
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from db.models import TrackIdentifierRecord, TrackRecord
 from db.track_store import add_identifiers, load_track
 from services.enrichment import check_sync_availability

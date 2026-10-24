@@ -8,22 +8,22 @@ import threading
 
 import pytest
 
-from musizerr_sdk import protocol, wire
-from musizerr_sdk.auth import AuthSession
-from musizerr_sdk.context import ContextSnapshot
-from musizerr_sdk.errors import (
+from musizeer_sdk import protocol, wire
+from musizeer_sdk.auth import AuthSession
+from musizeer_sdk.context import ContextSnapshot
+from musizeer_sdk.errors import (
     DelegateHoldsRelease,
     DownloadDeclined,
     DownloadDelegated,
     ProviderRateLimited,
     RemotePlaylistGone,
 )
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.interfaces import StorageStreamResult
-from musizerr_sdk.manifest import Manifest
-from musizerr_sdk.models import Lyrics
-from musizerr_sdk.protocol import Frame, FrameSocket
-from musizerr_sdk.runner import ProviderRunner, RunnerServer
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.interfaces import StorageStreamResult
+from musizeer_sdk.manifest import Manifest
+from musizeer_sdk.models import Lyrics
+from musizeer_sdk.protocol import Frame, FrameSocket
+from musizeer_sdk.runner import ProviderRunner, RunnerServer
 from sample_providers import (
     NO_AUTH,
     Base,
@@ -35,7 +35,7 @@ from sample_providers import (
     session,
     track,
 )
-from musizerr_sdk.interfaces import LyricsProvider
+from musizeer_sdk.interfaces import LyricsProvider
 
 
 class Remote(Exception):

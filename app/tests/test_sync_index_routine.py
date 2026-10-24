@@ -27,7 +27,7 @@ from sqlmodel import Session, select
 import db.engine as db_engine
 from core import settings_catalog
 from core.identifiers import sync_id_type
-from musizerr_sdk.models import LibraryItem
+from musizeer_sdk.models import LibraryItem
 from core.routines import SYNC_LIBRARY_INDEX, enabled_setting_key, get_routine, interval_setting_key
 from db import routine_run_store as runs
 from db.models import RoutineRun, TrackIdentifierRecord, User

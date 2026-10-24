@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, OAuth2Config
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, OAuth2Config
 from core.auth_manager import AuthManager
-from musizerr_sdk.auth import BearerHeaderRequestAuth
+from musizeer_sdk.auth import BearerHeaderRequestAuth
 
 from tests.conftest import FakeMetadataProvider
 from tests.loopback import as_proxy

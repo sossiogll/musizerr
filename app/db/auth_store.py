@@ -6,7 +6,7 @@ from sqlalchemy import delete, update
 from sqlmodel import Session, select
 
 from core.auth import AccountTarget, StoredCredential
-from musizerr_sdk.auth import AccountModel
+from musizeer_sdk.auth import AccountModel
 from . import credential_cipher
 from .models import NO_USER, ProviderCredential, _now
 from .upsert import upsert
@@ -45,7 +45,7 @@ class CredentialStore:
     holds the registered ones cannot be read: it starts again from that account, as if it were
     the first). Disconnecting one that cannot be read removes it.
 
-    The ONE routing rule (``musizerr_sdk.auth.AccountModel``), for what a provider's
+    The ONE routing rule (``musizeer_sdk.auth.AccountModel``), for what a provider's
     calls READ (an OAuth2 token, a login):
 
     - ``PERSONAL``: the user's own row, never the shared one;

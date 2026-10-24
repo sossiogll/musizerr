@@ -1,5 +1,5 @@
 """
-Implementazione host di ``musizerr_sdk.context.ProviderContext``: legge
+Implementazione host di ``musizeer_sdk.context.ProviderContext``: legge
 impostazioni e timeout del provider al momento della chiamata (nessuna
 cache), cosi' una modifica dalla UI vale subito senza riavvio.
 """
@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from musizerr_sdk.context import ContextSnapshot
+from musizeer_sdk.context import ContextSnapshot
 from services.config_manager import get_config
 from core.settings_resolver import provider_config_from_system_settings
 from services import public_urls
@@ -42,7 +42,7 @@ class HostProviderContext:
     """The host's side of a provider's ``ProviderContext``. A provider never
     holds it: before each call the host takes a ``snapshot()`` and sends it with
     the call, and the provider's runner builds the provider's own context from it
-    (``musizerr_sdk.runner``). The accessors below are for the host (e.g. the
+    (``musizeer_sdk.runner``). The accessors below are for the host (e.g. the
     ``AuthManager`` reads the timeouts and the settings of the provider it
     authenticates)."""
 

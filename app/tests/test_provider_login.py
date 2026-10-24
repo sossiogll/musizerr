@@ -19,9 +19,9 @@ from sqlmodel import Session, select
 from core import provider_login as rules
 from core import user_auth
 from core.auth import AccountTarget
-from musizerr_sdk.auth import AccountModel
+from musizeer_sdk.auth import AccountModel
 from core.auth_manager import AuthManager
-from musizerr_sdk.capabilities import CAPABILITY_LOGIN
+from musizeer_sdk.capabilities import CAPABILITY_LOGIN
 from core.interfaces import personal_capabilities
 from core.settings_catalog import CATALOG
 from core.user_auth import create_access_token
@@ -701,11 +701,11 @@ def test_the_limit_counts_per_address_and_its_window_ends():
 
 def test_a_counter_left_without_an_expiry_is_given_one():
     redis = FakeRedis()
-    redis.set("musizerr:provider-login:10.0.0.1", 5)  # no expiry: it would block the address forever
+    redis.set("musizeer:provider-login:10.0.0.1", 5)  # no expiry: it would block the address forever
 
     verdict = login_rate_limit.hit("10.0.0.1", client=redis, max_attempts=3, window=60)
 
-    assert verdict.allowed is False and redis.ttl("musizerr:provider-login:10.0.0.1") > 0
+    assert verdict.allowed is False and redis.ttl("musizeer:provider-login:10.0.0.1") > 0
 
 
 def test_without_redis_nobody_is_limited():

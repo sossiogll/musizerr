@@ -11,7 +11,7 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from core.matching import base_title_key, match_track, song_keys, title_identity_key, version_identity
-from musizerr_sdk.text import is_video_noise, strip_video_noise
+from musizeer_sdk.text import is_video_noise, strip_video_noise
 
 from tests.conftest import make_track
 from tests.test_matching_versions import _BASE_TITLES, _TAILS, _WRAPS

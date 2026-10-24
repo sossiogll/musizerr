@@ -24,7 +24,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from musizerr_sdk.interfaces import StorageStreamResult, WorkspaceFile
+from musizeer_sdk.interfaces import StorageStreamResult, WorkspaceFile
 
 logger = logging.getLogger(__name__)
 

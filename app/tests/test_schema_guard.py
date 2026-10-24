@@ -66,7 +66,7 @@ def test_a_database_ahead_by_a_contract_migration_this_code_lacks_is_refused():
 
     assert verdict.status == guard.TOO_NEW
     assert "0100_drop_something" in verdict.message
-    assert "Musizerr 2.0.0 or later" in verdict.message
+    assert "Musizeer 2.0.0 or later" in verdict.message
     assert "1.9.0" in verdict.message
 
 
@@ -198,7 +198,7 @@ def test_several_revisions_and_an_odd_character_make_a_safe_name():
     assert guard.parse_backup_name(name) is not None
 
 
-@pytest.mark.parametrize("name", ["notes.txt", "premigration-x.dump", "musizerr.db", _name(1) + ".partial"])
+@pytest.mark.parametrize("name", ["notes.txt", "premigration-x.dump", "musizeer.db", _name(1) + ".partial"])
 def test_a_file_that_is_not_a_backup_of_ours_does_not_parse(name):
     assert guard.parse_backup_name(name) is None
 

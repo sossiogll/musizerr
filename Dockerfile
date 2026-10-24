@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# The provider contract (musizerr-sdk): installed before the application code,
+# The provider contract (musizeer-sdk): installed before the application code,
 # so development (bind mount of ./sdk, editable) and production both have it.
 COPY sdk/ /sdk/
 RUN pip install --no-cache-dir -e /sdk
@@ -23,11 +23,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Runtime user non-root (uid 1000 per compatibilità con volumi host)
-RUN useradd -u 1000 -m musizerr
+RUN useradd -u 1000 -m musizeer
 
 # Where the sockets of the providers the gateway runs are shared (docs/gateway.md): a volume
 # mounted here is initialised owned by the application's user, whichever service starts first.
-RUN mkdir -p /run/musizerr && chown musizerr:musizerr /run/musizerr
+RUN mkdir -p /run/musizeer && chown musizeer:musizeer /run/musizeer
 
 
 # ------------------------------------------------------------------
@@ -60,9 +60,9 @@ ENV MUSIZERR_VERSION=$MUSIZERR_VERSION MUSIZERR_COMMIT=$MUSIZERR_COMMIT
 
 COPY app/ .
 
-RUN mkdir -p /data && chown musizerr:musizerr /data
+RUN mkdir -p /data && chown musizeer:musizeer /data
 
-USER musizerr
+USER musizeer
 
 EXPOSE 8000
 

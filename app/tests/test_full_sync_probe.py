@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from sqlmodel import Session
 
-from musizerr_sdk.interfaces import SyncCandidate
+from musizeer_sdk.interfaces import SyncCandidate
 from core.settings_resolver import namespace_provider_key
 from db.settings_store import SettingsRepository
 from services.config_manager import ConfigManager
@@ -87,7 +87,7 @@ def test_a_shared_library_turns_full_sync_on_and_leaves_nothing_behind(run):
 
     assert result == {"status": "done", "full_sync": True, "sync_provider": "mirror"}
     assert mode == "full"
-    assert len(storage.deleted) == 1 and storage.deleted[0].startswith("Musizerr Probe/")
+    assert len(storage.deleted) == 1 and storage.deleted[0].startswith("Musizeer Probe/")
     assert list(workspace_root.glob("*/*")) == [], "no call workspace is left (only the provider folders)"
 
 

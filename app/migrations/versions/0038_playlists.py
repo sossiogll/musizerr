@@ -4,7 +4,7 @@ Revision ID: 0038_playlists
 Revises: 0037_provider_login
 Create Date: 2026-10-10
 
-Playlists kept by Musizerr (``services/playlists.py``): ``playlists`` (one per
+Playlists kept by Musizeer (``services/playlists.py``): ``playlists`` (one per
 user and source for the followed ones), ``playlist_tracks`` (the tracks in
 order; a track is in a playlist once) and ``playlist_syncs`` (the copy of a
 playlist on a sync provider, on its owner's own account: its id there and what

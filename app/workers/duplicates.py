@@ -6,7 +6,7 @@ universale (``core.matching``, tramite ``core.duplicates``), conferma reale
 per fingerprint audio (``IdentificationProvider``, solo sui candidati
 clusterizzati, i byte via ``SyncProvider.fetch_partial`` — MAI seguendo il
 path di ``list_library``, che e' spesso virtuale/ricostruito dai tag e non
-punta al file reale, vedi ``musizerr_sdk.models.LibraryItem``) — poi PROPONE gruppi
+punta al file reale, vedi ``musizeer_sdk.models.LibraryItem``) — poi PROPONE gruppi
 con keeper per qualità.
 
 Non cancella MAI nulla da sola: la risoluzione (cancellazione dei membri non
@@ -104,7 +104,7 @@ def scan_library_duplicates() -> dict:
 
         # Path normalizzato UNA volta — SOLO come chiave d'identità stabile fra
         # run (per il drop dei membri spariti), mai per leggere byte o
-        # decidere l'origine (vedi musizerr_sdk.models.LibraryItem).
+        # decidere l'origine (vedi musizeer_sdk.models.LibraryItem).
         for item in items:
             item.path = normalize_library_path(item.path)
 
@@ -239,7 +239,7 @@ def _fingerprint_item(item, sync, sync_session, identification, config):
             return False, None
 
 
-# How strong a member's claim on a Musizerr download is (see
+# How strong a member's claim on a Musizeer download is (see
 # ``db.duplicate_store.resolve_download_for_item``).
 _CLAIM_STRENGTH = {"sync_id": 2, "match": 1}
 

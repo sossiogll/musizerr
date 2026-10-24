@@ -105,7 +105,7 @@ ROUTINES: tuple[RoutineDef, ...] = (
         # id che il provider non elenca più si tolgono (services.sync_index).
         # Ogni ora, come quando girava dentro l'abbinamento dei like: un
         # elenco di una libreria già indicizzata costa pochi secondi, e un
-        # file aggiunto al server musicale fuori da Musizerr entra in
+        # file aggiunto al server musicale fuori da Musizeer entra in
         # libreria entro un'ora. La scansione e la sincronizzazione dei like
         # lo avviano subito. Sulla coda jobs (TASK_ROUTES): la prima
         # indicizzazione di una libreria grande dura minuti.
@@ -189,8 +189,8 @@ ROUTINES: tuple[RoutineDef, ...] = (
         min_interval_minutes=15,
     ),
     RoutineDef(
-        # Reads the releases of Musizerr on GitHub (ADR-0007 §5.1): Administration says when a newer
-        # version exists and what updating to it implies. Musizerr is updated by hand; this changes nothing.
+        # Reads the releases of Musizeer on GitHub (ADR-0007 §5.1): Administration says when a newer
+        # version exists and what updating to it implies. Musizeer is updated by hand; this changes nothing.
         key="check_for_updates",
         task_name="workers.maintenance.check_for_updates",
         default_interval_minutes=24 * 60,

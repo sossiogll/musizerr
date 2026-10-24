@@ -13,11 +13,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-from musizerr_sdk import auth, delegation, errors, interfaces, manifest, models, wire
-from musizerr_sdk.context import ContextSnapshot
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, TcpAccess
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk import auth, delegation, errors, interfaces, manifest, models, wire
+from musizeer_sdk.context import ContextSnapshot
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, TcpAccess
+from musizeer_sdk.settings import ProviderSetting
 
 SETTINGS = settings(
     max_examples=60, deadline=None,
@@ -233,7 +233,7 @@ def same(a, b) -> bool:
 def test_every_wire_type_has_a_strategy():
     # The types of the contract (a test may register a type of its own, test_contract_evolution.py's probe).
     missing = [name for name, cls in wire.registered_types().items()
-               if cls.__module__.startswith("musizerr_sdk.") and cls not in STRATEGIES]
+               if cls.__module__.startswith("musizeer_sdk.") and cls not in STRATEGIES]
     assert not missing, f"no round trip strategy for {missing}"
     assert not [cls for cls in STRATEGIES if cls not in wire.registered_types().values()]
 

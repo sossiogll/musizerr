@@ -3,11 +3,11 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "musizerr-provider-infra"
+name = "musizeer-provider-infra"
 version = "0.0.0"
 description = "TEST FIXTURE: a provider that uses wildcard egress, raw TCP to a setting's host and folders named by settings, and reports what it could do. Never published."
 requires-python = ">=3.12"
-dependencies = ["musizerr-sdk>=5.2"]
+dependencies = ["musizeer-sdk>=5.2"]
 
 [tool.setuptools.packages.find]
 include = ["infra_provider*"]

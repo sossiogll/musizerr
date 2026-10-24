@@ -1,6 +1,6 @@
 # Worker topology
 
-Musizerr runs its background work on Celery with Redis as the broker. The
+Musizeer runs its background work on Celery with Redis as the broker. The
 work is split over **three queues**, each consumed by **its own worker
 process**, plus **one beat**. A slow task of one kind never makes the others
 wait.
@@ -35,7 +35,7 @@ wait.
   event of the API (`services/provider_events.py`). A standalone `beat` only
   sends tasks and needs none.
 - Every worker refreshes a heartbeat per queue it consumes
-  (`services/worker_health.py`, `musizerr:worker:heartbeat:<queue>`). A
+  (`services/worker_health.py`, `musizeer:worker:heartbeat:<queue>`). A
   library job queued while no `jobs` worker is alive is failed as
   `worker_unavailable`.
 

@@ -11,9 +11,9 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
 from sqlmodel import select
 
-from musizerr_sdk.auth import AuthSession
+from musizeer_sdk.auth import AuthSession
 from core.auth_manager import AuthError
-from musizerr_sdk.interfaces import StorageProvider, StorageStreamResult
+from musizeer_sdk.interfaces import StorageProvider, StorageStreamResult
 from core.identifiers import sync_id_type
 from db.library_store import stored_file_paths
 from db.models import Download, DuplicateMember, TrackIdentifierRecord, TrackRecord
@@ -556,7 +556,7 @@ def stream_duplicate_member(
     """Stream ONE file of a duplicate group, so an admin can hear each copy
     before choosing the one to keep. The file is found by the member's own
     identity: its sync id on the sync provider whose library the scan read,
-    else its real path on the storage (the Musizerr download it is linked
+    else its real path on the storage (the Musizeer download it is linked
     to). Never ``/stream/{track_id}``, which picks a file of the track by
     itself.
 

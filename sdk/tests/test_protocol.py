@@ -8,19 +8,19 @@ import struct
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from musizerr_sdk import protocol, wire
-from musizerr_sdk.auth import AuthFlow, AuthSession
-from musizerr_sdk.context import ContextSnapshot
-from musizerr_sdk.errors import (
+from musizeer_sdk import protocol, wire
+from musizeer_sdk.auth import AuthFlow, AuthSession
+from musizeer_sdk.context import ContextSnapshot
+from musizeer_sdk.errors import (
     DelegateHoldsRelease,
     DownloadDeclined,
     DownloadDelegated,
     ProviderRateLimited,
     RemotePlaylistGone,
 )
-from musizerr_sdk.interfaces import StorageStreamResult
-from musizerr_sdk.models import Track
-from musizerr_sdk.protocol import FRAME_BYTES, FRAME_JSON, Frame, FrameSocket, ProtocolError
+from musizeer_sdk.interfaces import StorageStreamResult
+from musizeer_sdk.models import Track
+from musizeer_sdk.protocol import FRAME_BYTES, FRAME_JSON, Frame, FrameSocket, ProtocolError
 
 frames = st.builds(Frame, kind=st.sampled_from([FRAME_JSON, FRAME_BYTES]), payload=st.binary(max_size=300))
 

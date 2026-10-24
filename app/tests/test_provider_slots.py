@@ -159,7 +159,7 @@ def test_each_slot_lock_expires_after_the_configured_lease():
     with _slots(locks, lease=300).acquire("p", 2):
         pass
 
-    assert locks.leases == {"musizerr:provider-slot:p:0": 300, "musizerr:provider-slot:p:1": 300}
+    assert locks.leases == {"musizeer:provider-slot:p:0": 300, "musizeer:provider-slot:p:1": 300}
 
 
 def test_providers_do_not_share_slots():

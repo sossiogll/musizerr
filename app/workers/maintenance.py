@@ -29,7 +29,7 @@ from db.download_store import find_open_download, latest_landing
 from db.models import Download, TrackRecord
 from db.settings_store import SettingsRepository
 from db.track_store import load_track
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from core.settings_resolver import namespace_provider_key
 from core.backoff import retry_delay
 from core.tagging import make_probe_audio
@@ -86,13 +86,13 @@ def verify_full_sync(sync_name: str | None = None) -> dict:
             return {"status": "error", "detail": f"autenticazione fallita: {exc}"}
 
         token = uuid4().hex
-        marker = f"musizerr-probe-{token}"
+        marker = f"musizeer-probe-{token}"
         # Track "canary" per il match universale: titolo/artista/album unici +
         # durata danno a match_track le conferme che richiede oltre al titolo.
         canary_track = Track(title=marker, artist=marker, album=marker, duration_ms=1000)
         # Sotto remote_base_path (dove vanno i download veri); niente dot-folder
         # (i sync provider possono ignorare le cartelle nascoste).
-        rel = f"Musizerr Probe/{marker}.ogg"
+        rel = f"Musizeer Probe/{marker}.ogg"
 
         with open_workspace(config.workspace_dir, storage.name) as workspace:
             if not make_probe_audio(marker, marker, album=marker, path=str(workspace.path / "probe.ogg")):
@@ -150,7 +150,7 @@ def reconcile_delegation(download_id: str, chain: str | None = None) -> dict:
 
     Robustezza (self-healing): un fallimento TRANSITORIO — autenticazione
     che solleva, o poll_delegation che solleva per segnalare "il sistema
-    esterno non ha risposto" (vedi il contratto in musizerr_sdk.interfaces) — non
+    esterno non ha risposto" (vedi il contratto in musizeer_sdk.interfaces) — non
     deve mai interrompere la chain né finalizzare il record come failed:
     un'irraggiungibilità del delegato non dice nulla sull'esito reale del
     download. Si ri-accoda sempre in questi casi, SENZA consumare il
@@ -274,7 +274,7 @@ def _expire_unanswered(download_id: str, started, config) -> bool:
 
 
 def _reconcile_lock_key(download_id: str) -> str:
-    return f"musizerr:delegation-reconcile-lock:{download_id}"
+    return f"musizeer:delegation-reconcile-lock:{download_id}"
 
 
 def _lock_ttl(config, countdown: int) -> int:
@@ -395,7 +395,7 @@ def _apply_delegation_status(download_id, provider, prov_session, status, config
 
     # Risoluzione conflitti (policy qualità, metadata-level host-independent).
     # Gated dal toggle "dedup_enabled" (default: off) — senza questo controllo
-    # musizerr cancellava file via l'API del delegato anche quando l'utente
+    # musizeer cancellava file via l'API del delegato anche quando l'utente
     # aveva la dedup esplicitamente disattivata. Se disabilitata il conflitto
     # resta ds.CONFLICT: nessuna eliminazione automatica, il download andrà
     # in timeout (max-age) se non risolto altrove.
@@ -724,7 +724,7 @@ def _unlike_on_origin(provider, provider_track_id: str | None, store, auth_manag
     """(outcome, reason) of taking the like ``provider_track_id`` back on
     ``provider`` with the user's OWN account only: ``store`` holds no system
     fallback and the authentication never falls back to an app-only token."""
-    from musizerr_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK
+    from musizeer_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK
     from services.credentials import own_missing_capabilities
 
     if provider is None or not provider_track_id or not provider.supports_unlike_saved_track():
@@ -842,7 +842,7 @@ def sweep_workspaces() -> dict:
 
 @celery.task(name="workers.maintenance.check_for_updates")
 def check_for_updates() -> dict:
-    """Reads the releases of Musizerr and keeps the newer ones with their metadata (services/update_check.py):
+    """Reads the releases of Musizeer and keeps the newer ones with their metadata (services/update_check.py):
     Administration judges them against what runs. A feed that cannot be read (the repository is private or
     renamed, a rate limit, GitHub or the network unreachable) is an ``ok`` run with ``state: "unavailable"`` and
     its ``reason``; only an answer that is not a list of releases fails the run."""
@@ -866,7 +866,7 @@ def delete_playlist_tracks(user_id: str, track_ids: list[str]) -> dict:
     """I file che una playlist aveva fatto scaricare, cancellati insieme a lei
     su richiesta del proprietario (``services.playlist_downloads``): solo quelli
     che nessuna playlist e nessun preferito tiene, e solo file scaricati da
-    Musizerr per questo utente."""
+    Musizeer per questo utente."""
     registry = get_registry()
     with Session(engine) as session:
         shared = auth_manager_for(shared_store(session))

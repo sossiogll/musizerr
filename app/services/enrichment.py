@@ -9,12 +9,12 @@ from sqlmodel import select
 
 from core.auth_manager import ProviderNotConfigured
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
+from musizeer_sdk.identifiers import ISRC, PROVIDER_ID, Identifier
 from core.discography import RELEASES_LISTING_LIMIT
-from musizerr_sdk.models import Album, AlbumRef, Track
+from musizeer_sdk.models import Album, AlbumRef, Track
 from core.interfaces import SyncAvailability
 from core.matching import find_match, match_album, match_artist, match_artist_name, match_track, pair_album_tracks
-from musizerr_sdk.text import normalize
+from musizeer_sdk.text import normalize
 from core.merge import enrich
 from core.serialization import deserialize_track
 from services.config_manager import get_config

@@ -1,12 +1,12 @@
 """
-Is there a newer Musizerr to update to, and what would updating imply (ADR-0007 §5.1).
+Is there a newer Musizeer to update to, and what would updating imply (ADR-0007 §5.1).
 
 The routine ``check_for_updates`` (on by default, once a day) reads the releases of the repository on
 GitHub and keeps, as the result of its run, the facts: the releases newer than this version, each with
 the ``release.json`` it carries. Nothing about the instance is sent. The admin's view
 (``GET /admin/updates``) reads that result and judges each release against what runs NOW (the providers
 installed may have changed since the check): a release that only needs its images pulled, or the reasons
-it needs care. Musizerr is always updated by hand; nothing here changes the instance.
+it needs care. Musizeer is always updated by hand; nothing here changes the instance.
 
 A release feed that cannot be read is not a failure of the instance: GitHub answering 404/401/403 (the
 repository is private or renamed), a rate limit, an outage or a network without access to GitHub give a run
@@ -32,7 +32,7 @@ from services.routines import run_result
 
 ROUTINE = "check_for_updates"
 # The repository whose releases are this instance's updates; a fork names its own.
-REPOSITORY = os.environ.get("MUSIZERR_UPDATE_REPOSITORY") or "sossiogll/musizerr"
+REPOSITORY = os.environ.get("MUSIZERR_UPDATE_REPOSITORY") or "sossiogll/musizeer"
 RELEASE_METADATA = "release.json"
 # The routine keeps its result in a run's detail (2000 characters): the newest few releases are enough
 # to say "there is an update", and each one links its notes.
@@ -89,7 +89,7 @@ def check(current: str = app_version.VERSION, transport: httpx.BaseTransport | N
 
     A feed that cannot be read (see the module docstring) is ``state: "unavailable"`` with its ``reason``
     and no releases; an answer that is not a list of releases raises :class:`UpdateCheckError`."""
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Musizerr"}
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Musizeer"}
     with httpx.Client(transport=transport, timeout=_TIMEOUT, headers=headers, follow_redirects=True) as client:
         try:
             response = client.get(f"https://api.github.com/repos/{REPOSITORY}/releases", params={"per_page": 30})

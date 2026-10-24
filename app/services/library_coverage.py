@@ -28,7 +28,7 @@ from sqlmodel import Session, select
 from core import download_states as ds
 from core.discography import ReleaseGroup
 from core.matching import base_title_key, match_release, title_identity_key
-from musizerr_sdk.models import Album
+from musizeer_sdk.models import Album
 from db.library_store import all_file_states
 from db.models import TrackRecord
 from db.track_store import track_from_record

@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pytest
 
-from musizerr_gateway.oci import ImageError, RegistryClient, RegistryError, host_architecture
+from musizeer_gateway.oci import ImageError, RegistryClient, RegistryError, host_architecture
 from support import FakeImage, FakeRegistry, Tar, digest, labels_for
 
 
@@ -26,8 +26,8 @@ def test_an_image_is_resolved_from_its_pinned_manifest():
 
     assert resolved.manifest_digest == built.manifest_digest
     assert len(resolved.layers) == 2 and len(resolved.config.diff_ids) == 2
-    assert resolved.config.labels["org.musizerr.provider.name"] == "demo"
-    assert resolved.config.entrypoint == ("python", "-m", "musizerr_sdk.runner")
+    assert resolved.config.labels["org.musizeer.provider.name"] == "demo"
+    assert resolved.config.entrypoint == ("python", "-m", "musizeer_sdk.runner")
     assert resolved.config.env["PATH"] == "/usr/bin"
 
 
@@ -121,7 +121,7 @@ def test_an_anonymous_bearer_token_is_fetched_when_the_registry_asks_for_one():
     assert len(resolved.layers) == 2
     assert registry.token_calls == 1, "one token serves the whole pull"
     token_url = next(url for url, _ in registry.requests if url.startswith(registry.token_realm))
-    assert "scope=repository%3Amusizerr%2Fdemo%3Apull" in token_url and "service=registry.test" in token_url
+    assert "scope=repository%3Amusizeer%2Fdemo%3Apull" in token_url and "service=registry.test" in token_url
     assert all(headers.get("Authorization") == "Bearer T0KEN" for url, headers in registry.requests[2:] if url.startswith(registry.base))
 
 
@@ -200,7 +200,7 @@ def test_the_architecture_of_the_host_is_named_the_oci_way(monkeypatch):
 # ---- a private registry: the credential of the source ---------------------------------------
 
 
-def private_registry(secret: str = "ghp_s3cret", user: str = "musizerr") -> tuple[FakeRegistry, str]:
+def private_registry(secret: str = "ghp_s3cret", user: str = "musizeer") -> tuple[FakeRegistry, str]:
     registry, built = FakeRegistry(), image()
     registry.require_basic = f"{user}:{secret}"
     return registry, registry.add_image(built)
@@ -236,7 +236,7 @@ def test_the_wrong_credential_is_refused_and_never_named():
 
 def test_a_registry_that_challenges_with_basic_gets_the_credential_directly():
     registry, built = FakeRegistry(), image()
-    registry.require_basic, registry.basic_challenge = "musizerr:tok", True
+    registry.require_basic, registry.basic_challenge = "musizeer:tok", True
     pinned = registry.add_image(built)
 
     assert client_for(registry, pinned, credential="tok").resolve().layers
@@ -285,7 +285,7 @@ def test_the_credential_never_goes_to_a_token_realm_that_is_not_the_registrys_ow
     ("10.0.0.5:5000", "10.0.0.5", True),
 ])
 def test_which_token_realms_may_receive_the_credential(registry, realm, allowed):
-    from musizerr_gateway.oci import _realm_belongs_to
+    from musizeer_gateway.oci import _realm_belongs_to
 
     assert _realm_belongs_to(registry, realm) is allowed
 

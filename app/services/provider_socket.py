@@ -38,10 +38,10 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Callable
 
-from musizerr_sdk import protocol
-from musizerr_sdk.interfaces import BaseProvider
-from musizerr_sdk.manifest import ROLES
-from musizerr_sdk.protocol import Frame, ProtocolError, json_frame, load_message, read_frame
+from musizeer_sdk import protocol
+from musizeer_sdk.interfaces import BaseProvider
+from musizeer_sdk.manifest import ROLES
+from musizeer_sdk.protocol import Frame, ProtocolError, json_frame, load_message, read_frame
 
 from services.provider_proxy import TransportError
 from services.workspace import PROVIDER_NAME, provider_directory

@@ -1,7 +1,7 @@
 """``core.tagging.read_track_tags``: la Track descritta dai tag di un file."""
 from __future__ import annotations
 
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from core.tagging import read_track_tags
 from tests.conftest import write_flac
 

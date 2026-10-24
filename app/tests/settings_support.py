@@ -7,10 +7,10 @@ twice.
 """
 from __future__ import annotations
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import LyricsProvider, MetadataProvider
-from musizerr_sdk.models import Lyrics
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import LyricsProvider, MetadataProvider
+from musizeer_sdk.models import Lyrics
+from musizeer_sdk.settings import ProviderSetting
 from services.provider_registry import ProviderRegistry
 
 from tests.conftest import (
@@ -69,7 +69,7 @@ class SettingsLyrics(LyricsProvider):
     auth = NONE
 
     def __init__(self, name: str = "words") -> None:
-        from musizerr_sdk.context import StaticProviderContext
+        from musizeer_sdk.context import StaticProviderContext
 
         super().__init__(StaticProviderContext())
         self.name = self.label = name

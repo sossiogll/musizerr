@@ -11,8 +11,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from musizerr_sdk.errors import ProviderRateLimited
-from musizerr_sdk.failures import Failure, classify_exception
+from musizeer_sdk.errors import ProviderRateLimited
+from musizeer_sdk.failures import Failure, classify_exception
 
 # --- httpx-like -------------------------------------------------------------
 
@@ -90,19 +90,19 @@ def test_the_network_being_down_is_unreachable(make):
 
 @pytest.mark.parametrize("make", [HTTPStatusError, RequestsHTTPError], ids=["httpx-like", "requests-like"])
 def test_the_egress_proxy_answering_for_a_destination_that_does_not_answer_is_unreachable_not_its_502(make):
-    assert classify_exception(make(502, {"X-Musizerr-Egress": "unreachable"})).kind == "unreachable"
-    assert classify_exception(make(502, {"x-musizerr-egress": "unreachable"})).kind == "unreachable"
+    assert classify_exception(make(502, {"X-Musizeer-Egress": "unreachable"})).kind == "unreachable"
+    assert classify_exception(make(502, {"x-musizeer-egress": "unreachable"})).kind == "unreachable"
     assert classify_exception(make(502)).kind == "upstream_error"
 
 
 @pytest.mark.parametrize("make", [HTTPStatusError, RequestsHTTPError], ids=["httpx-like", "requests-like"])
 def test_the_egress_proxy_refusing_a_destination_is_a_failure_not_a_refused_credential(make):
-    assert classify_exception(make(403, {"X-Musizerr-Egress": "refused"})).kind == "failed"
+    assert classify_exception(make(403, {"X-Musizeer-Egress": "refused"})).kind == "failed"
     assert classify_exception(make(403)).kind == "auth_failed"
 
 
 def test_a_header_value_the_proxy_does_not_give_changes_nothing():
-    assert classify_exception(HTTPStatusError(502, {"X-Musizerr-Egress": "maybe"})).kind == "upstream_error"
+    assert classify_exception(HTTPStatusError(502, {"X-Musizeer-Egress": "maybe"})).kind == "upstream_error"
 
 
 class ProxyError(TransportError): ...

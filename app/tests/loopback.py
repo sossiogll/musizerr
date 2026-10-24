@@ -27,9 +27,9 @@ import weakref
 from collections.abc import Iterator
 from typing import Any
 
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.protocol import Frame, pack_frame, read_frame
-from musizerr_sdk.runner import ProviderFactory, ProviderRunner
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.protocol import Frame, pack_frame, read_frame
+from musizeer_sdk.runner import ProviderFactory, ProviderRunner
 from services import provider_proxy
 from services.provider_context import HostProviderContext
 from services.provider_proxy import ContextSource, ProviderProxy

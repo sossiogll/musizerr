@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 from core.auth import AccountTarget
 from core.auth_manager import AuthManager
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from db import playlist_store
 from db.auth_store import CredentialStore
 from db.models import Playlist, PlaylistSync, PlaylistTrack, TrackRecord, User

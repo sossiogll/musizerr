@@ -21,8 +21,8 @@ from sqlmodel import Session
 
 from core import download_states as ds
 from db.models import Download, TrackRecord
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
-from musizerr_sdk.delegation import DelegationStatus
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.delegation import DelegationStatus
 from routes.delegation_webhook import delegation_webhook
 from services.config_manager import ConfigManager
 from workers import maintenance

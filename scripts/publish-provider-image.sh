@@ -12,8 +12,8 @@
 #   GHCR_NAMESPACE  where to publish (default ghcr.io/sossiogll)
 #
 # Steps: (1) pull the PUBLISHED base image (scripts/publish-provider-base.sh) and build the provider on
-# it for this machine, (2) ask the provider for its org.musizerr.provider.* labels (the image describes
-# itself), (3) build it with them for both platforms and push <namespace>/musizerr-provider-<name>:<version>,
+# it for this machine, (2) ask the provider for its org.musizeer.provider.* labels (the image describes
+# itself), (3) build it with them for both platforms and push <namespace>/musizeer-provider-<name>:<version>,
 # (4) write the entry: the image pinned by the digest of the multi-architecture index (the gateway picks
 # its platform's manifest from it and checks the labels against the entry).
 #
@@ -25,10 +25,10 @@ set -eu
 [ $# -ge 2 ] || { sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 PROVIDER_DIR=$(cd "$1" && pwd)
 CATALOG_FILE=$2
-CATALOG_NAME=${3:-Musizerr providers}
+CATALOG_NAME=${3:-Musizeer providers}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAMESPACE=${GHCR_NAMESPACE:-ghcr.io/sossiogll}
-BUILDER=musizerr-publish
+BUILDER=musizeer-publish
 PLATFORMS=linux/amd64,linux/arm64
 
 [ -f "$PROVIDER_DIR/Dockerfile" ] || { echo "$PROVIDER_DIR has no Dockerfile" >&2; exit 1; }
@@ -36,15 +36,15 @@ VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' "$PROVIDER_DIR/pyproject.toml" 2>
 [ -n "$VERSION" ] || { echo "cannot read the version from $PROVIDER_DIR/pyproject.toml" >&2; exit 1; }
 BASE=$(sed -n 's/^FROM \([^ ]*\).*/\1/p' "$PROVIDER_DIR/Dockerfile" | head -1)
 case $BASE in
-  "$NAMESPACE"/musizerr-provider-base:*) ;;
-  *) echo "the Dockerfile is not FROM $NAMESPACE/musizerr-provider-base (it names $BASE)" >&2; exit 1 ;;
+  "$NAMESPACE"/musizeer-provider-base:*) ;;
+  *) echo "the Dockerfile is not FROM $NAMESPACE/musizeer-provider-base (it names $BASE)" >&2; exit 1 ;;
 esac
 mkdir -p "$(dirname "$CATALOG_FILE")"
 CATALOG_DIR=$(cd "$(dirname "$CATALOG_FILE")" && pwd)
 CATALOG_BASENAME=$(basename "$CATALOG_FILE")
 
 TMP=$(mktemp -d)
-LOCAL=musizerr-provider-publish-$(basename "$PROVIDER_DIR"):build
+LOCAL=musizeer-provider-publish-$(basename "$PROVIDER_DIR"):build
 trap 'rm -rf "$TMP"; docker image rm -f "$LOCAL" >/dev/null 2>&1 || true' EXIT
 
 echo "== base $BASE (published)" >&2
@@ -52,9 +52,9 @@ docker pull -q "$BASE" >/dev/null
 docker build -q --provenance=false -t "$LOCAL" "$PROVIDER_DIR" >/dev/null
 docker run --rm "$LOCAL" --print-labels >"$TMP/labels"
 
-NAME=$(sed -n 's/^org.musizerr.provider.name=//p' "$TMP/labels")
+NAME=$(sed -n 's/^org.musizeer.provider.name=//p' "$TMP/labels")
 [ -n "$NAME" ] || { echo "the provider printed no name label" >&2; exit 1; }
-IMAGE=$NAMESPACE/musizerr-provider-$NAME
+IMAGE=$NAMESPACE/musizeer-provider-$NAME
 
 set --
 while IFS= read -r line; do

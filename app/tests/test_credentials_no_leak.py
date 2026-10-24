@@ -31,8 +31,8 @@ from services.gateway_client import GatewayClient
 from services.gateway_sync import GatewaySync
 from services.sources import CatalogFetcher, SourceManager
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, ApiKeyConfig, BearerHeaderRequestAuth, CredentialField, OAuth2Config
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, ApiKeyConfig, BearerHeaderRequestAuth, CredentialField, OAuth2Config
+from musizeer_sdk.settings import ProviderSetting
 
 from tests.conftest import FakeDownloadProvider, FakeMetadataProvider, FakeRegistry
 from tests.credentials_support import THIRD_KEY, raw, use_keys

@@ -25,7 +25,7 @@ from typing import Any
 
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AuthFlow
+from musizeer_sdk.auth import AuthFlow
 from core.auth_manager import AuthError, AuthManager
 from services.config_manager import ConfigManager
 from core.interfaces import ProviderRegistry

@@ -13,7 +13,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 
-from musizerr_sdk.interfaces import StorageStreamResult
+from musizeer_sdk.interfaces import StorageStreamResult
 from routes.stream import _stored_file_response
 from services.provider_calls import ProviderCallError
 from services.workspace import new_workspace

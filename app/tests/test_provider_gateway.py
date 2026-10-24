@@ -5,10 +5,10 @@ import logging
 
 import pytest
 
-from musizerr_sdk.auth import AuthSession
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.models import Track
-from musizerr_sdk.permissions import FilesystemAccess, Permissions, TcpAccess
+from musizeer_sdk.auth import AuthSession
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.models import Track
+from musizeer_sdk.permissions import FilesystemAccess, Permissions, TcpAccess
 from services import gateway_client, provider_events
 from services.gateway_client import EgressGrants, GatewayClient, GatewayProviderContext, GatewayUnreachable
 from services.provider_registry import ProviderRegistry
@@ -207,7 +207,7 @@ def test_the_client_reads_the_gateways_answers_and_reports_what_it_cannot(gatewa
     gateway.serve(Remote, "remote")
 
     listing = client.listing()
-    assert (listing.epoch, listing.generation, listing.workspace_root) == ("e1", 1, "/downloads/.musizerr-work")
+    assert (listing.epoch, listing.generation, listing.workspace_root) == ("e1", 1, "/downloads/.musizeer-work")
     assert listing.providers[0].name == "remote" and listing.providers[0].socket == "providers/remote/provider.sock"
     assert client.run_dir == gateway.run_dir
     with pytest.raises(GatewayUnreachable, match="refused"):
@@ -389,7 +389,7 @@ def test_the_event_goes_to_redis_on_its_channel(monkeypatch):
 
     provider_events.announce_changed()
 
-    assert published == [("musizerr:providers", "changed"), "closed"]
+    assert published == [("musizeer:providers", "changed"), "closed"]
 
 
 def test_installing_or_removing_announces_the_change_and_a_failed_announcement_does_not_fail_it():

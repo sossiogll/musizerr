@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.settings import ProviderSetting
 
 from .interfaces import ProviderRegistry
 from .settings_catalog import AREA_PROVIDERS, CATALOG, SettingDef

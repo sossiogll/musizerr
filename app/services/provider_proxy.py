@@ -1,12 +1,12 @@
 """
 The only object through which the host reaches a provider.
 
-A proxy is built from a provider's manifest (``musizerr_sdk.manifest``) and a
+A proxy is built from a provider's manifest (``musizeer_sdk.manifest``) and a
 :class:`Transport`. It IS an instance of the abstract classes of the roles the
 manifest names, so that the host's type hints and the registry's contracts hold,
 but it holds no provider code: the capabilities the provider declares are
 answered from the manifest, and every other method of the contract is a call
-sent through the transport (``musizerr_sdk.protocol``) to the provider's runner,
+sent through the transport (``musizeer_sdk.protocol``) to the provider's runner,
 with a snapshot of the provider's context, and answered with the decoded result,
 the pages of a stream, or an exception:
 
@@ -29,12 +29,12 @@ import types
 from collections.abc import Iterator
 from typing import Any, Protocol
 
-from musizerr_sdk import failures, protocol, wire
-from musizerr_sdk.context import ContextSnapshot
-from musizerr_sdk.interfaces import BaseProvider, StorageStreamResult
-from musizerr_sdk.manifest import DECLARED_QUERIES, ROLES, Manifest, declared_names
-from musizerr_sdk.protocol import Frame, ProtocolError, RemoteError
-from musizerr_sdk.version import peer_minor
+from musizeer_sdk import failures, protocol, wire
+from musizeer_sdk.context import ContextSnapshot
+from musizeer_sdk.interfaces import BaseProvider, StorageStreamResult
+from musizeer_sdk.manifest import DECLARED_QUERIES, ROLES, Manifest, declared_names
+from musizeer_sdk.protocol import Frame, ProtocolError, RemoteError
+from musizeer_sdk.version import peer_minor
 
 
 class ProviderCallFailed(Exception):

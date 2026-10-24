@@ -1,5 +1,5 @@
 """
-The playlists of a user, kept by Musizerr (``docs/playlists.md``).
+The playlists of a user, kept by Musizeer (``docs/playlists.md``).
 
 - A playlist is PRIVATE: its owner only (anyone else gets "not found").
 - ``own`` playlists are edited by their owner (add, remove, reorder, rename).
@@ -27,7 +27,7 @@ from sqlmodel import Session, select
 
 from core import download_states as ds
 from core import urls
-from musizerr_sdk.models import Playlist as SourcePlaylist
+from musizeer_sdk.models import Playlist as SourcePlaylist
 from core.serialization import serialize_track
 from core.utc import utc_iso
 from db import playlist_store as store

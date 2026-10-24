@@ -10,7 +10,7 @@ import pytest
 from sqlmodel import Session, select
 
 from core.identifiers import sync_id_type
-from musizerr_sdk.models import LibraryItem
+from musizeer_sdk.models import LibraryItem
 from db.models import (
     Download,
     DuplicateGroup,
@@ -180,7 +180,7 @@ def test_a_wrong_merge_is_split_and_the_like_follows(session):
     session.commit()
     remix = make_track("E si fa bello per te - Federico Scavo Remix", "Jovanotti", "E si fa bello per te (i remix)",
                        duration_ms=254_995, provider="catalog", provider_id="remix")
-    from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
+    from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
     remix.add_id(Identifier(type=PROVIDER_ID, value="remix", provider="catalog"))
     remaster = make_track("E si fa bello per te - Remastered 2023", "Jovanotti", duration_ms=194_040)
     lookup = _Lookup({("catalog_id", "remix"): remix, ("catalog_id", "remaster"): remaster})

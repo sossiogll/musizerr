@@ -10,8 +10,8 @@ from __future__ import annotations
 import pytest
 
 from core import download_states as ds
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.delegation import DelegationStatus
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.delegation import DelegationStatus
 from services.delegation import poll_for_requested_track
 
 from tests.conftest import FakeDownloadProvider, FakeRegistry, make_track
@@ -107,7 +107,7 @@ def test_the_listed_tracks_are_not_modified_when_the_host_fills_the_album():
 # ---------------------------------------------------------------------------
 
 from core.download_resolver import ALREADY_IN_DELEGATE, DownloadResolver, download_fuzzy  # noqa: E402
-from musizerr_sdk.errors import DelegateHoldsRelease, DownloadDeclined, DownloadDelegated  # noqa: E402
+from musizeer_sdk.errors import DelegateHoldsRelease, DownloadDeclined, DownloadDelegated  # noqa: E402
 
 
 class _Holder(FakeDownloadProvider):

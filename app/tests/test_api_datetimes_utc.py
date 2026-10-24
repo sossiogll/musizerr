@@ -88,8 +88,8 @@ def _seed(session: Session) -> User:
     session.add(source)
     session.flush()
     session.add(InstalledProvider(
-        source_id=source.id, name="fake", image="registry.test/musizerr-provider-fake", digest="sha256:" + "a" * 64,
-        provider_api_version=5, label="Fake", roles='["metadata"]', permissions="{}", approved_at=NOW, installed_at=NOW,
+        source_id=source.id, name="fake", image="registry.test/musizeer-provider-fake", digest="sha256:" + "a" * 64,
+        provider_api_version=6, label="Fake", roles='["metadata"]', permissions="{}", approved_at=NOW, installed_at=NOW,
     ))
     session.commit()
     session.refresh(admin)

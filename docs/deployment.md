@@ -1,6 +1,6 @@
-# Deploying Musizerr
+# Deploying Musizeer
 
-How to run Musizerr on a server with the published images: one folder, one compose file, one `.env`. Nothing is
+How to run Musizeer on a server with the published images: one folder, one compose file, one `.env`. Nothing is
 built and no clone of the repository is needed. (Developing is another page of the README; this one is about running it.)
 
 ```
@@ -15,7 +15,7 @@ built and no clone of the repository is needed. (Developing is another page of t
 - A Linux host (amd64 or arm64) with **Docker Engine 24 or later and the Compose plugin** (`docker compose version`).
   Docker Desktop works for trying it out.
 - A kernel with **unprivileged user namespaces**: the provider gateway builds a sandbox for every provider with them
-  ([AppArmor and seccomp](#apparmor-and-seccomp) below says what that takes on Debian and Ubuntu). Without sandboxes Musizerr
+  ([AppArmor and seccomp](#apparmor-and-seccomp) below says what that takes on Debian and Ubuntu). Without sandboxes Musizeer
   runs but no provider does.
 - 1 GB of memory for the stack, more for a big library; a folder of the host for the music if you keep it on the host.
 
@@ -25,17 +25,17 @@ Download the three files of the latest release into an empty folder (a release's
 points at the profile next to it):
 
 ```sh
-mkdir musizerr && cd musizerr
-BASE=https://github.com/sossiogll/musizerr/releases/latest/download
+mkdir musizeer && cd musizeer
+BASE=https://github.com/sossiogll/musizeer/releases/latest/download
 curl -fsSLO $BASE/docker-compose.yaml
-curl -fsSLO $BASE/musizerr-gateway.seccomp.json
+curl -fsSLO $BASE/musizeer-gateway.seccomp.json
 curl -fsSL  $BASE/env.example -o .env
 ```
 
-(`musizerr-gateway.seccomp.json` is the gateway's seccomp profile. A Docker `security_opt` names a file **on the host**, so it
+(`musizeer-gateway.seccomp.json` is the gateway's seccomp profile. A Docker `security_opt` names a file **on the host**, so it
 cannot come from inside an image; that is why it is a file next to the compose file. To pin a version instead of
 `latest`, use `.../releases/download/v1.4.0/...`.) A clone of the repository works too: `docker-compose.yaml` and
-`gateway/seccomp/musizerr-gateway.json` are in it, and the paths already match.
+`gateway/seccomp/musizeer-gateway.json` are in it, and the paths already match.
 
 ## 2. The `.env` file
 
@@ -79,7 +79,7 @@ healthy (`/health` answers 200 with `"db": "ok"`). `docker compose ps` shows `ap
 Check that the gateway can build sandboxes (it must say `"available": true`):
 
 ```sh
-docker compose exec provider-gateway python -m musizerr_gateway.ctl health
+docker compose exec provider-gateway python -m musizeer_gateway.ctl health
 ```
 
 If it says `sandbox unavailable: ...`, the message ends with what to change, see [AppArmor and seccomp](#apparmor-and-seccomp)
@@ -98,7 +98,7 @@ needs three options, already in `docker-compose.yaml`:
 provider-gateway:
   cap_drop: [ALL]
   security_opt:
-    - seccomp=${GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizerr-gateway.json}   # a release's file: ./musizerr-gateway.seccomp.json
+    - seccomp=${GATEWAY_SECCOMP_PROFILE:-./gateway/seccomp/musizeer-gateway.json}   # a release's file: ./musizeer-gateway.seccomp.json
     - apparmor=unconfined                                                           # Debian, Ubuntu: Docker's docker-default profile denies the namespace calls
     - systempaths=unconfined                                                        # a sandbox mounts its own /proc
 ```
@@ -172,7 +172,7 @@ Without it both point at `http://localhost`, which works only in a browser on th
 ### `public_base_url`, the setting, is another address
 
 Download providers that hand the work to another program (a delegate, such as a downloader with its own queue) ask it to
-call Musizerr back when it is done. The address it is given is the **setting `public_base_url`**
+call Musizeer back when it is done. The address it is given is the **setting `public_base_url`**
 (the system settings), and it must be reachable **from the delegate**, not from your browser:
 the delegate may be another container, another host, a VPN. Typical mistakes:
 
@@ -186,11 +186,11 @@ the delegate may be another container, another host, a VPN. Typical mistakes:
 
 ```
  downloads (named volume)  ─ mounted at /downloads in app, the three workers, beat and the gateway
-    └── .musizerr-work/    ─ the workspace: WORKSPACE_DIR
+    └── .musizeer-work/    ─ the workspace: WORKSPACE_DIR
  gateway_state             ─ the gateway's layer cache (not shared)
 ```
 
-- **The workspace.** The host and the gateway exchange files in `WORKSPACE_DIR` (default `/downloads/.musizerr-work`): the host
+- **The workspace.** The host and the gateway exchange files in `WORKSPACE_DIR` (default `/downloads/.musizeer-work`): the host
   creates a folder per call, the gateway shows each provider its own part as `/workspace`. **One variable sets both
   sides**: compose gives it to the gateway as `GATEWAY_WORKSPACE_DIR` and to the API and workers, where it is the default of the
   setting `workspace_dir`. Put it inside a volume that all of them mount at the same path. If you change the setting
@@ -221,14 +221,14 @@ the delegate may be another container, another host, a VPN. Typical mistakes:
   Administration. The gateway runs as uid 1000 and the sandboxes' files belong to it: `chown -R 1000:1000 /srv/music` (or
   make it writable for that uid) if the provider has to write. A folder outside every root, a link that leads out of
   one, `/`, and the gateway's own folders are refused, with the reason in the provider's page and in
-  `docker compose exec provider-gateway python -m musizerr_gateway.ctl list` (`folders.refused`).
+  `docker compose exec provider-gateway python -m musizeer_gateway.ctl list` (`folders.refused`).
 - **The music itself** is wherever your storage provider puts it: in `/library` above, or in the `downloads` volume. A named
   volume lives in `/var/lib/docker/volumes`; replace `downloads` with a bind mount in the override file for all services that
   mount it if you want a folder of your own for it.
 
 ## Upgrading
 
-`MUSIZERR_VERSION` in `.env` chooses the images (`musizerr`, `musizerr-gateway`, `musizerr-frontend`):
+`MUSIZERR_VERSION` in `.env` chooses the images (`musizeer`, `musizeer-gateway`, `musizeer-frontend`):
 
 - unset: `latest`, the last merge into the master branch. `docker compose pull && docker compose up -d` updates;
 - `MUSIZERR_VERSION=1.4.0`: that release and nothing else, until you change it (the tags of the GitHub releases, without the `v`).
@@ -282,18 +282,18 @@ The files are readable by the owner only and hold the whole database, so keep a 
 - An app that finds a database it cannot use (behind it, or migrated by a later MAJOR) **refuses to start** and logs why and
   what to do (`docker compose logs app`); the same for the workers.
 
-## Do not override `dns:` on Musizerr's services
+## Do not override `dns:` on Musizeer's services
 
 Docker gives every container a resolver that knows the other services by name and forwards the rest to the **host's** resolvers.
 That is how `app` finds `postgres`, and how the gateway's egress proxy finds the server a provider is set up to use:
 your media server by its Tailscale name, a NAS by `.local`, an address that only your router's DNS knows.
 
-A `dns: [1.1.1.1]` (or any public resolver) on a Musizerr service replaces the host's resolvers. Service names keep working and
+A `dns: [1.1.1.1]` (or any public resolver) on a Musizeer service replaces the host's resolvers. Service names keep working and
 **every private name stops resolving**: a provider cannot reach a server named `nas.tailnet.ts.net`, an OAuth callback to a
 split-horizon name fails, and the symptom is a provider "unreachable" while the same URL works from the host. Leave `dns:` out; if
 the host's own DNS is the problem, fix it on the host.
 
-The same goes for the other side of a call: a program that calls Musizerr back (see `public_base_url` above) must resolve the name
+The same goes for the other side of a call: a program that calls Musizeer back (see `public_base_url` above) must resolve the name
 it is given with *its* resolver.
 
 ## Troubleshooting
@@ -301,7 +301,7 @@ it is given with *its* resolver.
 | Symptom | Look at |
 |---|---|
 | `docker compose up` stops with `set POSTGRES_PASSWORD in .env` (or `AUTH_SECRET`, `CREDENTIALS_KEY`) | The variable is missing from `.env` ([2](#2-the-env-file)). |
-| `docker compose up` fails with `opening seccomp profile (...) failed ... no such file` | `musizerr-gateway.seccomp.json` is not next to the compose file (the path is relative to it), or `GATEWAY_SECCOMP_PROFILE` is wrong. |
+| `docker compose up` fails with `opening seccomp profile (...) failed ... no such file` | `musizeer-gateway.seccomp.json` is not next to the compose file (the path is relative to it), or `GATEWAY_SECCOMP_PROFILE` is wrong. |
 | `ctl health` says `sandbox unavailable: ...` | The hint at the end of the message; [gateway.md, Troubleshooting](gateway.md#troubleshooting). |
 | A provider fails with `can't start new thread` or `Connection reset by peer`, or `ctl health` mentions `Resource temporarily unavailable` | The numbers in the gateway's log and `ctl list` (`container`, `tasks`): [Processes and threads](#processes-and-threads-of-the-providers), [gateway.md](gateway.md#troubleshooting). |
 | The web app answers 502 | The API is not up: `docker compose logs app`. nginx finds it again by itself (a few seconds) when it comes back. |

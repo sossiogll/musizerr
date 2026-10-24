@@ -13,7 +13,7 @@ the backups folder, never pruned), then replaces the content of the database wit
 
 STOP the application, the workers and beat first (``docker compose stop app worker worker-jobs
 worker-maintenance beat``): a service connected to the database keeps writing, or blocks the restore. Then start the
-version of Musizerr the backup was taken for. What was written after the backup is lost.
+version of Musizeer the backup was taken for. What was written after the backup is lost.
 
 Usage, from ``app/`` (in the stack: ``docker compose run --rm init python -m scripts.restore_backup <file>``):
 
@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     except migration_backup.BackupError as exc:
         logger.error("%s", exc)
         return 1
-    logger.info("Restored. Start the version of Musizerr this backup was taken for%s.",
+    logger.info("Restored. Start the version of Musizeer this backup was taken for%s.",
                 f" (the schema before {parsed.target})" if parsed else "")
     return 0
 

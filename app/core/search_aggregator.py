@@ -4,8 +4,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as
 from typing import TypeVar
 
 from .interfaces import ProviderRegistry
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Album, AlbumRef, Artist, Playlist, Track
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Album, AlbumRef, Artist, Playlist, Track
 from .merge import enrich
 from .matching import match_album, match_artist, match_track
 from .auth_manager import AuthManager, ProviderNotConfigured

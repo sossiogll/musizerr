@@ -21,7 +21,7 @@ from db import adoption, user_service
 from db.locks import xact_lock
 from db.models import User
 from db.settings_store import SettingsRepository
-from musizerr_sdk.auth import AccountModel
+from musizeer_sdk.auth import AccountModel
 from services.config_manager import ConfigManager
 from services.linked_accounts import unique_providers
 

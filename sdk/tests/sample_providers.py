@@ -4,16 +4,16 @@ from __future__ import annotations
 import threading
 from typing import Iterator
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
-from musizerr_sdk.errors import (
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.errors import (
     DelegateHoldsRelease,
     DownloadDeclined,
     DownloadDelegated,
     ProviderRateLimited,
     RemotePlaylistGone,
 )
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.interfaces import (
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.interfaces import (
     DownloadProvider,
     LyricsProvider,
     MetadataProvider,
@@ -22,8 +22,8 @@ from musizerr_sdk.interfaces import (
     SyncCandidate,
     SyncProvider,
 )
-from musizerr_sdk.models import Lyrics, Track
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.models import Lyrics, Track
+from musizeer_sdk.settings import ProviderSetting
 
 NO_AUTH = AuthDefinition(flow=AuthFlow.NONE, account_model=AccountModel.NONE)
 

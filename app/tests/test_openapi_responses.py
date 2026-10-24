@@ -21,17 +21,17 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 import main
-from musizerr_sdk.auth import (
+from musizeer_sdk.auth import (
     AccountModel,
     AccountDisplayField,
     AuthDefinition,
     AuthFlow,
     ExternalUtilityConfig,
 )
-from musizerr_sdk.identifiers import Identifier
-from musizerr_sdk.interfaces import LyricsProvider
-from musizerr_sdk.models import Album, Artist, Lyrics, Playlist, TracksUnavailable
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.identifiers import Identifier
+from musizeer_sdk.interfaces import LyricsProvider
+from musizeer_sdk.models import Album, Artist, Lyrics, Playlist, TracksUnavailable
+from musizeer_sdk.context import StaticProviderContext
 from core.user_auth import create_access_token
 from db.engine import get_session
 from db.models import (

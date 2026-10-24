@@ -1,11 +1,11 @@
 """
 How the host reads identifiers: which record a track is from the identifiers
 it shares. ``Identifier`` itself (and the types it names) is part of the
-provider contract: ``musizerr_sdk.identifiers``.
+provider contract: ``musizeer_sdk.identifiers``.
 """
 from __future__ import annotations
 
-from musizerr_sdk.identifiers import SYNC_ID_SUFFIX, UNIVERSAL_IDENTIFIER_TYPES, is_sync_id_type
+from musizeer_sdk.identifiers import SYNC_ID_SUFFIX, UNIVERSAL_IDENTIFIER_TYPES, is_sync_id_type
 
 
 def sync_id_type(sync_provider_name: str) -> str:

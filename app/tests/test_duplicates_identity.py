@@ -6,8 +6,8 @@ Library duplicates without phantom keepers (analysis of 29 Sep):
   id, so two files with one virtual path are two members, one keeper at most,
   and a group where nothing can be deleted is ``needs_review``, never a
   "proposed" deletion of zero files;
-- when two members claim one Musizerr download, an exact link (by sync id)
-  wins over a tag fallback: the file Musizerr downloaded stays deletable;
+- when two members claim one Musizeer download, an exact link (by sync id)
+  wins over a tag fallback: the file Musizeer downloaded stays deletable;
   both claims are dropped only when they have the same strength;
 - the bit rate of a library item is in bit/s (a provider whose server speaks
   kbps converts it; the conversion is tested in its own repository);
@@ -18,7 +18,7 @@ from __future__ import annotations
 import pytest
 from sqlmodel import Session, select
 
-from musizerr_sdk.auth import AuthSession
+from musizeer_sdk.auth import AuthSession
 from core.audio_quality import QualityScore
 from core.duplicates import cluster_library_items, quality_from_library_item
 from core.identifiers import sync_id_type
@@ -98,7 +98,7 @@ def test_two_files_with_one_virtual_path_get_one_keeper(engine):
         download = Download(track_id="t", status="downloaded", file_path="real/closing-time.mp3")
         session.add(download)
         session.commit()
-        # Exactly one member is the keeper; the other one, Musizerr's, is the
+        # Exactly one member is the keeper; the other one, Musizeer's, is the
         # one to delete.
         members = [_member(items[0]), _member(items[1], download_id=download.id)]
         members[0].quality = QualityScore(lossless=False, bitrate=320_000, sample_rate=44_100, codec="mp3")
@@ -147,7 +147,7 @@ def scan(monkeypatch):
 
 def test_an_exact_link_beats_a_tag_fallback_on_the_same_download(scan):
     engine, run = scan
-    # "Wastelands": the file Musizerr downloaded (linked by its sync id) and
+    # "Wastelands": the file Musizeer downloaded (linked by its sync id) and
     # an older copy whose tags also match that download.
     ours = make_library_item("Wastelands", "Linkin Park", "The Hunting Party", sync_id="sid-ours", path="a.flac",
                              suffix="mp3", bitrate=192_000, size=1000, duration_ms=215_000)

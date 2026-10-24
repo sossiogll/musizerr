@@ -13,15 +13,15 @@ import pytest
 from sqlmodel import Session, select
 
 from core import download_policy as dp
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from core.discography import OWN_RELEASE_TYPES, RELEASES_LISTING_LIMIT, distinct_songs, group_releases, select_releases
 from core.interfaces import metadata_capabilities
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.capabilities import CAPABILITY_DISCOGRAPHY
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.capabilities import CAPABILITY_DISCOGRAPHY
 from core.matching import same_song
-from musizerr_sdk.models import Album, Artist
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.errors import ProviderRateLimited
+from musizeer_sdk.models import Album, Artist
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.errors import ProviderRateLimited
 from db.models import TrackRecord
 from db.settings_store import SettingsRepository
 from services import discography

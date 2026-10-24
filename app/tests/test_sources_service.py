@@ -291,12 +291,12 @@ def test_installing_records_the_image_by_digest_with_what_was_approved_and_tells
 
     row = world.manager().install(source.id, "lrclib", DIGEST_A, approved_by="admin-1")
 
-    assert (row.name, row.image, row.digest, row.label, row.approved_by) == ("lrclib", "ghcr.io/owner/musizerr-provider-lrclib", DIGEST_A, "LRCLIB", "admin-1")
+    assert (row.name, row.image, row.digest, row.label, row.approved_by) == ("lrclib", "ghcr.io/owner/musizeer-provider-lrclib", DIGEST_A, "LRCLIB", "admin-1")
     assert json.loads(row.roles) == ["lyrics"] and json.loads(row.permissions)["egress"] == ["lrclib.net:443"]
     assert row.approved_at is not None and row.approved_at.tzinfo is not None
     (push,) = world.gateway.pushes()
     assert push["providers"] == [{
-        "name": "lrclib", "image": "ghcr.io/owner/musizerr-provider-lrclib", "digest": DIGEST_A, "roles": ["lyrics"],
+        "name": "lrclib", "image": "ghcr.io/owner/musizeer-provider-lrclib", "digest": DIGEST_A, "roles": ["lyrics"],
         "permissions": {**LRCLIB_PERMISSIONS, "tcp_from_settings": [], "limits": {"memory_mb": None, "open_files": None, "processes": None}}, "insecure": False,
     }]
     assert push["generation"] == generation(push["providers"])

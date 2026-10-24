@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 
 # Il segnaposto del numero di traccia (con eventuale formato, es. ":02d") e
 # il separatore che lo segue ("." "-" "_" o spazi).

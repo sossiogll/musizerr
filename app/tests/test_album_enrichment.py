@@ -6,10 +6,10 @@ ferma le successive, un provider che fallisce non ferma gli altri.
 """
 from __future__ import annotations
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Album
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Album
+from musizeer_sdk.context import StaticProviderContext
 from services import enrichment
 from services.enrichment import cross_enrich_album
 

@@ -60,7 +60,7 @@ def _tool(name: str) -> str:
     found = shutil.which(name)
     if found is None:
         raise BackupError(
-            f"{name} is not installed in this image, so a PostgreSQL database cannot be backed up. The Musizerr "
+            f"{name} is not installed in this image, so a PostgreSQL database cannot be backed up. The Musizeer "
             "image ships postgresql-client-17; use it, or back the database up yourself and set MIGRATION_BACKUP=off."
         )
     return found

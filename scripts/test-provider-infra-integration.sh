@@ -38,7 +38,7 @@ export OCI_REGISTRY_PORT=18700
 export PROVIDER_LOCAL_TAG_PREFIX=mzp51-
 export DEV_CATALOG_DIR=$CATALOGS
 COMPOSE="docker compose -p $P -f docker-compose.dev.yml -f gateway/tests/integration/compose.infra.yml"
-HOST_IMAGE=${HOST_IMAGE:-musizerr-app}   # the application's image: only its Python and dependencies are used
+HOST_IMAGE=${HOST_IMAGE:-musizeer-app}   # the application's image: only its Python and dependencies are used
 
 cleanup() {
   status=$?
@@ -46,8 +46,8 @@ cleanup() {
     echo "---- gateway log ----"; $COMPOSE logs --no-color --tail 120 provider-gateway 2>&1 || true
   fi
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
-  for image in ghcr.io/sossiogll/musizerr-provider-base:5 $P-infra-provider:build \
-      127.0.0.1:18700/musizerr-provider-infra:dev $P-provider-gateway; do
+  for image in ghcr.io/sossiogll/musizeer-provider-base:6 $P-infra-provider:build \
+      127.0.0.1:18700/musizeer-provider-infra:dev $P-provider-gateway; do
     docker rmi "$image" >/dev/null 2>&1 || true
   done
   rm -rf "$TMP"
@@ -65,19 +65,19 @@ wait_until() { # wait_until <seconds> <description> <command...>
     sleep 1
   done
 }
-ctl() { $COMPOSE exec -T provider-gateway python -m musizerr_gateway.ctl "$@"; }
+ctl() { $COMPOSE exec -T provider-gateway python -m musizeer_gateway.ctl "$@"; }
 # The host's code, in a container of the application image, with the same sockets and library as the app has.
 host() { # host <python command...>
   docker run --rm -i --network ${P}_default --user 1000:1000 \
     -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/repo/app:/sdk/src -e DATA_DIR=/data -e AUTH_SECRET -e CREDENTIALS_KEY \
-    -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v "$TMP/hostdata":/data -v ${P}_provider_sockets:/run/musizerr -v ${P}_downloads:/downloads \
+    -v "$ROOT":/repo:ro -v "$ROOT/sdk":/sdk:ro -v "$TMP/hostdata":/data -v ${P}_provider_sockets:/run/musizeer -v ${P}_downloads:/downloads \
     -w /repo/app "$HOST_IMAGE" python "$@"
 }
 sources() { host -m scripts.provider_sources "$@"; }
 infra_running() { ctl list | tr -d '\n ' | grep -q '"name":"infra"[^}]*"state":"running"'; }
 
 step "starting the registry, the catalog server, the gateway and a fake FTP server (compose project $P)"
-printf '{"name": "Musizerr development catalog", "version": 2, "providers": []}' > "$CATALOGS/registry.json"
+printf '{"name": "Musizeer development catalog", "version": 2, "providers": []}' > "$CATALOGS/registry.json"
 $COMPOSE up -d --build oci-registry registry provider-gateway ftp-fake
 wait_until 60 "the gateway's control socket" ctl health
 ctl list | grep -q '"providers": \[\]' || die "the gateway runs something before the host told it anything"
@@ -87,23 +87,23 @@ scripts/dev-catalog.sh -r 127.0.0.1:18700 gateway/tests/fixtures/infra-provider 
 scripts/dev-catalog.sh -r 127.0.0.1:18700 gateway/tests/fixtures/infra-provider 2>&1 | tee "$TMP/second.txt" | grep -E '^(added|updated)'
 grep -q '^updated infra' "$TMP/second.txt" || die "running the script again did not update the entry"
 [ "$(grep -c '"name": "infra"' "$CATALOGS/registry.json")" = 1 ] || die "the entry is in the catalog more than once"
-for expected in '"image": "oci-registry:5000/musizerr-provider-infra"' '"label": "Infrastructure (test fixture)"' '"description": "Test fixture' \
+for expected in '"image": "oci-registry:5000/musizeer-provider-infra"' '"label": "Infrastructure (test fixture)"' '"description": "Test fixture' \
     '"\*.example.com:443"' '"tcp_from_settings"' '"ports": "2121"' '"ports": "any"' '"filesystem_from_settings"'; do
   grep -q "$expected" "$CATALOGS/registry.json" || die "the catalog entry lacks $expected"
 done
 PUSHED=$(curl -sI -H 'Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json' \
-  http://127.0.0.1:18700/v2/musizerr-provider-infra/manifests/dev | tr -d '\r' | sed -n 's/^[Dd]ocker-[Cc]ontent-[Dd]igest: //p')
+  http://127.0.0.1:18700/v2/musizeer-provider-infra/manifests/dev | tr -d '\r' | sed -n 's/^[Dd]ocker-[Cc]ontent-[Dd]igest: //p')
 grep -q "\"digest\": \"$PUSHED\"" "$CATALOGS/registry.json" || die "the digest in the catalog is not the one in the registry ($PUSHED)"
 echo "catalog entry digest = registry digest = $PUSHED"
 
 step "a. the catalog the script wrote installs the provider through the host's own command"
 sources add-source http://registry:9000/registry.json --insecure
-sources install "Musizerr development catalog" infra --dry-run | tee "$TMP/dry.txt"
+sources install "Musizeer development catalog" infra --dry-run | tee "$TMP/dry.txt"
 grep -q "network: \*.example.com:443 (any subdomain, not example.com itself)" "$TMP/dry.txt" || die "the wildcard was not shown in words"
 grep -q "network: any port of the host the setting 'ftp_host' names" "$TMP/dry.txt" || die "the raw TCP permission was not shown"
 grep -q "network: port 2121 of the host the setting 'ftp_ctl' names" "$TMP/dry.txt" || die "the single-port TCP permission was not shown"
 grep -q "files: the folder the setting 'rw_dir' names (read and write)" "$TMP/dry.txt" || die "the folder permission was not shown"
-sources install "Musizerr development catalog" infra --yes
+sources install "Musizeer development catalog" infra --yes
 wait_until 180 "the infra provider to run" infra_running
 ctl list | grep -E '"(name|state)"' | head -2
 

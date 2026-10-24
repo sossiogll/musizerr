@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import logging
 
-from musizerr_sdk.identifiers import ISRC, MBID
+from musizeer_sdk.identifiers import ISRC, MBID
 from core.matching import match_track, shared_track_identity
-from musizerr_sdk.text import normalize
+from musizeer_sdk.text import normalize
 from core.auth_manager import ProviderNotConfigured
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from core.provider_failures import ProviderFailures
 from core.utils import provider_sort_key
 from services.request_budget import ProviderSkipped, RequestBudget, bounded_call, skip_provider

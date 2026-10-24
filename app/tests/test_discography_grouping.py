@@ -10,9 +10,9 @@ from __future__ import annotations
 import pytest
 
 from core.discography import group_releases
-from musizerr_sdk.identifiers import MBID, PROVIDER_ID, Identifier
+from musizeer_sdk.identifiers import MBID, PROVIDER_ID, Identifier
 from core.matching import is_edition_title, match_release
-from musizerr_sdk.models import Album
+from musizeer_sdk.models import Album
 from core.serialization import serialize_release_group
 
 
@@ -133,10 +133,10 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Artist
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Artist
+from musizeer_sdk.context import StaticProviderContext
 from db.engine import get_session  # noqa: E402
 from routes import deps  # noqa: E402
 from routes.content.artist import router as artist_router  # noqa: E402

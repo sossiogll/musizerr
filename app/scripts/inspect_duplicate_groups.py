@@ -1,9 +1,9 @@
 """
 Riepilogo in sola lettura dei gruppi di duplicati di libreria: conteggi per
-stato, membri cancellabili (messi in libreria da musizerr) e tre gruppi di
+stato, membri cancellabili (messi in libreria da musizeer) e tre gruppi di
 esempio con keeper e qualità di ogni membro.
 
-    docker exec musizerr-app-1 python scripts/inspect_duplicate_groups.py
+    docker exec musizeer-app-1 python scripts/inspect_duplicate_groups.py
 """
 from __future__ import annotations
 import sys
@@ -25,7 +25,7 @@ with Session(engine) as session:
     print("total groups:", total, by_status)
 
     deletable_members = session.exec(
-        select(func.count()).select_from(DuplicateMember).where(DuplicateMember.origin == "musizerr", DuplicateMember.download_id.is_not(None))
+        select(func.count()).select_from(DuplicateMember).where(DuplicateMember.origin == "musizeer", DuplicateMember.download_id.is_not(None))
     ).one()
     total_members = session.exec(select(func.count()).select_from(DuplicateMember)).one()
     print("deletable members:", deletable_members, "/", total_members)

@@ -1,7 +1,7 @@
 """
 The host encodes every call for the SDK the provider was built on (ADR-0007 §3.1): a provider built on an
-older SDK, which decodes strictly, never meets a field it would not know; one built before 5.5, whose
-manifest does not say its SDK, is treated as 5.4. A contract type that gained a field in 5.5 is stood for
+older minor, which decodes strictly, never meets a field it would not know; one whose manifest does not say
+its SDK is treated as the baseline (6.0). A contract type that gained a field in 6.1 is stood for
 by ``HostEvolutionProbe``.
 """
 from __future__ import annotations
@@ -11,11 +11,11 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from musizerr_sdk import manifest as manifest_module, protocol, wire
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.version import SDK_VERSION
+from musizeer_sdk import manifest as manifest_module, protocol, wire
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.version import SDK_VERSION
 from services.provider_proxy import connect
 
 
@@ -23,7 +23,7 @@ from services.provider_proxy import connect
 @dataclass(frozen=True)
 class HostEvolutionProbe:
     title: str
-    mood: str | None = field(default=None, metadata={wire.SINCE: "5.5"})
+    mood: str | None = field(default=None, metadata={wire.SINCE: "6.1"})
 
 
 class Lyrics(LyricsProvider):
@@ -59,10 +59,10 @@ class Recording:
 
 
 @pytest.mark.parametrize("sdk_version, sent", [
-    (None, {"title"}),          # a provider built before 5.5
-    ("5.4.0", {"title"}),
-    ("5.5.0", {"title", "mood"}),
-    ("5.9.1", {"title", "mood"}),
+    (None, {"title"}),          # a provider that says nothing: the baseline
+    ("6.0.0", {"title"}),
+    ("6.1.0", {"title", "mood"}),
+    ("6.9.1", {"title", "mood"}),
 ])
 def test_a_call_is_encoded_for_the_providers_sdk(sdk_version, sent):
     transport = Recording(sdk_version)

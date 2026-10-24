@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from musizerr_sdk.interfaces import WorkspaceFile
+from musizeer_sdk.interfaces import WorkspaceFile
 from services.workspace import HELD_UPLOADS_DIRNAME, Workspace, WorkspaceError
 
 logger = logging.getLogger(__name__)

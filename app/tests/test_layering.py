@@ -1,7 +1,7 @@
 """
 Guardia strutturale della direzione delle dipendenze fra i package
 dell'app: ``routes``/``workers`` -> ``services`` -> ``core``/``db`` e
-``core`` -> ``musizerr_sdk`` (il contratto dei provider, in ``sdk/``);
+``core`` -> ``musizeer_sdk`` (il contratto dei provider, in ``sdk/``);
 l'SDK dipende solo dalla libreria standard. Nessun provider vive in questo
 repository: l'host li raggiunge solo dal gateway (regola 6). Cammina ogni file
 ``.py`` sotto ``app/`` con
@@ -245,8 +245,8 @@ def _sdk_imports() -> list[tuple[str, str, int]]:
     """(file, modulo importato, riga) per ogni import dei sorgenti dell'SDK."""
     import importlib.util
 
-    spec = importlib.util.find_spec("musizerr_sdk")
-    assert spec is not None and spec.submodule_search_locations, "musizerr_sdk non è installato"
+    spec = importlib.util.find_spec("musizeer_sdk")
+    assert spec is not None and spec.submodule_search_locations, "musizeer_sdk non è installato"
     root = list(spec.submodule_search_locations)[0]
     found = []
     for dirpath, dirnames, filenames in os.walk(root):
@@ -256,7 +256,7 @@ def _sdk_imports() -> list[tuple[str, str, int]]:
                 continue
             path = os.path.join(dirpath, fn)
             rel = os.path.relpath(path, root)
-            parts = ["musizerr_sdk", *rel[: -len(".py")].split(os.sep)]
+            parts = ["musizeer_sdk", *rel[: -len(".py")].split(os.sep)]
             is_package = parts[-1] == "__init__"
             module_name = ".".join(parts[:-1] if is_package else parts)
             with open(path, encoding="utf-8") as f:
@@ -270,7 +270,7 @@ def _sdk_imports() -> list[tuple[str, str, int]]:
 
 def test_the_sdk_has_sources_to_check():
     imports = _sdk_imports()
-    assert any(target.split(".")[0] == "musizerr_sdk" for _rel, target, _lineno in imports), (
+    assert any(target.split(".")[0] == "musizeer_sdk" for _rel, target, _lineno in imports), (
         "la regola 9 passerebbe a vuoto: nessun import dell'SDK su se stesso trovato"
     )
 
@@ -278,7 +278,7 @@ def test_the_sdk_has_sources_to_check():
 def test_the_sdk_imports_only_the_standard_library_and_itself():
     import sys
 
-    allowed = set(sys.stdlib_module_names) | {"musizerr_sdk"}
+    allowed = set(sys.stdlib_module_names) | {"musizeer_sdk"}
     offenders = [
         Violation(rel, lineno, target)
         for rel, target, lineno in _sdk_imports()
@@ -298,7 +298,7 @@ def test_the_sdk_imports_only_the_standard_library_and_itself():
 
 def _host_importers(prefixes: tuple[str, ...]) -> set[str]:
     """I file dell'host che importano uno dei moduli ``prefixes`` (o un nome da
-    uno di essi: ``from musizerr_sdk import runner``)."""
+    uno di essi: ``from musizeer_sdk import runner``)."""
     found = set()
     for path in _iter_py_files():
         rel = os.path.relpath(path, APP_ROOT)
@@ -317,7 +317,7 @@ def _host_importers(prefixes: tuple[str, ...]) -> set[str]:
 
 
 def test_the_host_never_imports_the_runner():
-    assert _host_importers(("musizerr_sdk.runner",)) == set()
+    assert _host_importers(("musizeer_sdk.runner",)) == set()
 
 
 def test_the_host_never_imports_the_loopback_transport_of_the_tests():
@@ -326,7 +326,7 @@ def test_the_host_never_imports_the_loopback_transport_of_the_tests():
 
 def test_the_scan_finds_the_importers_it_expects():
     # The scan would pass on an empty tree: it must find the importers it expects.
-    assert _host_importers(("musizerr_sdk.protocol",)) >= {os.path.join("services", "provider_proxy.py")}
+    assert _host_importers(("musizeer_sdk.protocol",)) >= {os.path.join("services", "provider_proxy.py")}
 
 
 
@@ -346,7 +346,7 @@ def test_only_the_registry_imports_the_socket_transport():
 
 
 def test_the_application_never_imports_the_gateway():
-    assert _host_importers(("musizerr_gateway",)) == set()
+    assert _host_importers(("musizeer_gateway",)) == set()
 
 
 # ---------------------------------------------------------------------------

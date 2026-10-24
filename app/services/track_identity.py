@@ -12,8 +12,8 @@ added here, by the host, never by a provider or by the core.
 from __future__ import annotations
 
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import PROVIDER_ID, Identifier
-from musizerr_sdk.models import Track
+from musizeer_sdk.identifiers import PROVIDER_ID, Identifier
+from musizeer_sdk.models import Track
 
 
 def sync_provider_names(registry) -> set[str]:

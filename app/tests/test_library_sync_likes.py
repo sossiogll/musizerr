@@ -17,9 +17,9 @@ import json
 import pytest
 from sqlmodel import Session, select
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
-from musizerr_sdk.errors import ProviderRateLimited
-from musizerr_sdk.models import Track
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.errors import ProviderRateLimited
+from musizeer_sdk.models import Track
 from db import library_job_store as store
 from db.models import (
     LibraryEntry,

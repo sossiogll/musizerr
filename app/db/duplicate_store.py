@@ -17,9 +17,9 @@ from core import download_states as ds
 from core.audio_quality import QualityScore
 from core.duplicates import DuplicateCandidate, decide_keeper
 from core.identifiers import sync_id_type
-from musizerr_sdk.interfaces import Identity
+from musizeer_sdk.interfaces import Identity
 from core.matching import match_track, title_identity_key
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 
 from .expressions import descending
 from .models import Download, DuplicateFingerprintCache, DuplicateGroup, DuplicateMember, TrackIdentifierRecord, TrackRecord
@@ -79,10 +79,10 @@ def save_fingerprint_cache(session: Session, sync_id: str, size: int, identity: 
 
 
 # ------------------------------------------------------------------
-# Origine — quali item della libreria musizerr ha davvero piazzato lei
+# Origine — quali item della libreria musizeer ha davvero piazzato lei
 # stessa, risalendo per SYNC ID (mai per path: il path riportato dal sync
 # provider e' spesso virtuale/ricostruito dai tag, non affidabile per un
-# confronto — vedi musizerr_sdk.models.LibraryItem).
+# confronto — vedi musizeer_sdk.models.LibraryItem).
 # ------------------------------------------------------------------
 
 def build_downloaded_track_index(session: Session) -> dict[str, list[tuple[Download, Track]]]:
@@ -109,14 +109,14 @@ def resolve_download_for_item(
     session: Session, *, sync_name: str, item, downloaded_index: dict[str, list[tuple[Download, Track]]],
 ) -> tuple[Download | None, str]:
     """
-    Trova il ``Download`` musizerr per un ``LibraryItem``, in due passi:
+    Trova il ``Download`` musizeer per un ``LibraryItem``, in due passi:
 
     1. Link ESATTO per sync id, via ``track_identifiers`` (id_type =
        ``sync_id_type(sync_name)``, valore = ``item.sync_id``) -> track_id ->
        ``Download`` 'downloaded'. Affidabile al 100%, ma popolato solo se
-       qualcuno ha già usato lo streaming musizerr per quella traccia (vedi
+       qualcuno ha già usato lo streaming musizeer per quella traccia (vedi
        ``services/stream.py::resolve_sync_id``, che lo scrive lazy) — non ogni
-       download musizerr ce l'ha.
+       download musizeer ce l'ha.
     2. Fallback via il matcher universale (``core.matching.match_track``)
        contro ogni ``Download`` 'downloaded' noto, quando il link diretto
        manca — STESSA policy di match di tutta l'app (titolo/artisti/album/
@@ -172,7 +172,7 @@ class MemberInput:
     sample_rate: int
     quality: QualityScore | None
     fingerprint_score: float | None
-    download_id: str | None  # None = non piazzato da musizerr, mai cancellabile
+    download_id: str | None  # None = non piazzato da musizeer, mai cancellabile
 
 
 def _member_key(member: MemberInput, index: int) -> str:
@@ -233,7 +233,7 @@ def upsert_group_for_recording(
             lossless=m.quality.lossless if m.quality else None,
             quality_known=m.quality is not None,
             fingerprint_score=m.fingerprint_score,
-            origin="musizerr" if deletable else "unknown",
+            origin="musizeer" if deletable else "unknown",
             download_id=m.download_id,
             is_keeper=False,
         )
@@ -314,9 +314,9 @@ def member_quality(member: DuplicateMember) -> QualityScore | None:
 
 
 def member_downloads(session: Session, members: list[DuplicateMember]) -> dict[str, Download]:
-    """The Musizerr download each member is linked to, by member id: where
+    """The Musizeer download each member is linked to, by member id: where
     its file really is on the storage (the member's own path is the sync
-    provider's label, often virtual — see ``musizerr_sdk.models.LibraryItem``)."""
+    provider's label, often virtual — see ``musizeer_sdk.models.LibraryItem``)."""
     ids = {m.download_id for m in members if m.download_id}
     if not ids:
         return {}

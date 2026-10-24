@@ -45,8 +45,8 @@ from dataclasses import dataclass
 from typing import Any, Callable, Literal, Protocol
 
 from . import download_policy, provider_login, user_auth
-from musizerr_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK
-from musizerr_sdk.context import (
+from musizeer_sdk.capabilities import CAPABILITY_UNLIKE_SAVED_TRACK
+from musizeer_sdk.context import (
     DEFAULT_CONNECT_TIMEOUT,
     DEFAULT_DOWNLOAD_TIMEOUT,
     DEFAULT_HTTP_TIMEOUT,
@@ -224,7 +224,7 @@ class SettingDef:
     # punto di vista di sicurezza/privacy (vedi auth_enabled). Mai serializzato
     # al frontend (to_public() non lo include).
     fail_safe: Any = _NO_FAIL_SAFE
-    # Chiave di capability (``musizerr_sdk.capabilities.CAPABILITY_*``) attraverso cui
+    # Chiave di capability (``musizeer_sdk.capabilities.CAPABILITY_*``) attraverso cui
     # questa impostazione agisce sui provider: la UI elenca accanto al
     # controllo i provider che la dichiarano (``capabilities`` in GET
     # /providers) e lo stato dell'account dell'utente su ciascuno. Mai un nome
@@ -315,7 +315,7 @@ GROUP_RECONCILIATION = "reconciliation"
 # sotto.
 GROUP_IDENTIFICATION = "identification"
 GROUP_LIBRARY_SYNC = "library_sync"
-# The playlists users keep in Musizerr (services/playlists.py).
+# The playlists users keep in Musizeer (services/playlists.py).
 GROUP_PLAYLISTS = "playlists"
 GROUP_AUTH = "auth"
 # Configurazione (enabled/intervallo) dei "system routines" — generata da
@@ -414,7 +414,7 @@ GROUPS: tuple[GroupMeta, ...] = (
     ),
     GroupMeta(
         GROUP_LIBRARY_SYNC, "Sincronizzazione libreria",
-        "Ogni quanto musizerr importa le tracce salvate/piaciute dai metadata "
+        "Ogni quanto musizeer importa le tracce salvate/piaciute dai metadata "
         "provider, e come verifica separatamente che la libreria sia "
         "allineata al sync provider: due percorsi indipendenti che condividono "
         "questo gruppo.",
@@ -422,7 +422,7 @@ GROUPS: tuple[GroupMeta, ...] = (
     ),
     GroupMeta(
         GROUP_PLAYLISTS, "Playlist",
-        "Le playlist che gli utenti tengono in Musizerr (proprie o seguite da un provider di metadati).",
+        "Le playlist che gli utenti tengono in Musizeer (proprie o seguite da un provider di metadati).",
         AREA_LIBRARY,
     ),
     # ----- system -----
@@ -438,13 +438,13 @@ GROUPS: tuple[GroupMeta, ...] = (
     ),
     GroupMeta(
         GROUP_RECONCILIATION, "Riconciliazione delegati",
-        "Come musizerr apprende l'esito di un download delegato a un sistema "
+        "Come musizeer apprende l'esito di un download delegato a un sistema "
         "esterno (webhook, poll, auto-like).",
         AREA_SYSTEM,
     ),
     GroupMeta(
         GROUP_ROUTINES, "System routines",
-        "Ogni quanto girano i job periodici di musizerr, e se sono abilitati. "
+        "Ogni quanto girano i job periodici di musizeer, e se sono abilitati. "
         "Gestiti dalla pagina dedicata (stato ultima esecuzione, avvio manuale), "
         "non da questa lista generica di impostazioni.",
         AREA_SYSTEM,
@@ -458,7 +458,7 @@ _GROUPS_BY_KEY: dict[str, GroupMeta] = {g.key: g for g in GROUPS}
 # sets BOTH from ONE variable, ``WORKSPACE_DIR``, so the default of the ``workspace_dir`` setting is read from it.
 # A value saved in the settings wins over this seed, and the host warns when it differs from the gateway's
 # (``services/provider_events.GatewayWatcher``).
-DEFAULT_WORKSPACE_DIR = "/downloads/.musizerr-work"
+DEFAULT_WORKSPACE_DIR = "/downloads/.musizeer-work"
 WORKSPACE_DIR_ENVIRONMENT = "WORKSPACE_DIR"
 
 
@@ -887,8 +887,8 @@ CATALOG: tuple[SettingDef, ...] = (
            "Token webhook", "Token segreto che i sistemi esterni includono per autenticare le notifiche push.",
            secret=True, required=False),
     _entry("public_base_url", "string", "", GROUP_RECONCILIATION,
-           "URL pubblico musizerr",
-           "URL con cui i sistemi esterni raggiungono musizerr (es. http://100.x.y.z:8000), per auto-registrare i webhook. Deve essere raggiungibile DA quel sistema, non dal browser: nella stessa rete Docker usa un URL interno (es. http://frontend).",
+           "URL pubblico musizeer",
+           "URL con cui i sistemi esterni raggiungono musizeer (es. http://100.x.y.z:8000), per auto-registrare i webhook. Deve essere raggiungibile DA quel sistema, non dal browser: nella stessa rete Docker usa un URL interno (es. http://frontend).",
            required=False),
 ) + _download_request_settings() + _routine_settings()
 

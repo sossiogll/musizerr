@@ -1,5 +1,5 @@
 """
-``StaticProviderContext`` (``musizerr_sdk.context``) is how a provider is tested
+``StaticProviderContext`` (``musizeer_sdk.context``) is how a provider is tested
 without the host: its timeouts default to the very values the host's settings
 catalog gives an untouched installation, because the catalog takes them from
 the SDK (one source).
@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 
 from core.settings_catalog import get_def
-from musizerr_sdk.context import StaticProviderContext
+from musizeer_sdk.context import StaticProviderContext
 
 
 @pytest.mark.parametrize("key", ["http_timeout", "download_timeout", "connect_timeout", "stream_start_timeout"])

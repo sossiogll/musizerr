@@ -19,7 +19,7 @@ import pytest
 
 from core import settings_catalog as sc
 from core import settings_resolver as sr
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 
 from tests.conftest import FakeIdentificationProvider, FakeMetadataProvider
 from tests.loopback import as_proxy

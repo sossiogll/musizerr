@@ -19,7 +19,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from musizerr_sdk.interfaces import BaseProvider
+from musizeer_sdk.interfaces import BaseProvider
 
 HOST_PACKAGES = ("core.", "services.", "routes.", "workers.", "db.")
 

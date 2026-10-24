@@ -12,14 +12,14 @@ from typing import Iterable
 # The states a delegate can report (``DelegationStatus.state``) are part of the
 # provider contract; the vocabulary below is built from those values and adds
 # the two only the host assigns (waiting and retrying).
-from musizerr_sdk.delegation import CONFLICT, DISPATCHED, DOWNLOADED, DOWNLOADING, FAILED, IMPORTING
+from musizeer_sdk.delegation import CONFLICT, DISPATCHED, DOWNLOADED, DOWNLOADING, FAILED, IMPORTING
 
 PENDING = "pending"
 RETRYING = "retrying"         # fallimento transitorio, ritento
 # DOWNLOADING: recupero audio in corso (diretto o esterno)
 # IMPORTING: atterraggio in libreria (store / import del delegato)
 # CONFLICT: traccia già presente, da risolvere
-# DISPATCHED: consegnato a un downloader esterno (ultimo stato deciso da musizerr)
+# DISPATCHED: consegnato a un downloader esterno (ultimo stato deciso da musizeer)
 # DOWNLOADED: terminale OK (ex "done")
 # FAILED: terminale KO
 

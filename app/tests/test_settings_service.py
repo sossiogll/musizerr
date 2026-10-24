@@ -15,10 +15,10 @@ import uuid
 import pytest
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
 from services.config_manager import ConfigManager
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.settings import ProviderSetting
 from services.settings import SettingsService, SettingsWriteError
 from db import user_service
 from db.models import SYSTEM_USER_ID, User
@@ -416,7 +416,7 @@ def test_user_with_no_row_omits_the_key_entirely(service, session):
     # non c'e' un fallback da restituire quando l'utente non ha mai scelto —
     # la chiave sparisce del tutto da effective_values, invece di essere
     # riempita col default dichiarato ("en"/"system"/False). L'assenza e'
-    # l'unico modo per un consumer (vedi musizerr-ui PreferencesSync) di
+    # l'unico modo per un consumer (vedi musizeer-ui PreferencesSync) di
     # distinguere "non ho mai scelto" da "ho scelto proprio il default": se
     # tornasse il default sostituito, le due situazioni sarebbero
     # indistinguibili e un client rischierebbe di sovrascrivere una scelta

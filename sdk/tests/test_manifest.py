@@ -5,11 +5,11 @@ import inspect
 
 import pytest
 
-from musizerr_sdk import manifest, wire
-from musizerr_sdk.auth import AuthFlow
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.interfaces import BaseProvider, LyricsProvider, PROVIDER_API_VERSION
-from musizerr_sdk.manifest import ManifestError, build
+from musizeer_sdk import manifest, wire
+from musizeer_sdk.auth import AuthFlow
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.interfaces import BaseProvider, LyricsProvider, PROVIDER_API_VERSION
+from musizeer_sdk.manifest import ManifestError, build
 from sample_providers import (
     NO_AUTH,
     SampleDownload,

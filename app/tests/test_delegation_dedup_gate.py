@@ -4,7 +4,7 @@ questo fix, ``workers.maintenance._apply_delegation_status`` risolveva SEMPRE
 i conflitti di importazione di un download delegato (cancellando la copia
 "peggiore" via l'API del provider) senza controllare il toggle
 ``dedup_enabled`` (default: False, vedi core/settings_catalog.py) — cioè
-musizerr cancellava file anche con la dedup esplicitamente disattivata.
+musizeer cancellava file anche con la dedup esplicitamente disattivata.
 
 Nessun provider reale qui (Golden Rule): un fake locale minimale implementa
 solo le due capability opzionali coinvolte (poll_delegation/delete_file).
@@ -15,10 +15,10 @@ from __future__ import annotations
 import pytest
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession
 from services.config_manager import ConfigManager
 from core import download_states as ds
-from musizerr_sdk.delegation import DelegationStatus, FileRef, ImportConflict
+from musizeer_sdk.delegation import DelegationStatus, FileRef, ImportConflict
 from db.models import Download, TrackRecord
 from tests.conftest import FakeDownloadProvider
 from tests.database import new_engine

@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from core.auth import AccountTarget
-from musizerr_sdk.auth import AuthFlow
+from musizeer_sdk.auth import AuthFlow
 from core.auth_manager import AuthError
 from core.auth_strategies import build_fallback_session
 from core.settings_resolver import find_provider_by_name

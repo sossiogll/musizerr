@@ -23,7 +23,7 @@ credential_cipher.require_credentials_key()
 _REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 
 celery = Celery(
-    "musizerr",
+    "musizeer",
     broker=_REDIS_URL,
     backend=_REDIS_URL,
     include=["workers.tasks", "workers.maintenance", "workers.scheduler", "workers.duplicates"],

@@ -2,7 +2,7 @@
 TEST FIXTURE. A lyrics provider that uses what the gateway grants besides fixed hosts, and returns what happened
 as text in ``Lyrics.plain`` (the title of the track is the command):
 
-- ``connect:host:port``  one TCP connection through the egress proxy (``musizerr_sdk.net``): ``OK`` or the error;
+- ``connect:host:port``  one TCP connection through the egress proxy (``musizeer_sdk.net``): ``OK`` or the error;
 - ``fs``                 JSON: which folders its settings name are really there (and what the probe paths hold: an unbound mount point is an empty folder), whether they can be written,
                          how they are mounted, and an id of its process (a change of mounts is a new process);
 - ``ftp:<setting>``      list and download a file with ``ftplib`` from the host the setting ``<setting>`` holds,
@@ -17,11 +17,11 @@ import socket
 import uuid
 from pathlib import Path
 
-from musizerr_sdk import net
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.models import Lyrics
-from musizerr_sdk.permissions import FilesystemAccess, Permissions, TcpAccess
+from musizeer_sdk import net
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.models import Lyrics
+from musizeer_sdk.permissions import FilesystemAccess, Permissions, TcpAccess
 
 net.route_module(ftplib)
 
@@ -93,7 +93,7 @@ class InfraLyricsProvider(LyricsProvider):
                 "instance": INSTANCE,
                 "dirs": {key: folder_report(settings[key]) for key in ("rw_dir", "ro_dir") if settings.get(key)},
                 "probes": {path: sorted(os.listdir(path)) if os.path.isdir(path) else None for path in PROBES},
-                "work": sorted(os.listdir("/downloads/.musizerr-work")) if os.path.isdir("/downloads/.musizerr-work") else None,
+                "work": sorted(os.listdir("/downloads/.musizeer-work")) if os.path.isdir("/downloads/.musizeer-work") else None,
                 "downloads": sorted(os.listdir("/downloads")) if os.path.isdir("/downloads") else None,
             }
             return Lyrics(plain=json.dumps(report))

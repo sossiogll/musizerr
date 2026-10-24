@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from sqlmodel import Session, select
 
-from musizerr_sdk.auth import AuthSession
+from musizeer_sdk.auth import AuthSession
 from services.config_manager import ConfigManager
 from core.identifiers import sync_id_type
 from db.models import Download, DuplicateFingerprintCache, DuplicateGroup, DuplicateMember, TrackIdentifierRecord, TrackRecord
@@ -82,7 +82,7 @@ def _link_via_sync_id(engine, *, sync_name: str, sync_id: str, real_path: str) -
 
 def _link_via_match(engine, *, title: str, artist: str, album: str, duration_ms: int, real_path: str) -> str:
     """Riproduce il fallback per MATCH (nessun track_identifiers per il sync
-    id — es. mai streamato via musizerr): un Download 'downloaded' la cui
+    id — es. mai streamato via musizeer): un Download 'downloaded' la cui
     TrackRecord combacia per titolo/artista/album col LibraryItem clusterizzato."""
     with Session(engine) as session:
         record = TrackRecord(title=title, artist=artist, album=album, duration_ms=duration_ms)
@@ -139,7 +139,7 @@ def test_confirmed_duplicate_creates_proposed_group_with_best_quality_keeper(iso
     sync = FakeSyncProvider("fakesync", library=[lossy, lossless])
     sync.files["sid-lossy"] = encode_identity_bytes("rec-1")
     sync.files["sid-lossless"] = encode_identity_bytes("rec-1")
-    # Solo sid-lossy e' un Download musizerr (link diretto per sync id) -> e'
+    # Solo sid-lossy e' un Download musizeer (link diretto per sync id) -> e'
     # l'unico cancellabile, ed e' anche quello che perde per qualita': il
     # keeper puo' essere scelto in automatico (nessun file esterno da
     # cancellare per farlo).
@@ -168,7 +168,7 @@ def test_confirmed_duplicate_creates_proposed_group_with_best_quality_keeper(iso
         keeper = next(m for m in members if m.is_keeper)
         assert keeper.sync_id == "sid-lossless"
         loser = next(m for m in members if not m.is_keeper)
-        assert loser.origin == "musizerr"
+        assert loser.origin == "musizeer"
         assert loser.sync_id == "sid-lossy"
 
 
@@ -251,7 +251,7 @@ def test_unknown_quality_results_in_needs_review_group(isolated_engine, config, 
 
 
 def test_external_origin_loser_forces_needs_review(isolated_engine, config, monkeypatch):
-    # Il file di qualita' peggiore NON e' stato piazzato da musizerr (nessun
+    # Il file di qualita' peggiore NON e' stato piazzato da musizeer (nessun
     # link, ne' diretto ne' per match) -> mai cancellato in automatico, il
     # gruppo resta needs_review.
     better = make_library_item("Song", "Artist", "Album", sync_id="sid-better", path="better.flac", suffix="flac",
@@ -320,7 +320,7 @@ def test_ambiguous_shared_download_via_direct_sync_id_links_never_deletable(isol
 
 def test_ambiguous_match_fallback_never_makes_either_member_deletable(isolated_engine, config, monkeypatch):
     # Due file DIVERSI con tag troppo simili (stessa canzone, grafia diversa)
-    # combaciano ENTRAMBI, via fallback, con l'UNICO Download musizerr noto —
+    # combaciano ENTRAMBI, via fallback, con l'UNICO Download musizeer noto —
     # caso reale trovato in verifica live ("Curre curre guaglió"/"guagliò").
     # Nessuno dei due deve risultare cancellabile: l'identificazione e' ambigua.
     a = make_library_item("Song Variant", "Artist", "Album", sync_id="sid-a", path="a.mp3",

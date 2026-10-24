@@ -17,7 +17,7 @@ from core import secret_box
 from core.secret_box import SecretBox
 from db.auth_store import CredentialStore
 from db.models import User
-from musizerr_sdk.auth import AccountModel
+from musizeer_sdk.auth import AccountModel
 
 from tests.credentials_support import KEY, OTHER_KEY, THIRD_KEY, raw, raw_scalar, use_keys
 

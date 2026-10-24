@@ -12,10 +12,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.interfaces import MetadataProvider
-from musizerr_sdk.models import Album, Artist, Playlist
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.interfaces import MetadataProvider
+from musizeer_sdk.models import Album, Artist, Playlist
 from db.engine import get_session
 from routes import deps
 from routes.content.album import router as album_router
@@ -156,7 +156,7 @@ def test_no_root_relative_url_outside_the_prefix(client, prefix, path):
 
 
 def test_the_urls_a_provider_builds_for_its_covers_and_streams_carry_the_prefix(prefix):
-    from musizerr_sdk.auth import AuthSession
+    from musizeer_sdk.auth import AuthSession
 
     track = host_proxy(_ProxiedCatalog).get_track("t1", AuthSession.anonymous())
 

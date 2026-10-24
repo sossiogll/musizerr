@@ -96,7 +96,7 @@ def judge(
         minimum = parse_version(record.min_app_version)
         if minimum is not None and running is not None and running < minimum:
             return Verdict(TOO_NEW, _too_new(
-                f"it needs Musizerr {minimum} or later (a contract migration, "
+                f"it needs Musizeer {minimum} or later (a contract migration, "
                 f"{record.contract_revision or 'recorded in schema_info'})", app_version, applied, known, record,
                 backups,
             ), unknown)
@@ -115,7 +115,7 @@ def judge(
                 app_version, applied, known, record, backups,
             ), unknown)
         return Verdict(ROLLBACK, (
-            f"The database is ahead of this version (Musizerr {app_version}): it is at {revision_label(applied)}, "
+            f"The database is ahead of this version (Musizeer {app_version}): it is at {revision_label(applied)}, "
             f"migrated by {record.app_version}, and this version ends at {revision_label(heads)}. Everything it "
             f"does not know ({', '.join(unknown)}) is expand-only, so this version runs on it as it is; "
             "nothing is migrated."
@@ -124,7 +124,7 @@ def judge(
     if applied == heads:
         return Verdict(CURRENT, f"The database is up to date ({revision_label(applied)}).")
     return Verdict(PENDING, (
-        f"The database is behind this version (Musizerr {app_version}): it is at {revision_label(applied)} and "
+        f"The database is behind this version (Musizeer {app_version}): it is at {revision_label(applied)} and "
         f"this version needs {revision_label(heads)}. The init step (python -m scripts.init_db, the `init` "
         "service) migrates it, taking a backup first: it has not run, or it failed (see its log)."
     ))
@@ -132,11 +132,11 @@ def judge(
 
 def _too_new(reason: str, app_version: str, applied: frozenset[str], known: frozenset[str],
              record: Optional[SchemaRecord], backups: Sequence[str]) -> str:
-    migrated_by = f" by Musizerr {record.app_version}" if record is not None else ""
+    migrated_by = f" by Musizeer {record.app_version}" if record is not None else ""
     restore = restorable_backup(backups, known)
     minimum = record.min_app_version if record is not None else None
     advice = (
-        f"Run Musizerr {minimum} or later, " if minimum else "Run the version that migrated it, or a later one, "
+        f"Run Musizeer {minimum} or later, " if minimum else "Run the version that migrated it, or a later one, "
     )
     if restore is not None:
         advice += (
@@ -146,7 +146,7 @@ def _too_new(reason: str, app_version: str, applied: frozenset[str], known: froz
     else:
         advice += "or restore the backup taken before that migration (docs/migrations.md); none was found here."
     return (
-        f"This version (Musizerr {app_version}) cannot run on this database: it is at {revision_label(applied)}, "
+        f"This version (Musizeer {app_version}) cannot run on this database: it is at {revision_label(applied)}, "
         f"migrated{migrated_by}, and {reason}. {advice}"
     )
 
@@ -166,10 +166,10 @@ def upgrade_path_problem(record: Optional[SchemaRecord], app_version: str,
         return None  # last migrated by a development build: no version to compare
     if last is not None and last >= wanted:
         return None
-    migrated = f"Musizerr {last}" if last is not None else "a release older than the database guard"
+    migrated = f"Musizeer {last}" if last is not None else "a release older than the database guard"
     return (
-        f"This version (Musizerr {app_version}) upgrades databases last migrated by Musizerr {wanted} or later, and "
-        f"this one was last migrated by {migrated}. Start Musizerr {wanted} first (set MUSIZERR_VERSION={wanted}, "
+        f"This version (Musizeer {app_version}) upgrades databases last migrated by Musizeer {wanted} or later, and "
+        f"this one was last migrated by {migrated}. Start Musizeer {wanted} first (set MUSIZERR_VERSION={wanted}, "
         "let init finish), then this version."
     )
 

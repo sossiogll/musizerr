@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from musizerr_sdk.models import Album, AlbumRef, Artist, ArtistRef, Track
+from musizeer_sdk.models import Album, AlbumRef, Artist, ArtistRef, Track
 
 
 def _merge_field(existing: Track | Album | Artist, candidate: Track | Album | Artist, field: str) -> None:

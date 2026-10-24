@@ -1,6 +1,6 @@
 # Architecture overview
 
-This page is the map of Musizerr: the processes that run, how a request travels through them, how the providers are
+This page is the map of Musizeer: the processes that run, how a request travels through them, how the providers are
 isolated, and how the main flows work. It is an overview. Each part links to the document that holds the detail, and the
 rules the code is held to are in the guide at the root of the repository and in the
 [decision records](adr/README.md).
@@ -93,7 +93,7 @@ How to read it:
 
 ## Runtime
 
-`docker-compose.yaml` runs the images published on GHCR (`musizerr`, `musizerr-gateway`, `musizerr-frontend`).
+`docker-compose.yaml` runs the images published on GHCR (`musizeer`, `musizeer-gateway`, `musizeer-frontend`).
 `docker-compose.build.yml` builds them from the checkout and `docker-compose.dev.yml` mounts the sources.
 [`deployment.md`](deployment.md) is the guide to running it.
 
@@ -126,7 +126,7 @@ flowchart TB
     services["services/<br>use cases shared by routes and workers,<br>the provider registry, proxy and transport,<br>the gateway client, settings, credentials"]
     db["db/<br>models, stores, the engine,<br>Alembic migrations"]
     core["core/<br>pure domain rules:<br>matching, merge, identity, download resolver,<br>policies, states, routines"]
-    sdk["musizerr_sdk<br>the provider contract,<br>models and codec (standard library only)"]
+    sdk["musizeer_sdk<br>the provider contract,<br>models and codec (standard library only)"]
 
     routes --> services
     workers --> services
@@ -204,7 +204,7 @@ The stored URLs of covers and streams are never absolute: they are references th
 
 ## The provider gateway and the sandboxes
 
-A **provider** is a program that implements one or more roles of the contract in `sdk/` (`musizerr_sdk`): metadata,
+A **provider** is a program that implements one or more roles of the contract in `sdk/` (`musizeer_sdk`): metadata,
 download, storage, sync, lyrics, identification. It lives in its own repository, is built into an OCI image on the base
 image of this repository, is published on a registry, and is listed in a **catalog**. The core never names one.
 
@@ -244,7 +244,7 @@ flowchart LR
 - **The database is the only record of what is installed.** The host *pushes* the desired set to the gateway at start,
   after every change, and whenever the gateway restarted. The gateway runs nothing until it is told.
 - **The gateway** ([`gateway.md`](gateway.md)) pulls each image **by digest**, checks every hash and the
-  `org.musizerr.provider.*` labels against what was approved, unpacks the layers once, and runs one long-lived process
+  `org.musizeer.provider.*` labels against what was approved, unpacks the layers once, and runs one long-lived process
   per provider in a **bubblewrap sandbox**: a read-only image root, a private `/tmp`, every namespace unshared, no
   capability, an empty environment, memory, file and task limits, and an inner seccomp filter. If no sandbox can be
   made, no provider runs: there is no unconfined fallback.
@@ -281,7 +281,7 @@ sequenceDiagram
 - A call is a request frame: method, arguments, the **auth session** for this call, and a **snapshot of the provider's
   context** (its settings, the timeouts, the public URL prefix). The provider never calls back into the host, and a
   setting changed in the UI is seen by the next call.
-- Every value goes through the lossless codec of the contract (`musizerr_sdk.wire`). Streams (a library listing, a
+- Every value goes through the lossless codec of the contract (`musizeer_sdk.wire`). Streams (a library listing, a
   file read) are produced as the host consumes them.
 - The runner classifies a failure where the type of the exception exists (timeout, HTTP status, network), so the host
   reads a `kind` and never a provider's raw exception. A connection that cannot be opened or breaks is `unreachable`.
@@ -469,7 +469,7 @@ or **followed** (a read-only mirror of a provider's playlist, which can be dupli
 
 There are **two different things** called an account, and they never mix.
 
-1. **Users of Musizerr** ([`permissions.md`](permissions.md)). Authentication can be off, and then the instance is one
+1. **Users of Musizeer** ([`permissions.md`](permissions.md)). Authentication can be off, and then the instance is one
    owner. With it on, users sign in with a password, or through a linked provider account
    ([`provider-login.md`](provider-login.md)); a session is a short-lived access token plus a rotating refresh token.
    The roles are admin and user, and the UI reads *capabilities* from the server instead of applying rules itself.

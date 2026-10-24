@@ -6,7 +6,7 @@ col prefisso corrente (``services.public_urls``), mai letti tali e quali.
 """
 from __future__ import annotations
 
-from musizerr_sdk.identifiers import Identifier
+from musizeer_sdk.identifiers import Identifier
 from core.serialization import KIND_TRACK
 from db.models import TrackIdentifierRecord, TrackRecord
 from sqlmodel import Session

@@ -1,6 +1,6 @@
 # Stored credentials are encrypted
 
-Everything Musizerr keeps in its database to sign in to other services is encrypted
+Everything Musizeer keeps in its database to sign in to other services is encrypted
 at rest, with a key of its own: `CREDENTIALS_KEY`. Someone who gets a copy of the
 database (a backup, a dump, a stolen volume) reads no token, password, API key or
 client secret from it. They need the key too, and the key is not in the database.
@@ -56,7 +56,7 @@ key from the environment.
 `=`). Generate it **once**:
 
 ```sh
-docker run --rm musizerr-app python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+docker run --rm musizeer-app python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 or, where the application image has not been rebuilt yet (it has no `cryptography` library before

@@ -3,7 +3,7 @@ The host tells the gateway which providers are installed.
 
 The database (``installed_providers`` and the ``provider_sources`` they came from) is the ONLY
 source of truth for what is installed. The gateway keeps no list: it runs what the host last
-pushed over its control socket (``{"op": "install", ...}``, see ``gateway/musizerr_gateway/
+pushed over its control socket (``{"op": "install", ...}``, see ``gateway/musizeer_gateway/
 desired.py``) and nothing before that. The host pushes
 
 - when the API starts (``routes/deps.init_singletons``),

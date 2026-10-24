@@ -132,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: musizerr-ui
+        working-directory: musizeer-ui
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -176,4 +176,4 @@ jobs:
       - name: the release assets are built
         run: |
           scripts/package-release-assets.sh "$RUNNER_TEMP/assets"
-          cd "$RUNNER_TEMP/assets" && docker compose config --format json | jq -e '.services["provider-gateway"].security_opt | index("seccomp=./musizerr-gateway.seccomp.json")' > /dev/null
+          cd "$RUNNER_TEMP/assets" && docker compose config --format json | jq -e '.services["provider-gateway"].security_opt | index("seccomp=./musizeer-gateway.seccomp.json")' > /dev/null

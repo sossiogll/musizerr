@@ -1,11 +1,11 @@
-# Musizerr
+# Musizeer
 
-> Based on Musizerr — https://github.com/sossiogll/musizerr
+> Based on Musizeer — https://github.com/sossiogll/musizeer
 
-Musizerr is a self-hosted, provider-agnostic music manager. You search catalogs, keep your favorites and
+Musizeer is a self-hosted, provider-agnostic music manager. You search catalogs, keep your favorites and
 playlists, download what you want into your own library, play it, and keep it in sync with the media server
 you already use. Every service it talks to — a catalog, a downloader, the storage, a media server, lyrics, audio
-identification — is a **provider**: a separate program you install from a catalog, remove or replace. Musizerr
+identification — is a **provider**: a separate program you install from a catalog, remove or replace. Musizeer
 itself knows none of them by name.
 
 ## How it is built
@@ -16,7 +16,7 @@ itself knows none of them by name.
 - **The provider gateway**: runs each installed provider in its own sandbox (bubblewrap, no network but the
   destinations the provider declares, no environment, no file but its own workspace). The host talks to providers
   only through it.
-- **Providers**: OCI images built on the base image of this repository and its SDK (`musizerr-sdk`, the provider
+- **Providers**: OCI images built on the base image of this repository and its SDK (`musizeer-sdk`, the provider
   contract), published on GHCR and listed in catalogs. An admin adds a catalog as a source, sees what each provider
   asks for (its network destinations, folders, limits) and installs it.
 - **The web app**: React, made for phones as much as for desktops; administration included.
@@ -31,8 +31,8 @@ You need Docker with Compose, on a kernel with user namespaces (the gateway's sa
 files to download, the secrets, AppArmor and seccomp, the public URL, folders and upgrades, is
 **[`docs/deployment.md`](docs/deployment.md)**. In short:
 
-1. Put `docker-compose.yaml`, `musizerr-gateway.seccomp.json` and `.env` (from `env.example`) in one folder: all three are
-   attached to every [release](https://github.com/sossiogll/musizerr/releases/latest), no clone needed (a clone has
+1. Put `docker-compose.yaml`, `musizeer-gateway.seccomp.json` and `.env` (from `env.example`) in one folder: all three are
+   attached to every [release](https://github.com/sossiogll/musizeer/releases/latest), no clone needed (a clone has
    them too: `docker-compose.yaml`, `gateway/seccomp/`, `.env.example`). Then set, in `.env`:
 
    ```sh
@@ -49,7 +49,7 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
    Keep `CREDENTIALS_KEY` with your database backups: without it the stored credentials cannot be read and every
    account has to be connected again ([`docs/credentials.md`](docs/credentials.md)).
 
-2. Start it: Compose pulls the published images (`ghcr.io/sossiogll/musizerr`, `musizerr-gateway`, `musizerr-frontend`,
+2. Start it: Compose pulls the published images (`ghcr.io/sossiogll/musizeer`, `musizeer-gateway`, `musizeer-frontend`,
    for linux/amd64 and linux/arm64), nothing is built.
 
    ```sh
@@ -60,7 +60,7 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
    while no account exists). A new install has authentication off: you are the one owner and there is nothing to
    sign in to. Turn it on in Administration › System; the admin account is what lets you sign in afterwards, and if
    you set no bootstrap variables the settings page asks you to create one at that moment (what you have in
-   Musizerr by then becomes that account's, [`docs/permissions.md`](docs/permissions.md)). To update, pull
+   Musizeer by then becomes that account's, [`docs/permissions.md`](docs/permissions.md)). To update, pull
    again (or raise `MUSIZERR_VERSION`) and `up -d`: the init container migrates the database before the API and the workers
    start. The gateway container is never `privileged`: it needs the seccomp profile, `apparmor=unconfined` and
    `systempaths=unconfined`, which the compose file already sets ([why](docs/deployment.md#apparmor-and-seccomp)).
@@ -74,7 +74,7 @@ files to download, the secrets, AppArmor and seccomp, the public URL, folders an
 3. In Administration › Sources, add a catalog, then install the providers you want from it:
 
    ```
-   https://raw.githubusercontent.com/sossiogll/musizerr-providers/master/catalog.json
+   https://raw.githubusercontent.com/sossiogll/musizeer-providers/master/catalog.json
    ```
 
    A private catalog is added with a token that can read it. Then configure the providers in Administration ›
@@ -87,9 +87,9 @@ More: [the architecture overview](docs/architecture.md), [the deployment guide](
 
 ## Write a provider
 
-Start from the template repository `sossiogll/musizerr-provider-template` and read
+Start from the template repository `sossiogll/musizeer-provider-template` and read
 [`docs/provider-authors.md`](docs/provider-authors.md). A provider is a package with its tests and its image;
-it imports the SDK and nothing else of Musizerr, and you publish it in a catalog of your own.
+it imports the SDK and nothing else of Musizeer, and you publish it in a catalog of your own.
 
 ## Develop
 
@@ -106,10 +106,10 @@ a local OCI registry and a catalog server for providers under development (`scri
 Tests:
 
 ```sh
-docker exec musizerr-app-1 python -m pytest                                   # the backend, on SQLite
-docker exec musizerr-app-1 sh -c 'cd /sdk && python -m pytest'                # the SDK
-docker exec musizerr-frontend-1 npx tsc -p tsconfig.app.json --noEmit         # the frontend's types
-docker exec musizerr-frontend-1 pnpm test                                     # the frontend
+docker exec musizeer-app-1 python -m pytest                                   # the backend, on SQLite
+docker exec musizeer-app-1 sh -c 'cd /sdk && python -m pytest'                # the SDK
+docker exec musizeer-frontend-1 npx tsc -p tsconfig.app.json --noEmit         # the frontend's types
+docker exec musizeer-frontend-1 pnpm test                                     # the frontend
 ```
 
 The backend suite also runs on PostgreSQL (`TEST_DATABASE_URL`), and both must pass; the gateway has its own
@@ -123,10 +123,10 @@ patch; `chore` alone → none), tags `vX.Y.Z`, publishes the images as `:X.Y.Z` 
 
 ## License
 
-Musizerr is free software, released under the GNU Affero General Public License, version 3 or later
+Musizeer is free software, released under the GNU Affero General Public License, version 3 or later
 ([`LICENSE`](LICENSE)), with additional terms on attribution ([`NOTICE.md`](NOTICE.md)): every copy and every
 work based on it keeps the notice at the top of this file, here and on a page of its interface reachable from the
-main navigation (Musizerr's own is About), and a modified version offers its source to its users.
+main navigation (Musizeer's own is About), and a modified version offers its source to its users.
 
 The provider SDK in [`sdk/`](sdk/) is released under the GNU Lesser General Public License, version 3 or later:
 a provider built on it may use the license its author chooses. Providers are separate programs, each under its

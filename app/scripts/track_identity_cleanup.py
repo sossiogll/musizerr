@@ -2,8 +2,8 @@
 Pulizia dei dati d'identità delle tracce lasciati dai bug di fix/track-identity.
 Idempotente: una seconda esecuzione non trova più nulla da fare.
 
-    docker exec musizerr-app-1 python scripts/track_identity_cleanup.py           # dry-run (default)
-    docker exec musizerr-app-1 python scripts/track_identity_cleanup.py --apply   # applica
+    docker exec musizeer-app-1 python scripts/track_identity_cleanup.py           # dry-run (default)
+    docker exec musizeer-app-1 python scripts/track_identity_cleanup.py --apply   # applica
 
 Funziona su SQLite e su PostgreSQL: TUTTO il lavoro è UNA transazione
 (``db.engine.atomic_session``), qualunque commit facciano i passi.
@@ -57,10 +57,10 @@ from sqlmodel import Session, select  # noqa: E402
 from core.audio_quality import QualityScore  # noqa: E402
 from core.duplicates import DuplicateCandidate, decide_keeper  # noqa: E402
 from core.identifiers import sync_id_type
-from musizerr_sdk.identifiers import ISRC, is_sync_id_type
+from musizeer_sdk.identifiers import ISRC, is_sync_id_type
 from core.matching import base_title_key, duration_tolerance_ms, match_track, version_identity  # noqa: E402
 from core.merge import enrich  # noqa: E402
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 from db.models import (  # noqa: E402
     Download,
     DuplicateGroup,
@@ -191,7 +191,7 @@ def _decide(members: list[DuplicateMember], prefer_lossless: bool):
             key=m.sync_id or m.id,
             quality=QualityScore(lossless=bool(m.lossless), bitrate=m.bitrate or 0, sample_rate=m.sample_rate or 0,
                                  codec=m.suffix) if m.quality_known else None,
-            deletable=m.origin == "musizerr" and bool(m.download_id),
+            deletable=m.origin == "musizeer" and bool(m.download_id),
         )
         for m in members if m.deleted_at is None
     ]

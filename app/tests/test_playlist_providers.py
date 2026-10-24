@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from musizerr_sdk.auth import AuthSession
+from musizeer_sdk.auth import AuthSession
 from core.interfaces import metadata_capabilities, personal_capabilities
 
 from tests.conftest import FakeMetadataProvider, FakeSyncProvider

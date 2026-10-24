@@ -32,7 +32,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from core.settings_resolver import PROVIDER_CATEGORY_GETTERS
-from musizerr_sdk.auth import AuthFlow, ExternalUtilityConfig
+from musizeer_sdk.auth import AuthFlow, ExternalUtilityConfig
 
 from .deps import AdminUserDep, RegistryDep, SharedStoreDep
 

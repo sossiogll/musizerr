@@ -31,11 +31,11 @@ from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession  # noqa: E402
-from musizerr_sdk.context import StaticProviderContext  # noqa: E402
-from musizerr_sdk.identifiers import Identifier  # noqa: E402
-from musizerr_sdk.interfaces import DownloadProvider, MetadataProvider  # noqa: E402
-from musizerr_sdk.models import Album, AlbumRef, ArtistRef, Track  # noqa: E402
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, AuthSession  # noqa: E402
+from musizeer_sdk.context import StaticProviderContext  # noqa: E402
+from musizeer_sdk.identifiers import Identifier  # noqa: E402
+from musizeer_sdk.interfaces import DownloadProvider, MetadataProvider  # noqa: E402
+from musizeer_sdk.models import Album, AlbumRef, ArtistRef, Track  # noqa: E402
 from services.enrichment import cross_enrich_album  # noqa: E402
 from tests.loopback import loopback_proxy  # noqa: E402
 

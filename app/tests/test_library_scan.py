@@ -13,7 +13,7 @@ import pytest
 from sqlmodel import Session, select
 
 from core.auth_manager import AuthError
-from musizerr_sdk.interfaces import StorageStreamResult
+from musizeer_sdk.interfaces import StorageStreamResult
 from db.models import LibraryEntry, TrackIdentifierRecord, TrackRecord
 from db.settings_store import SettingsRepository
 from db.track_store import find_or_create_track
@@ -58,7 +58,7 @@ def library(tmp_path):
     root = tmp_path / "library"
     write_flac(root / "A" / "01 one.flac", title="One", artist="Artist", isrc="AAA111")
     write_flac(root / "A" / "02 two.flac", title="Two", artist="Artist")
-    write_flac(root / ".musizerr-work" / "x" / "part.flac", title="Part", artist="Artist")
+    write_flac(root / ".musizeer-work" / "x" / "part.flac", title="Part", artist="Artist")
     (root / "A" / "cover.jpg").write_bytes(b"jpg")
     return root
 
@@ -244,7 +244,7 @@ def test_a_library_scanned_with_the_workspace_inside_it_stays_intact(session, li
     inside the library): the scan lists the hidden work folder too, indexes
     only the audio files and leaves the library as it was."""
     storage = _LibraryStorage(library)
-    config = SimpleNamespace(storage_provider=storage.name, workspace_dir=library / ".musizerr-work")
+    config = SimpleNamespace(storage_provider=storage.name, workspace_dir=library / ".musizeer-work")
 
     count = scan_library_once(session, FakeRegistry(storage=[storage]), config, FakeAuthManager())
 
@@ -252,7 +252,7 @@ def test_a_library_scanned_with_the_workspace_inside_it_stays_intact(session, li
     assert {e.storage_provider for e in _entries(session).values()} == {"shelf"}
     assert None not in {e.track_id for e in _entries(session).values()}
     assert (library / "A" / "01 one.flac").exists()  # the library stays intact
-    assert sorted(p.name for p in (library / ".musizerr-work").rglob("*") if p.is_file()) == ["part.flac"]
+    assert sorted(p.name for p in (library / ".musizeer-work").rglob("*") if p.is_file()) == ["part.flac"]
 
 
 # ------------------------------------------------------------------

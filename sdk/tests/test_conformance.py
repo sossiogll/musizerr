@@ -1,16 +1,16 @@
-"""``musizerr_sdk.conformance``: the generic rules a provider's own test suite
+"""``musizeer_sdk.conformance``: the generic rules a provider's own test suite
 runs on its instance, with good and bad sample providers."""
 from __future__ import annotations
 
 import pytest
 
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow, OAuth2Config
-from musizerr_sdk.capabilities import (
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow, OAuth2Config
+from musizeer_sdk.capabilities import (
     CAPABILITY_PROPAGATE_FAVORITES,
     CAPABILITY_UNLIKE_SAVED_TRACK,
     CAPABILITY_USER_LIBRARY,
 )
-from musizerr_sdk.conformance import (
+from musizeer_sdk.conformance import (
     CAPABILITIES_NEEDING_A_SCOPE,
     ConformanceError,
     check_config_schema,
@@ -21,9 +21,9 @@ from musizerr_sdk.conformance import (
     oauth2_capability_violations,
     provider_violations,
 )
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.interfaces import MetadataProvider, SyncCandidate, SyncProvider
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.interfaces import MetadataProvider, SyncCandidate, SyncProvider
+from musizeer_sdk.settings import ProviderSetting
 
 from sample_providers import Base, SampleMetadata
 

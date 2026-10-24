@@ -9,17 +9,17 @@ import tarfile
 from dataclasses import dataclass, field
 from typing import Mapping
 
-from musizerr_gateway.desired import DesiredProvider
-from musizerr_gateway.oci import (
+from musizeer_gateway.desired import DesiredProvider
+from musizeer_gateway.oci import (
     MEDIA_DOCKER_LIST,
     MEDIA_DOCKER_MANIFEST,
     MEDIA_OCI_INDEX,
     MEDIA_OCI_MANIFEST,
     HttpResponse,
 )
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.labels import LABEL_API_VERSION, LABEL_NAME, LABEL_PERMISSIONS, LABEL_ROLES
-from musizerr_sdk.permissions import Permissions, canonical
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.labels import LABEL_API_VERSION, LABEL_NAME, LABEL_PERMISSIONS, LABEL_ROLES
+from musizeer_sdk.permissions import Permissions, canonical
 
 LAYER_GZIP = "application/vnd.oci.image.layer.v1.tar+gzip"
 APPROVED = canonical(Permissions(egress=("lrclib.net:443",)))  # what labels_for() declares by default
@@ -90,7 +90,7 @@ def labels_for(name: str = "demo", roles: str = "lyrics", version: int = PROVIDE
 class FakeImage:
     layers: list[Tar]
     labels: Mapping[str, str] = field(default_factory=labels_for)
-    entrypoint: tuple[str, ...] = ("python", "-m", "musizerr_sdk.runner")
+    entrypoint: tuple[str, ...] = ("python", "-m", "musizeer_sdk.runner")
     docker_types: bool = False
     blobs: dict[str, bytes] = field(default_factory=dict)
     manifest: bytes = b""
@@ -132,7 +132,7 @@ class FakeImage:
 class FakeRegistry:
     """Serves what ``RegistryClient`` asks for from a dict of URL -> response."""
 
-    def __init__(self, registry: str = "registry.test", repository: str = "musizerr/demo", scheme: str = "https") -> None:
+    def __init__(self, registry: str = "registry.test", repository: str = "musizeer/demo", scheme: str = "https") -> None:
         self.base = f"{scheme}://{registry}/v2/{repository}"
         self.registry, self.repository, self.scheme = registry, repository, scheme
         self.routes: dict[str, tuple[int, dict[str, str], bytes]] = {}

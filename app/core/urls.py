@@ -4,14 +4,14 @@ raggiunge l'API solo sotto un prefisso (``/api`` dietro Vite o nginx): un
 path relativo alla root caricherebbe la pagina del frontend invece della
 risorsa. Ogni URL di questo tipo si costruisce con il prefisso dato: quelli che un
 provider mette sulle proprie tracce (cover, stream, anteprima) con i costruttori
-di ``musizerr_sdk.urls``, gli altri qui.
+di ``musizeer_sdk.urls``, gli altri qui.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from urllib.parse import unquote
 
-from musizerr_sdk.urls import cover_url, join_path, preview_url, provider_stream_url
+from musizeer_sdk.urls import cover_url, join_path, preview_url, provider_stream_url
 
 
 def stored_stream_url(prefix: str, track_id: str) -> str:

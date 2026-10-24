@@ -56,7 +56,7 @@ def upgrade() -> None:
 
 
 def _backfill(conn) -> None:
-    from musizerr_sdk.identifiers import Identifier
+    from musizeer_sdk.identifiers import Identifier
     from core.matching import song_keys
     from core.serialization import deserialize_track
 

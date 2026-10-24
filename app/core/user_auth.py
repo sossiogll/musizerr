@@ -1,4 +1,4 @@
-"""Password hashing and JWT token generation for Musizerr user auth.
+"""Password hashing and JWT token generation for Musizeer user auth.
 
 Uses bcrypt for passwords and PyJWT for tokens.  All secrets come from
 environment variables — nothing is hardcoded.
@@ -190,7 +190,7 @@ def decode_oauth_state_token(token: str) -> tuple[str, str]:
 # own authorization and land in the attacker's account).
 # ------------------------------------------------------------------
 
-LOGIN_NONCE_COOKIE_NAME = "musizerr_login_nonce"
+LOGIN_NONCE_COOKIE_NAME = "musizeer_login_nonce"
 LOGIN_STATE_EXPIRE_MINUTES = _OAUTH_STATE_EXPIRE_MINUTES
 # The one-time code the callback hands the browser, and how long it lives: the
 # browser exchanges it for a session at once.
@@ -253,9 +253,9 @@ def new_login_code() -> tuple[str, str]:
 # docs/permissions.md.
 # ------------------------------------------------------------------
 
-STREAM_COOKIE_NAME = "musizerr_stream_token"
+STREAM_COOKIE_NAME = "musizeer_stream_token"
 # Stessa vita del token di accesso: il frontend rinnova il cookie ad ogni
-# refresh (vedi musizerr-ui/src/lib/api-client.ts), quindi non serve una
+# refresh (vedi musizeer-ui/src/lib/api-client.ts), quindi non serve una
 # scadenza indipendente ne' un'impostazione dedicata.
 STREAM_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
 

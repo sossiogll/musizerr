@@ -10,18 +10,18 @@ from pathlib import Path
 import pytest
 
 from core.catalog import parse_catalog, parse_entry
-from musizerr_sdk.context import StaticProviderContext
-from musizerr_sdk.auth import AccountModel, AuthDefinition, AuthFlow
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
-from musizerr_sdk.labels import labels_for
-from musizerr_sdk.manifest import build
-from musizerr_sdk.permissions import Permissions, TcpAccess
+from musizeer_sdk.context import StaticProviderContext
+from musizeer_sdk.auth import AccountModel, AuthDefinition, AuthFlow
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION, LyricsProvider
+from musizeer_sdk.labels import labels_for
+from musizeer_sdk.manifest import build
+from musizeer_sdk.permissions import Permissions, TcpAccess
 
 NO_AUTH = AuthDefinition(flow=AuthFlow.NONE, account_model=AccountModel.NONE)
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "dev_catalog.py"
 DIGEST = "sha256:" + "a" * 64
 OTHER = "sha256:" + "b" * 64
-IMAGE = "oci-registry:5000/musizerr-provider-demo"
+IMAGE = "oci-registry:5000/musizeer-provider-demo"
 
 
 @pytest.fixture(scope="module")
@@ -88,16 +88,16 @@ def test_wildcards_and_raw_tcp_pass_through_the_labels_unchanged(dev_catalog):
 
 def test_an_image_whose_labels_do_not_describe_a_provider_makes_no_entry(dev_catalog):
     with pytest.raises(SystemExit, match="lack"):
-        dev_catalog.entry_from_labels({"org.musizerr.provider.name": "x"}, IMAGE, DIGEST)
+        dev_catalog.entry_from_labels({"org.musizeer.provider.name": "x"}, IMAGE, DIGEST)
     with pytest.raises(SystemExit, match="not readable"):
         dev_catalog.entry_from_labels(
-            {**dev_catalog.read_labels(labels_text()), "org.musizerr.provider.permissions": "{"}, IMAGE, DIGEST,
+            {**dev_catalog.read_labels(labels_text()), "org.musizeer.provider.permissions": "{"}, IMAGE, DIGEST,
         )
 
 
 def test_a_new_entry_is_appended_and_an_existing_one_is_replaced_where_it_stands(dev_catalog):
-    first = dev_catalog.entry_from_labels(dev_catalog.read_labels(labels_text("first")), "oci-registry:5000/musizerr-provider-first", DIGEST)
-    second = dev_catalog.entry_from_labels(dev_catalog.read_labels(labels_text("second")), "oci-registry:5000/musizerr-provider-second", DIGEST)
+    first = dev_catalog.entry_from_labels(dev_catalog.read_labels(labels_text("first")), "oci-registry:5000/musizeer-provider-first", DIGEST)
+    second = dev_catalog.entry_from_labels(dev_catalog.read_labels(labels_text("second")), "oci-registry:5000/musizeer-provider-second", DIGEST)
 
     catalog = dev_catalog.merge(dev_catalog.merge(None, first, "Mine"), second)
     updated = dev_catalog.merge(catalog, {**first, "digest": OTHER})
@@ -128,7 +128,7 @@ def test_the_command_writes_the_catalog_and_running_it_again_moves_the_digest_on
 
     document = json.loads(catalog.read_text())
     assert [(p["name"], p["digest"]) for p in document["providers"]] == [("demo", OTHER)]
-    assert document["name"] == "Musizerr development catalog"
+    assert document["name"] == "Musizeer development catalog"
     assert parse_catalog(document).rejected == ()
     assert stat.S_IMODE(os.stat(catalog).st_mode) == 0o644, "the catalog server reads it as another user"
     assert [p.name for p in catalog.parent.iterdir()] == ["registry.json"], "no temporary file is left"

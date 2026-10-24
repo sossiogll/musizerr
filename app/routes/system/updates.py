@@ -1,5 +1,5 @@
 """
-GET /admin/updates: the version this instance runs and the newer releases of Musizerr, each with what
+GET /admin/updates: the version this instance runs and the newer releases of Musizeer, each with what
 updating to it implies now (ADR-0007 §5.1, ``services/update_check.py``). Admin only; reads only. The
 check itself is the routine ``check_for_updates`` (its switch, its "Run now").
 """

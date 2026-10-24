@@ -21,7 +21,7 @@ from tests.conftest import FakeDownloadProvider, FakeMetadataProvider, FakeRegis
 
 class _BrokenEngine:
     def connect(self):
-        raise RuntimeError("database is locked at /data/musizerr.db")
+        raise RuntimeError("database is locked at /data/musizeer.db")
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def test_a_db_failure_is_reported_to_a_guest_without_the_raw_error(client_for):
     resp = client_for(db_up=False).get("/health")
 
     assert resp.json() == {"status": "degraded", "db": "error"}
-    assert "/data/musizerr.db" not in resp.text
+    assert "/data/musizeer.db" not in resp.text
 
 
 def test_a_db_failure_is_reported_to_an_admin_with_the_detail(client_for):

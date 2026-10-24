@@ -6,11 +6,11 @@ import os
 
 import pytest
 
-from musizerr_gateway.config import GatewayConfig
-from musizerr_gateway.images import MOUNTPOINTS, ImageStore
-from musizerr_gateway.oci import ImageError
-from musizerr_sdk.interfaces import PROVIDER_API_VERSION
-from musizerr_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, canonical
+from musizeer_gateway.config import GatewayConfig
+from musizeer_gateway.images import MOUNTPOINTS, ImageStore
+from musizeer_gateway.oci import ImageError
+from musizeer_sdk.interfaces import PROVIDER_API_VERSION
+from musizeer_sdk.permissions import FilesystemAccess, Permissions, ResourceLimits, canonical
 from support import FakeImage, FakeRegistry, Tar, labels_for
 
 
@@ -33,7 +33,7 @@ def test_an_image_is_pulled_unpacked_and_ready_to_run(tmp_path):
     assert all((prepared.rootfs / mountpoint).is_dir() for mountpoint in MOUNTPOINTS)
     assert prepared.declared.name == "demo" and prepared.declared.roles == ("lyrics",)
     assert prepared.declared.permissions.egress == ("lrclib.net:443",)
-    assert prepared.command == ["python", "-m", "musizerr_sdk.runner"]
+    assert prepared.command == ["python", "-m", "musizeer_sdk.runner"]
 
 
 @pytest.mark.parametrize("labels, entry_kwargs, message", [
@@ -165,7 +165,7 @@ def test_what_was_approved_is_checked_against_an_image_that_is_already_unpacked_
 
 def test_the_credential_reaches_the_registry_client(tmp_path):
     registry = FakeRegistry()
-    registry.require_basic = "musizerr:s3cret"
+    registry.require_basic = "musizeer:s3cret"
     _, pinned = publish(registry)
 
     prepared = store(tmp_path, registry).prepare(registry.entry(pinned), "s3cret")
@@ -175,7 +175,7 @@ def test_the_credential_reaches_the_registry_client(tmp_path):
 
 def test_the_credential_is_written_nowhere_in_the_state_directory(tmp_path):
     registry = FakeRegistry()
-    registry.require_basic = "musizerr:ghp_canary_token"
+    registry.require_basic = "musizeer:ghp_canary_token"
     _, pinned = publish(registry)
 
     store(tmp_path, registry).prepare(registry.entry(pinned), "ghp_canary_token")
@@ -183,7 +183,7 @@ def test_the_credential_is_written_nowhere_in_the_state_directory(tmp_path):
     needle = b"ghp_canary_token"
     import base64
 
-    encoded = base64.b64encode(b"musizerr:ghp_canary_token")
+    encoded = base64.b64encode(b"musizeer:ghp_canary_token")
     for path in (tmp_path / "state").rglob("*"):
         if path.is_file():
             data = path.read_bytes()

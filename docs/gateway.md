@@ -6,7 +6,7 @@ a [bubblewrap](https://github.com/containers/bubblewrap) sandbox with no network
 application and the workers talk to the provider over a Unix socket; they never install or start anything.
 
 Every provider lives this way: none is part of the application, and the host registers only what the gateway runs
-and declares. The first-party ones are in their own repositories (the public ones in `musizerr-providers`).
+and declares. The first-party ones are in their own repositories (the public ones in `musizeer-providers`).
 
 ```
  app / workers ──(call protocol, Unix socket)──▶ sandbox: provider (runner)
@@ -26,7 +26,7 @@ and declares. The first-party ones are in their own repositories (the public one
 
    ```json
    {"name": "lrclib",
-    "image": "ghcr.io/sossiogll/musizerr-provider-lrclib",
+    "image": "ghcr.io/sossiogll/musizeer-provider-lrclib",
     "digest": "sha256:<64 hex>",
     "roles": ["lyrics"],
     "permissions": {"egress": ["lrclib.net:443"], "egress_from_settings": [],
@@ -54,8 +54,8 @@ and declares. The first-party ones are in their own repositories (the public one
    `linux/<arch>` manifest of the host, which is verified in turn; the config and every layer must hash to
    the digest and size their descriptor names, and the uncompressed layer to the config's `diff_id`. The
    `Authorization` header is dropped when a redirect leaves the registry's host.
-3. **Labels.** The image describes itself with `org.musizerr.provider.*` labels (name, roles, contract
-   version, permissions), generated from the provider by `python -m musizerr_sdk.runner --print-labels`.
+3. **Labels.** The image describes itself with `org.musizeer.provider.*` labels (name, roles, contract
+   version, permissions), generated from the provider by `python -m musizeer_sdk.runner --print-labels`.
    They are read from the config **before any layer is downloaded** and the image is refused, with the
    reason, if the name differs from the entry's, the roles or the permissions differ from the ones the entry says the
    admin approved (as sets: the order is nothing; an image cannot gain a permission nobody approved), the
@@ -187,11 +187,11 @@ proxy resolves the name itself and connects to the address it checked, so a name
 between the check and the connection. Every refusal is logged
 (`egress refused: provider=… target=… reason=…`) and kept in the provider's `egress.refused` of `ctl list`.
 
-The answers the proxy gives itself carry `X-Musizerr-Egress`:
+The answers the proxy gives itself carry `X-Musizeer-Egress`:
 - `refused` on a 403, when the destination is not allowed;
 - `unreachable` on a 502, when it did not answer.
 
-A provider's HTTP library sees an ordinary response, and `musizerr_sdk.failures` classifies it as what it is. A destination that does not answer is `unreachable`, so a 503 and a retry, never the `upstream_error` of a server that answered with a 502; a refusal is `failed`. An HTTPS tunnel the proxy does not open reaches httpx as a `ProxyError` whose text starts with the proxy's status, and is classified the same way. A provider does not have to know any of this.
+A provider's HTTP library sees an ordinary response, and `musizeer_sdk.failures` classifies it as what it is. A destination that does not answer is `unreachable`, so a 503 and a retry, never the `upstream_error` of a server that answered with a 502; a refusal is `failed`. An HTTPS tunnel the proxy does not open reaches httpx as a `ProxyError` whose text starts with the proxy's status, and is classified the same way. A provider does not have to know any of this.
 
 **How the setting-named destinations reach the gateway.** Only the host knows the settings and the sandbox
 must not be able to influence them, so the host tells the gateway: `GatewayProviderContext` (the context of a
@@ -225,10 +225,10 @@ server chooses at run time**. The manifest declares `tcp_from_settings: [{"setti
 (or `"2121"`, or a range `"30000-30100"`): the host the setting names, reachable on those ports, private
 addresses included (the user typed the host), still never loopback or link-local. The admin sees "Can open
 connections on any port to the host you set in “host”". The sandbox has no network, so the library's sockets go
-through the same proxy with `CONNECT host:port`: `musizerr_sdk.net` is the helper.
+through the same proxy with `CONNECT host:port`: `musizeer_sdk.net` is the helper.
 
 ```python
-from musizerr_sdk import net
+from musizeer_sdk import net
 
 sock = net.create_connection(("files.example.org", 2121), timeout=10)   # a normal socket; same signature as socket.create_connection
 ```
@@ -244,7 +244,7 @@ through the proxy (the rest of the process keeps the real `socket`):
 
 ```python
 import ftplib
-from musizerr_sdk import net
+from musizeer_sdk import net
 
 net.route_module(ftplib)                      # once, at import
 ftp = ftplib.FTP()
@@ -273,7 +273,7 @@ declared. The host sends the CURRENT value with the grant (`paths`), and the gat
   that leads out of it is refused. A root that is `/`, relative, inside or holding the gateway's own state or run
   directory, or one of `/proc`, `/dev`, `/tmp`, `/run`, `/workspace` stops the gateway from starting;
 - it exists and is a directory, is not inside the workspace directory, and does not collide with what every sandbox
-  mounts itself. When it **holds** the workspace directory (the library root holds `.musizerr-work`), that
+  mounts itself. When it **holds** the workspace directory (the library root holds `.musizeer-work`), that
   directory is covered by an empty `tmpfs`: another provider's files are not for this one;
 - no other setting of the same provider already claimed it.
 
@@ -299,7 +299,7 @@ gateway's uid (the sandbox's uid is mapped to it): the folder must be writable b
 
 ### The seccomp profile of the container
 
-`gateway/seccomp/musizerr-gateway.json` is Docker's default profile (`moby-default.json`, copied verbatim
+`gateway/seccomp/musizeer-gateway.json` is Docker's default profile (`moby-default.json`, copied verbatim
 from the `github.com/moby/profiles/seccomp` vendored in moby tag `docker-v29.4.0`, sha256
 `01536f1d…01e28`) plus **one appended, unconditional entry** allowing `clone`, `mount`, `pivot_root`,
 `umount2` and `unshare`. Docker's default profile allows those only to a container with `CAP_SYS_ADMIN`
@@ -328,7 +328,7 @@ provider-gateway:
   pids_limit: ${GATEWAY_PIDS_LIMIT:-4096}                 # the processes and threads of the whole container: see "Processes and threads"
   cap_drop: [ALL]
   security_opt:
-    - seccomp=./gateway/seccomp/musizerr-gateway.json    # or musizerr-gateway.seccomp.json next to a release's compose file
+    - seccomp=./gateway/seccomp/musizeer-gateway.json    # or musizeer-gateway.seccomp.json next to a release's compose file
     - apparmor=unconfined
     - systempaths=unconfined
 ```
@@ -348,7 +348,7 @@ Where that is impossible the providers outside the application do not run.
 
 ## Troubleshooting
 
-`docker compose exec provider-gateway python -m musizerr_gateway.ctl health` (or `docker compose logs provider-gateway`)
+`docker compose exec provider-gateway python -m musizeer_gateway.ctl health` (or `docker compose logs provider-gateway`)
 says `sandbox unavailable: <bubblewrap's error> (hint: ...)` when no sandbox can be made; the gateway adds the hint
 for the errors below (`SANDBOX_HINTS` in `sandbox.py`) and checks again every 30 s, so fixing the container and
 `docker compose up -d provider-gateway` is enough. Nothing runs unconfined in the meantime.
@@ -357,11 +357,11 @@ for the errors below (`SANDBOX_HINTS` in `sandbox.py`) and checks again every 30
 |---|---|---|---|
 | `Creating new namespace failed: Permission denied` | `EACCES` | AppArmor: Docker's `docker-default` profile denies the namespace calls. This is what a stock Debian or Ubuntu host shows. | `apparmor=unconfined` in the gateway's `security_opt` (not `privileged`). |
 | `setting up uid map: Permission denied` | `EACCES` | An AppArmor policy that restricts unprivileged user namespaces (`kernel.apparmor_restrict_unprivileged_userns=1`, Ubuntu 24.04+). | `apparmor=unconfined` for the container, or `sysctl kernel.apparmor_restrict_unprivileged_userns=0` on the host. |
-| `No permissions to create a new namespace` (older: `...to creating new namespace, likely because the kernel does not allow non-privileged user namespaces`) | `EPERM` | Docker's default seccomp profile is in use (the `seccomp=` file was not found or not given), or the kernel forbids unprivileged user namespaces. | The `seccomp=` option must name `musizerr-gateway.json` as a path that exists **on the Docker host** (`GATEWAY_SECCOMP_PROFILE`, [deployment.md](deployment.md#apparmor-and-seccomp)); on Debian `sysctl kernel.unprivileged_userns_clone=1`; check `sysctl user.max_user_namespaces` is not 0. |
+| `No permissions to create a new namespace` (older: `...to creating new namespace, likely because the kernel does not allow non-privileged user namespaces`) | `EPERM` | Docker's default seccomp profile is in use (the `seccomp=` file was not found or not given), or the kernel forbids unprivileged user namespaces. | The `seccomp=` option must name `musizeer-gateway.json` as a path that exists **on the Docker host** (`GATEWAY_SECCOMP_PROFILE`, [deployment.md](deployment.md#apparmor-and-seccomp)); on Debian `sysctl kernel.unprivileged_userns_clone=1`; check `sysctl user.max_user_namespaces` is not 0. |
 | `Creating new namespace failed, likely because the kernel does not support user namespaces` | `EINVAL` | The kernel has no user namespaces, or `user.max_user_namespaces` is 0. | `sysctl user.max_user_namespaces=15000` (persist it in `/etc/sysctl.d/`); a kernel built without `CONFIG_USER_NS` cannot run the gateway. |
 | `Can't mount proc on /newroot/proc: Operation not permitted` | `EPERM` | The container's `/proc` is masked. | `systempaths=unconfined` in `security_opt`. |
 | `pivot_root: Operation not permitted`, `Can't mount tmpfs ...: Operation not permitted` | `EPERM` | The seccomp profile in use does not allow `mount`, `pivot_root`, `unshare`, `clone`, `umount2`. | The gateway's profile, not Docker's default (above). |
-| `bwrap: execvp ...: No such file or directory`, `bubblewrap is not installed` | | A gateway image that is not the published one. | Pull `musizerr-gateway`. |
+| `bwrap: execvp ...: No such file or directory`, `bubblewrap is not installed` | | A gateway image that is not the published one. | Pull `musizeer-gateway`. |
 | `Creating new namespace failed: Resource temporarily unavailable`, `fork: Resource temporarily unavailable`; or, in a provider's output and the gateway's log, `process/thread limit reached (RLIMIT_NPROC / pids)` and `can't start new thread` | `EAGAIN` | The kernel would not create a process or a thread. The message carries the numbers: `container pids: N of M (pids_limit)` and `RLIMIT_NPROC of the gateway`. Not a permission problem: no AppArmor or seccomp change helps. | `N` close to `M`: raise `GATEWAY_PIDS_LIMIT` (and look at `tasks` of each provider in `ctl list`: a provider that leaks threads is stopped at its `limits.processes`). `N` far below `M`: an `RLIMIT_NPROC` is set on the gateway from outside (`ulimits: nproc` in a compose override, `default-ulimits` in `/etc/docker/daemon.json`, `LimitNPROC` of the Docker unit) and the kernel counts it over every process of the uid on the host; remove it, the pids limit does the job. |
 
 The same table, from the host's side: `EACCES` is a **Linux security module** (AppArmor, SELinux) saying no; `EPERM` is
@@ -373,8 +373,8 @@ A provider that is `refused` or `failed` (not `unavailable`) is another matter: 
 
 ## Control socket
 
-`<run_dir>/gateway.sock` (default `/run/musizerr/gateway.sock`), mode 0600; one JSON object per line in, one
-out. `python -m musizerr_gateway.ctl [list|health|install|grant]` is a client (`install` and `grant` read their request from standard input, as the host would send it: for tests and for looking at a gateway on its own).
+`<run_dir>/gateway.sock` (default `/run/musizeer/gateway.sock`), mode 0600; one JSON object per line in, one
+out. `python -m musizeer_gateway.ctl [list|health|install|grant]` is a client (`install` and `grant` read their request from standard input, as the host would send it: for tests and for looking at a gateway on its own).
 
 | request | answer |
 |---|---|
@@ -385,14 +385,14 @@ out. `python -m musizerr_gateway.ctl [list|health|install|grant]` is a client (`
 
 ## Sockets, volumes and permissions
 
-- `provider_sockets` (named volume) is mounted at `/run/musizerr` in the gateway, the app and the three
+- `provider_sockets` (named volume) is mounted at `/run/musizeer` in the gateway, the app and the three
   workers (not `init`, `beat` or the frontend). It holds `gateway.sock` and `providers/<name>/provider.sock`.
 - The directories are 0700 and the sockets 0600, owned by uid 1000. **Whoever can open a provider's socket can
   call it with any session**, credentials included, so only the services that need it mount the volume and
   nobody else can read it. The gateway runs as 1000, the application's user in production (the `Dockerfile` creates
-  `/run/musizerr` owned by it, so the volume is initialised right whoever starts first). In development the app
+  `/run/musizeer` owned by it, so the volume is initialised right whoever starts first). In development the app
   runs as root, which reaches the sockets anyway.
-- The workspace directory (`workspace_dir`, default `/downloads/.musizerr-work`) must be the same path in the
+- The workspace directory (`workspace_dir`, default `/downloads/.musizeer-work`) must be the same path in the
   gateway (`GATEWAY_WORKSPACE_DIR`) and the host, and lie inside a volume all of them mount. Compose sets both from
   ONE variable, `WORKSPACE_DIR` (in `.env`): the gateway gets it as `GATEWAY_WORKSPACE_DIR`, the host as the default of its
   `workspace_dir` setting. A value saved in the settings wins over that default, so changing the setting in the
@@ -421,7 +421,7 @@ out. `python -m musizerr_gateway.ctl [list|health|install|grant]` is a client (`
   `data/catalogs/registry.json`, which the `registry` service serves as `http://registry:9000/registry.json`. Install from that
   catalog in Administration or with `python -m scripts.provider_sources`; the source is added with "allow insecure
   registry", because the image name is the one the gateway reaches (`oci-registry:5000`) over plain HTTP. The build
-  script builds the base image locally (`ghcr.io/sossiogll/musizerr-provider-base:5`, never pushed), has the provider print
+  script builds the base image locally (`ghcr.io/sossiogll/musizeer-provider-base:6`, never pushed), has the provider print
   its labels, and refuses to push to ghcr.io or Docker Hub. Published images are pushed by other scripts
   ([catalog.md](catalog.md#publishing-to-ghcr)): for linux/amd64 and linux/arm64, pinned by the digest of their index.
 - Images that are no longer installed are not removed from the cache yet.

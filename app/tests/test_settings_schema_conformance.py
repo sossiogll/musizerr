@@ -18,8 +18,8 @@ import pytest
 
 from core import settings_resolver as sr
 from core.settings_catalog import AREA_PROVIDERS, SettingDef
-from musizerr_sdk.interfaces import BaseProvider
-from musizerr_sdk.settings import ProviderSetting
+from musizeer_sdk.interfaces import BaseProvider
+from musizeer_sdk.settings import ProviderSetting
 from services.provider_registry import ProviderRegistry
 from tests.settings_support import registry_of_every_category
 

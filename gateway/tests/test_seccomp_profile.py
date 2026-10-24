@@ -25,12 +25,12 @@ def test_the_shipped_profile_is_what_the_derivation_makes_of_it():
     derive = derive_module()
     default = json.loads((SECCOMP / "moby-default.json").read_text())
 
-    assert (SECCOMP / "musizerr-gateway.json").read_text() == derive.render(derive.derive(default))
+    assert (SECCOMP / "musizeer-gateway.json").read_text() == derive.render(derive.derive(default))
 
 
 def test_it_differs_from_the_default_by_one_appended_entry_of_five_syscalls():
     default = json.loads((SECCOMP / "moby-default.json").read_text())
-    shipped = json.loads((SECCOMP / "musizerr-gateway.json").read_text())
+    shipped = json.loads((SECCOMP / "musizeer-gateway.json").read_text())
 
     assert {k: v for k, v in shipped.items() if k != "syscalls"} == {k: v for k, v in default.items() if k != "syscalls"}
     assert shipped["syscalls"][:-1] == default["syscalls"]
@@ -40,7 +40,7 @@ def test_it_differs_from_the_default_by_one_appended_entry_of_five_syscalls():
 
 
 def test_nothing_that_widens_the_container_beyond_that_is_in_it():
-    shipped = json.loads((SECCOMP / "musizerr-gateway.json").read_text())
+    shipped = json.loads((SECCOMP / "musizeer-gateway.json").read_text())
     unconditional_allowed = {
         name for entry in shipped["syscalls"] if entry["action"] == "SCMP_ACT_ALLOW" and not entry.get("includes") and not entry.get("excludes")
         and not entry.get("args") for name in entry["names"]

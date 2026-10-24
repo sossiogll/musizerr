@@ -231,7 +231,7 @@ class _Approval:
 
     def ask(self, tag: str, user=None, *, count: int = TRACKS_PER_REQUEST):
         """The user asks for a playlist of ``count`` tracks (a kind that waits by default)."""
-        from musizerr_sdk.models import Playlist
+        from musizeer_sdk.models import Playlist
         from services import download_requests
         from db.models import User
 
@@ -476,7 +476,7 @@ def test_tracks_added_to_a_playlist_at_once_never_pass_the_cap_and_keep_their_po
 
 
 def test_a_playlist_followed_twice_at_once_is_one_follow(engine, monkeypatch):
-    from musizerr_sdk.models import Playlist as SourcePlaylist
+    from musizeer_sdk.models import Playlist as SourcePlaylist
 
     monkeypatch.setattr(downloads, "queue_download", lambda **kwargs: None)
     config = ConfigManager(engine=engine)
@@ -539,7 +539,7 @@ def test_a_user_registered_twice_at_once_is_refused_the_second_time(engine):
 
 
 def test_two_first_sign_ins_of_the_same_account_create_one_user(engine):
-    from musizerr_sdk.auth import AccountIdentity, AuthFlow
+    from musizeer_sdk.auth import AccountIdentity, AuthFlow
     from core.provider_login import POLICY_ACTIVE
     from db.models import User
     from services import provider_login

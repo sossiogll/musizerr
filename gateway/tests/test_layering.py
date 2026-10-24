@@ -5,7 +5,7 @@ import ast
 import sys
 from pathlib import Path
 
-GATEWAY = Path(__file__).resolve().parent.parent / "musizerr_gateway"
+GATEWAY = Path(__file__).resolve().parent.parent / "musizeer_gateway"
 APP_PACKAGES = {"core", "db", "services", "routes", "workers", "providers", "main"}
 SDK_MODULES_ALLOWED = {"interfaces", "labels", "manifest", "permissions", "protocol", "wire", "failures"}
 
@@ -26,7 +26,7 @@ def test_there_are_sources_to_check():
 
 
 def test_the_gateway_imports_only_the_standard_library_the_sdk_and_itself():
-    allowed = set(sys.stdlib_module_names) | {"musizerr_sdk", "musizerr_gateway"}
+    allowed = set(sys.stdlib_module_names) | {"musizeer_sdk", "musizeer_gateway"}
     offenders = [
         f"{path.name}: {name}" for path, name in imports()
         if not name.startswith(".") and name.split(".")[0] not in allowed
@@ -43,7 +43,7 @@ def test_from_the_sdk_the_gateway_takes_the_protocol_the_manifest_and_their_type
     offenders = []
     for path, name in imports():
         parts = name.split(".")
-        if parts[0] == "musizerr_sdk" and len(parts) > 1 and parts[1] not in SDK_MODULES_ALLOWED:
+        if parts[0] == "musizeer_sdk" and len(parts) > 1 and parts[1] not in SDK_MODULES_ALLOWED:
             offenders.append(f"{path.name}: {name}")
     assert not offenders, offenders
 

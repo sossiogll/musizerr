@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from core import provider_login as rules
 from core import user_auth
-from musizerr_sdk.auth import AuthFlow
+from musizeer_sdk.auth import AuthFlow
 from core.provider_login import LoginRefused
 from services import login_rate_limit, provider_login
 from services.provider_calls import ProviderCallError

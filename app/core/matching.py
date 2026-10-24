@@ -5,9 +5,9 @@ from types import SimpleNamespace
 from typing import Iterable
 import re
 
-from musizerr_sdk.identifiers import ISRC, MBID, UNIVERSAL_IDENTIFIER_TYPES
-from musizerr_sdk.models import Album, Artist, Track
-from musizerr_sdk.text import DASH_TAIL_RE, PARENS_RE, normalize, strip_version_suffix, strip_video_noise
+from musizeer_sdk.identifiers import ISRC, MBID, UNIVERSAL_IDENTIFIER_TYPES
+from musizeer_sdk.models import Album, Artist, Track
+from musizeer_sdk.text import DASH_TAIL_RE, PARENS_RE, normalize, strip_version_suffix, strip_video_noise
 
 from .identifiers import identity_rank
 
@@ -352,7 +352,7 @@ def _identifier_values(item, id_types: Iterable[str]) -> set[str]:
 
 # Parentesi/quadre (es. "(feat. X)", "(Remastered)", "[Bonus Track]") e coda
 # dopo un trattino spaziato (es. "- 2012 Remaster", "- Rap Version", "- Live"):
-# PARENS_RE e DASH_TAIL_RE (musizerr_sdk.text) li trovano, questo ne legge il contenuto.
+# PARENS_RE e DASH_TAIL_RE (musizeer_sdk.text) li trovano, questo ne legge il contenuto.
 _PARENS_CONTENT_RE = re.compile(r"[\(\[](.*?)[\)\]]")
 
 

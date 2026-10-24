@@ -32,7 +32,7 @@ def _source(conn, source_id="s1", url="http://registry:9000/registry.json"):
 def _old_installed(conn, name="oldprov", source_id="s1"):
     conn.execute(sa.text(
         "INSERT INTO installed_providers (id, source_id, name, package, version, types, installed_at) "
-        "VALUES (:i, :s, :n, 'musizerr-provider-x', '1.0', '[\"metadata\"]', :t)"),
+        "VALUES (:i, :s, :n, 'musizeer-provider-x', '1.0', '[\"metadata\"]', :t)"),
         {"i": f"i-{name}", "s": source_id, "n": name, "t": NOW})
 
 

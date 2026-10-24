@@ -1,7 +1,7 @@
 """
 Deleting a playlist along with the files it downloaded
 (``services/playlist_downloads.py``, the task ``delete_playlist_tracks``): only
-what nothing else holds and Musizerr downloaded for this user; everything else
+what nothing else holds and Musizeer downloaded for this user; everything else
 stays, and a failing storage leaves the track as it was. Fake providers only.
 """
 from __future__ import annotations

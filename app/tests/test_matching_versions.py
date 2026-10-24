@@ -18,7 +18,7 @@ from core.matching import (
     title_identity_key,
     version_identity,
 )
-from musizerr_sdk.models import Track
+from musizeer_sdk.models import Track
 
 from tests.conftest import make_track
 

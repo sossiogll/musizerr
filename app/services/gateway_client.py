@@ -29,14 +29,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from musizerr_sdk.context import ContextSnapshot
-from musizerr_sdk.permissions import Permissions, from_json, path_values, settings_targets, tcp_hosts
+from musizeer_sdk.context import ContextSnapshot
+from musizeer_sdk.permissions import Permissions, from_json, path_values, settings_targets, tcp_hosts
 
 from services.provider_context import HostProviderContext
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SOCKET = "/run/musizerr/gateway.sock"
+DEFAULT_SOCKET = "/run/musizeer/gateway.sock"
 SOCKET_ENVIRONMENT = "PROVIDER_GATEWAY_SOCKET"
 REQUEST_TIMEOUT_SECONDS = 5.0
 GRANT_TTL = 120.0
