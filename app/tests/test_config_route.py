@@ -162,7 +162,10 @@ def test_non_admin_patch_with_only_allowed_key_succeeds(config, registry, sessio
     # — non esiste più nemmeno come schema (vedi la stessa nota in
     # test_settings_service.py).
     from db.settings_store import SettingsRepository
+    from tests.conftest import FakeMetadataProvider
 
+    # The answer is the EFFECTIVE order (registered providers only), so they must exist.
+    registry = FakeRegistry(metadata=[FakeMetadataProvider("p2"), FakeMetadataProvider("p1")])
     user = _make_user(session, role="user")
 
     body = SettingsPatch(metadata_provider_priority=["p1", "p2"])

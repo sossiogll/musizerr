@@ -16,7 +16,7 @@ from sqlmodel import Session
 
 from core.provider_order import effective_order, in_installation_order
 from db.engine import get_session
-from db.models import InstalledProvider, ProviderSource
+from db.models import InstalledProvider, ProviderSource, User
 from db.settings_store import SettingsRepository
 from routes import deps
 from routes.config import router as config_router
@@ -80,6 +80,14 @@ def world():
         yield type("World", (), {"engine": engine, "config": config, "session": session})()
 
 
+def _user(session: Session, name: str) -> str:
+    """A user row (the personal override has a foreign key to it)."""
+    user = User(username=name, password_hash="x", role="user")
+    session.add(user)
+    session.commit()
+    return user.id
+
+
 def _registry(*names):
     return FakeRegistry(metadata=[FakeMetadataProvider(n) for n in names])
 
@@ -109,20 +117,22 @@ def test_a_provider_that_is_not_registered_is_left_out(world):
 def test_a_user_override_goes_first_and_the_missing_ones_follow(world):
     _install(world.session, ["a", "b", "c"])
     world.config.update({KEY: ["c"]})
-    SettingsRepository(world.session).set_user(KEY, "alice", ["b"])
+    alice, bob = _user(world.session, "alice"), _user(world.session, "bob")
+    SettingsRepository(world.session).set_user(KEY, alice, ["b"])
     registry = _registry("a", "b", "c")
 
-    assert provider_order.effective_metadata_priority(registry, world.config, world.session, "alice") == ["b", "a", "c"]
-    assert provider_order.effective_metadata_priority(registry, world.config, world.session, "bob") == ["c", "a", "b"]
+    assert provider_order.effective_metadata_priority(registry, world.config, world.session, alice) == ["b", "a", "c"]
+    assert provider_order.effective_metadata_priority(registry, world.config, world.session, bob) == ["c", "a", "b"]
     assert provider_order.effective_metadata_priority(registry, world.config, world.session) == ["c", "a", "b"]
 
 
 def test_an_empty_personal_list_is_no_override(world):
     _install(world.session, ["a", "b"])
     world.config.update({KEY: ["b"]})
-    SettingsRepository(world.session).set_user(KEY, "alice", [])
+    alice = _user(world.session, "alice")
+    SettingsRepository(world.session).set_user(KEY, alice, [])
 
-    assert provider_order.effective_metadata_priority(_registry("a", "b"), world.config, world.session, "alice") == ["b", "a"]
+    assert provider_order.effective_metadata_priority(_registry("a", "b"), world.config, world.session, alice) == ["b", "a"]
 
 
 def test_a_provider_without_an_installation_record_follows_the_installed_ones(world):
