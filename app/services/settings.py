@@ -181,10 +181,10 @@ class SettingsService:
             # restituire un valore inventato.
             return self._settings_repo().get_user(setting.key, user.id, _NO_USER_VALUE)
 
-        if setting.key == provider_order.METADATA_PRIORITY_KEY:
-            # The order of the metadata providers is never read raw: what is stored may be
+        if setting.type == "list" and setting.provider_category:
+            # The order of the providers of a category is never read raw: what is stored may be
             # empty, partial or out of date. The UI sees (and so saves) the effective order.
-            return provider_order.effective_metadata_priority(self._registry, self._config, self._session, user.id)
+            return provider_order.effective_provider_order(setting, self._registry, self._config, self._session, user.id)
 
         if setting.scope == "system_with_user_override":
             # Riga utente (repository) -> valore di sistema. Il livello

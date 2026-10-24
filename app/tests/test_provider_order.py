@@ -23,7 +23,7 @@ from routes.config import router as config_router
 from services import provider_order
 from services.config_manager import ConfigManager
 
-from tests.conftest import FakeAuthManager, FakeMetadataProvider, FakeRegistry
+from tests.conftest import FakeAuthManager, FakeDownloadProvider, FakeMetadataProvider, FakeRegistry
 from tests.database import new_engine
 from tests.test_artist_top_tracks import _Artists, _t
 
@@ -227,19 +227,78 @@ def test_the_public_list_the_settings_and_a_detail_route_use_the_same_order(api)
     assert _top_ids(api) == ["c1"]
 
 
+def test_the_ordering_settings_are_the_lists_that_declare_a_provider_category():
+    from core.settings_catalog import CATALOG, provider_order_settings
+
+    assert {s.key for s in provider_order_settings()} == {
+        s.key for s in CATALOG if s.type == "list" and s.provider_category
+    } == {"metadata_provider_priority", "download_provider_order"}
+
+
 def test_no_reader_looks_at_the_stored_list_directly():
-    """The stored list is read in ONE place; everything else asks ``services/provider_order``."""
+    """The stored list of every ordering setting (generated from the catalog) is read in ONE place;
+    everything else asks ``services/provider_order``."""
     from pathlib import Path
 
+    from core.settings_catalog import provider_order_settings
+
+    keys = [s.key for s in provider_order_settings()]
     root = Path(__file__).resolve().parents[1]
     allowed = {"services/provider_order.py", "core/provider_order.py", "core/settings_catalog.py", "db/models.py"}
     offenders = [
-        str(path.relative_to(root))
+        f"{path.relative_to(root)}: {key}"
         for folder in ("routes", "services", "workers", "core", "db", "scripts")
         for path in (root / folder).rglob("*.py")
-        if str(path.relative_to(root)) not in allowed and "metadata_provider_priority" in path.read_text()
+        if str(path.relative_to(root)) not in allowed
+        for key in keys
+        if key in path.read_text()
     ]
     assert offenders == []
+
+
+def test_the_download_order_is_completed_and_filtered_like_the_metadata_one(world):
+    _install(world.session, ["d1", "d2", "d3"], roles=("download",))
+    registry = FakeRegistry(downloads=[FakeDownloadProvider(n) for n in ("d3", "d1", "d2")])
+
+    assert provider_order.effective_download_order(registry, world.config, world.session) == ["d1", "d2", "d3"]
+    world.config.update({"download_provider_order": ["d3", "gone"]})
+    assert provider_order.effective_download_order(registry, world.config, world.session) == ["d3", "d1", "d2"]
+
+
+def test_a_personal_list_never_overrides_a_system_only_ordering(world):
+    _install(world.session, ["d1", "d2"], roles=("download",))
+    world.config.update({"download_provider_order": ["d2"]})
+    alice = _user(world.session, "alice")
+    SettingsRepository(world.session).set_user("download_provider_order", alice, ["d1"])
+    registry = FakeRegistry(downloads=[FakeDownloadProvider("d1"), FakeDownloadProvider("d2")])
+
+    assert provider_order.effective_provider_order("download_provider_order", registry, world.config, world.session, alice) == ["d2", "d1"]
+
+
+def test_syncing_appends_to_the_ordering_of_each_role_the_provider_has(world):
+    _install(world.session, ["meta"], roles=("metadata",))
+    _install(world.session, ["dl"], roles=("download",), first_day=1)
+    _install(world.session, ["both"], roles=("metadata", "download"), first_day=2)
+
+    provider_order.sync_default(world.session)
+    world.session.commit()
+
+    repository = SettingsRepository(world.session)
+    assert repository.get_system(KEY) == ["meta", "both"]
+    assert repository.get_system("download_provider_order") == ["dl", "both"]
+    assert provider_order.sync_default(world.session) is False
+
+
+def test_the_settings_say_the_effective_download_order_to_an_admin(api, world):
+    # The api fixture only has metadata providers: add the download ones the registry runs.
+    _install(world.session, ["d2", "d1"], roles=("download",), first_day=10)
+    api.app.dependency_overrides[deps.get_registry] = lambda: FakeRegistry(
+        metadata=[FakeMetadataProvider("pa")], downloads=[FakeDownloadProvider("d1"), FakeDownloadProvider("d2")],
+    )
+
+    assert api.get("/settings/values").json()["download_provider_order"] == ["d2", "d1"]
+    world.config.update({"download_provider_order": ["d1"]})
+    assert api.get("/settings/values").json()["download_provider_order"] == ["d1", "d2"]
 
 
 def test_a_stored_partial_order_is_completed_the_same_way_everywhere(api, world):

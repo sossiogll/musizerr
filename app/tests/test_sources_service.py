@@ -656,6 +656,22 @@ def test_uninstalling_leaves_the_stored_order_and_a_reinstall_goes_to_the_end(wo
     assert _stored_order(world) == ["beta", "alpha"]
 
 
+def test_installing_a_download_provider_appends_it_to_the_download_order_only(world):
+    from db.settings_store import SettingsRepository
+
+    source = added(world, document=catalog(
+        entry("alpha", DIGEST_A, roles=["metadata"]), entry("beta", DIGEST_B, roles=["download"]),
+        entry("gamma", DIGEST_C, roles=["metadata", "download"]),
+    ))
+    for name, digest in (("alpha", DIGEST_A), ("beta", DIGEST_B), ("gamma", DIGEST_C)):
+        world.manager().install(source.id, name, digest)
+
+    world.session.expire_all()
+    repository = SettingsRepository(world.session)
+    assert repository.get_system("metadata_provider_priority") == ["alpha", "gamma"]
+    assert repository.get_system("download_provider_order") == ["beta", "gamma"]
+
+
 def test_an_update_that_adds_the_metadata_role_appends_the_provider(world):
     source = added(world, document=_metadata_catalog("alpha", lyrics=("beta",)))
     world.manager().install(source.id, "alpha", DIGEST_A)

@@ -7239,10 +7239,14 @@ paths:
       tags: [settings]
       summary: Effective value of every setting readable by the current user
       description: >
-        The value of metadata_provider_priority is the effective order of the
-        metadata providers (the same list as metadata_priority of
-        GET /providers/public), never the raw stored list, which can be empty or
-        partial: saving it back stores the full order.
+        The value of a setting that orders the providers of a category
+        (metadata_provider_priority, download_provider_order: every list setting
+        that declares a provider_category) is the effective order, never the raw
+        stored list, which can be empty or partial: every running provider of the
+        category exactly once, the stored names first and the others oldest
+        installation first. For metadata_provider_priority it is the same list as
+        metadata_priority of GET /providers/public. Saving it back stores the
+        full order.
       responses:
         "200":
           description: Key to value
