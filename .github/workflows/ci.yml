@@ -1,10 +1,10 @@
 name: ci
 
-# Every pull request runs the whole suite; master takes pull requests from dev only (branch protection
+# Every pull request (into master, dev or a release integration branch) runs the whole suite; master takes pull requests from dev only (branch protection
 # requires these checks). A push to dev runs it too, so dev is known green before its pull request.
 on:
   pull_request:
-    branches: [master, dev]
+    branches: [master, dev, "release/**"]
   push:
     branches: [dev]
 
